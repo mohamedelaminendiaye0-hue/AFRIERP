@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "afrierp": {
+      "source": {
+        "source": "directory",
+        "path": "./"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "design-ui@afrierp": true
+  }
+}

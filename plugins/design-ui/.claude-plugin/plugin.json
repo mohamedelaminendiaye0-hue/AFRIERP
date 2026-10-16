@@ -1,0 +1,6 @@
+{
+  "name": "design-ui",
+  "description": "Design et animation frontend : skill impeccable (pbakaus/impeccable @ 6af45ac) + skills d'Emil Kowalski (emilkowalski/skills @ 2d22863).",
+  "version": "1.0.0",
+  "skills": "./skills/"
+}
