@@ -5,9 +5,9 @@ package sn.afrierp.notarius.domain;
  * Pas d'integration directe a ce stade : le statut est renseigne manuellement.
  */
 public enum StatutGainde {
-    TRANSMIS("Transmis a GAINDE"),
-    VALIDE("Valide par GAINDE"),
-    REJETE("Rejete par GAINDE");
+    TRANSMIS("Transmis à GAINDE"),
+    VALIDE("Validé par GAINDE"),
+    REJETE("Rejeté par GAINDE");
 
     private final String libelle;
 

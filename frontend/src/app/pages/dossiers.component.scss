@@ -1,0 +1,12 @@
+.filtres--second { border-bottom: 1px solid var(--ligne); }
+.filtres:first-child .segment { max-width: 100%; }
+.col-dossier { min-width: 200px; max-width: 300px; white-space: normal; }
+.col-type { white-space: normal; min-width: 150px; max-width: 210px; }
+@media (max-width: 1360px) { .col-avancement { display: none; } }
+.progression { display: inline-flex; gap: 3px; }
+.progression i { width: 9px; height: 7px; border-radius: 2px; background: #dde1e7; }
+.progression i.fait { background: var(--primaire); }
+.retard { color: var(--critique); font-weight: 700; }
+.reassigner { display: inline-flex; gap: 6px; align-items: center; }
+.reassigner select { width: 200px; min-height: 36px; padding: 4px 30px 4px 10px; font-size: 14px; color: var(--texte); }
+td { white-space: nowrap; }

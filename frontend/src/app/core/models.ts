@@ -9,7 +9,8 @@ export type Role =
   | 'COMPTABLE_TAXATEUR'
   | 'FORMALISTE'
   | 'ARCHIVISTE'
-  | 'ASSISTANT';
+  | 'ASSISTANT'
+  | 'SUPER_ADMIN';
 
 export type StatutDossier =
   | 'DRAFT'
@@ -47,6 +48,7 @@ export interface Utilisateur {
   actif: boolean;
   notaire: boolean;
   encadrement: boolean;
+  email: string;
 }
 
 export interface Membre {
@@ -101,8 +103,11 @@ export interface LigneMinutier {
   dateSignature: string | null;
   notaireSignataire: string | null;
   notaireResponsable: string | null;
-  dateArchivage: string;
-  conservationJusquau: string;
+  dateArchivage: string | null;
+  conservationJusquau: string | null;
+  etat: 'FORMALITES' | 'A_ARCHIVER' | 'ARCHIVEE';
+  emplacement: string | null;
+  blocages: string[];
 }
 
 export interface Formalite {
@@ -199,10 +204,12 @@ export interface Intervenant {
   type: 'PHYSIQUE' | 'MORALE';
   nom: string;
   qualite: string;
+  qualiteLibelle: string;
   identifiant: string | null;
   telephone: string | null;
   email: string | null;
   kycValide: boolean;
+  clientId: string | null;
 }
 
 export interface Piece {
@@ -334,7 +341,7 @@ export interface DossierDetail {
     gaindeReference: string | null;
   } | null;
   formalites: Formalite[];
-  minute: { numeroRepertoire: string; dateArchivage: string; archiveParNom: string; conservationJusquau: string } | null;
+  minute: { numeroRepertoire: string; dateArchivage: string | null; archiveParNom: string | null; conservationJusquau: string } | null;
   rendezVous: RendezVous[];
   sousCompte: SousCompte | null;
   releve: LigneReleve[];
@@ -451,4 +458,134 @@ export interface Organisme {
   code: OrganismeFormalites;
   libelle: string;
   objet: string;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Session, identité de l'étude, clients, répertoire
+ * ------------------------------------------------------------------ */
+
+export interface Session {
+  jeton: string;
+  expiration: string;
+  utilisateur: Utilisateur;
+}
+
+export interface CompteDemo {
+  email: string;
+  motDePasse: string;
+  nom: string;
+  role: Role;
+  roleLibelle: string;
+}
+
+export interface IdentiteEtude {
+  nom: string;
+  sousTitre: string | null;
+  monogramme: string | null;
+  couleurPrincipale: string;
+  couleurAccent: string;
+  police: string;
+  logo: string | null;
+  adresse: string | null;
+  telephone: string | null;
+  email: string | null;
+  ninea: string | null;
+  mentionPiedDePage: string | null;
+  miseAJourLe?: string | null;
+  miseAJourPar?: string | null;
+}
+
+export type TypePersonne = 'PHYSIQUE' | 'MORALE';
+
+export interface ClientResume {
+  id: string;
+  type: TypePersonne;
+  nom: string;
+  identifiant: string | null;
+  telephone: string | null;
+  email: string | null;
+  kycValide: boolean;
+  nbDossiers: number;
+  nbEnCours: number;
+  dernierDossier: string | null;
+}
+
+export interface Client {
+  id: string;
+  type: TypePersonne;
+  nom: string;
+  identifiant: string | null;
+  telephone: string | null;
+  email: string | null;
+  adresse: string | null;
+  regimeMatrimonial: string | null;
+  notes: string | null;
+  kycValide: boolean;
+  dateCreation: string;
+}
+
+export interface DossierDuClient {
+  dossierId: string;
+  reference: string;
+  intitule: string;
+  typeActe: string;
+  domaine: string;
+  statut: StatutDossier;
+  statutLibelle: string;
+  qualite: string;
+  qualiteLibelle: string;
+  dateOuverture: string;
+  dateSignature: string | null;
+  numeroRepertoire: string | null;
+  dateArchivage: string | null;
+  notaire: string | null;
+  clerc: string | null;
+  solde: number;
+}
+
+export interface FicheClient {
+  client: Client;
+  nbDossiers: number;
+  nbEnCours: number;
+  nbActesSignes: number;
+  fondsDetenus: number;
+  dossiers: DossierDuClient[];
+  personnesLiees: { clientId: string; nom: string; type: TypePersonne; dossiersCommuns: number }[];
+}
+
+export interface SaisieClient {
+  type: TypePersonne;
+  nom: string;
+  identifiant?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  adresse?: string | null;
+  regimeMatrimonial?: string | null;
+  notes?: string | null;
+}
+
+export interface LigneRepertoire {
+  numero: string;
+  date: string;
+  dossierId: string;
+  nature: string;
+  forme: string;
+  parties: { clientId: string | null; nom: string; qualite: string }[];
+  enregistrement: { dateDepot: string | null; reference: string | null; dateAchevement: string | null } | null;
+  droitsEnregistrement: number | null;
+  notaire: string | null;
+}
+
+export interface Repertoire {
+  annee: number;
+  annees: number[];
+  lignes: LigneRepertoire[];
+  trimestres: { annee: number; trimestre: number; nbActes: number; premier: string; dernier: string; visaAvant: string }[];
+}
+
+export interface ResultatArchivage {
+  dossierId: string;
+  archive: boolean;
+  numeroRepertoire: string | null;
+  blocages: Blocage[];
 }

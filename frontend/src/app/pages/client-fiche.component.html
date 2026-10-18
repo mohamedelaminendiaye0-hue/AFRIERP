@@ -1,0 +1,121 @@
+@if (fiche(); as f) {
+  <div class="page">
+    <div class="entete-ligne">
+      <nav class="fil" aria-label="Fil d'Ariane"><a routerLink="/clients">Clients</a> › {{ f.client.nom }}</nav>
+      <div class="actions">
+        @if (peutSaisir() && !edition()) {
+          <button class="bouton bouton--secondaire" type="button" (click)="modifier()"><app-icone nom="crayon" [taille]="18" />Modifier la fiche</button>
+        }
+        @if (peutOuvrirDossier()) {
+          <a class="bouton bouton--creer" routerLink="/dossiers" [queryParams]="{ nouveau: 1, client: f.client.id }">
+            <app-icone nom="plus" [taille]="18" />Nouveau dossier pour ce client
+          </a>
+        }
+      </div>
+    </div>
+
+    <section class="carte tete">
+      <span class="tete__avatar" aria-hidden="true">{{ initiales() }}</span>
+      <div class="tete__identite">
+        <h1>{{ f.client.nom }}</h1>
+        <p class="tete__infos">
+          <span>{{ f.client.type === 'MORALE' ? 'Personne morale' : 'Personne physique' }}</span>
+          @if (f.client.identifiant) { <span>{{ f.client.identifiant }}</span> }
+          <span>Client depuis {{ f.client.dateCreation | dateFr }}</span>
+          @if (f.client.kycValide) { <span class="badge badge--bon">KYC validé</span> } @else { <span class="badge badge--vigilance">KYC à réaliser</span> }
+        </p>
+      </div>
+      <dl class="tete__chiffres">
+        <div><dt>Dossiers</dt><dd>{{ f.nbDossiers }}</dd></div>
+        <div><dt>Actes signés</dt><dd>{{ f.nbActesSignes }}</dd></div>
+        <div><dt>Fonds sur dossiers en cours</dt><dd>{{ f.fondsDetenus | xof: true }}</dd></div>
+      </dl>
+    </section>
+
+    @if (edition()) {
+      <section class="carte">
+        <div class="carte__entete"><h2>Modifier la fiche</h2></div>
+        <form class="carte__corps" (ngSubmit)="enregistrer()">
+          <div class="grille grille--3">
+            <div class="champ span-2"><label for="f-nom">Nom</label><input id="f-nom" name="nom" [(ngModel)]="saisie.nom" required /></div>
+            <div class="champ"><label for="f-id">{{ saisie.type === 'MORALE' ? 'NINEA' : 'CNI ou passeport' }}</label><input id="f-id" name="identifiant" [(ngModel)]="saisie.identifiant" /></div>
+            <div class="champ"><label for="f-tel">Téléphone</label><input id="f-tel" name="telephone" type="tel" [(ngModel)]="saisie.telephone" /></div>
+            <div class="champ"><label for="f-email">E-mail</label><input id="f-email" name="email" type="email" [(ngModel)]="saisie.email" /></div>
+            <div class="champ"><label for="f-regime">Régime matrimonial</label><input id="f-regime" name="regime" [(ngModel)]="saisie.regimeMatrimonial" /></div>
+            <div class="champ span-2"><label for="f-adr">Adresse</label><input id="f-adr" name="adresse" [(ngModel)]="saisie.adresse" /></div>
+            <div class="champ"><label for="f-notes">Notes</label><input id="f-notes" name="notes" [(ngModel)]="saisie.notes" /></div>
+          </div>
+          @if (erreur(); as e) { <div class="bandeau bandeau--critique">{{ e }}</div> }
+          <div class="actions-form"><span></span>
+            <div class="actions">
+              <button class="bouton bouton--fantome" type="button" (click)="edition.set(false)">Annuler</button>
+              <button class="bouton" type="submit">Enregistrer</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    }
+
+    <div class="grille grille--3">
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <h2>Historique des dossiers</h2>
+          <div class="segment" role="tablist" aria-label="Filtrer les dossiers">
+            <button type="button" role="tab" [class.actif]="filtre() === 'tous'" (click)="filtre.set('tous')">Tous · {{ f.nbDossiers }}</button>
+            <button type="button" role="tab" [class.actif]="filtre() === 'en-cours'" (click)="filtre.set('en-cours')">En cours · {{ f.nbEnCours }}</button>
+            <button type="button" role="tab" [class.actif]="filtre() === 'clotures'" (click)="filtre.set('clotures')">Archivés · {{ f.nbDossiers - f.nbEnCours }}</button>
+          </div>
+        </div>
+        <ol class="chrono">
+          @for (d of dossiers(); track d.dossierId + d.qualite) {
+            <li class="chrono__evt">
+              <span class="chrono__date chiffres">{{ (d.dateSignature ?? d.dateOuverture) | dateFr }}</span>
+              <span class="chrono__point" [class.chrono__point--fini]="d.statut === 'CLOSED' || d.dateSignature" aria-hidden="true"></span>
+              <div class="chrono__corps">
+                <a class="chrono__titre" [routerLink]="['/dossiers', d.dossierId]">{{ d.intitule }}</a>
+                <span class="sous">
+                  {{ d.typeActe }} · {{ d.reference }}
+                  @if (d.numeroRepertoire) { · répertoire n° {{ d.numeroRepertoire }} }
+                  @if (d.notaire) { · {{ d.notaire }} }
+                </span>
+                <span class="chrono__role">{{ d.qualiteLibelle }}</span>
+              </div>
+              <app-badge-statut [statut]="d.statut" />
+            </li>
+          } @empty {
+            <li class="vide">Aucun dossier dans cette catégorie.</li>
+          }
+        </ol>
+      </section>
+
+      <div class="colonne">
+        <section class="carte">
+          <div class="carte__entete"><h2>Coordonnées</h2></div>
+          <div class="carte__corps">
+            <div class="cle-valeur"><span>Téléphone</span><span>{{ f.client.telephone ?? '—' }}</span></div>
+            <div class="cle-valeur"><span>E-mail</span><span>{{ f.client.email ?? '—' }}</span></div>
+            <div class="cle-valeur"><span>Adresse</span><span>{{ f.client.adresse ?? '—' }}</span></div>
+            @if (f.client.type === 'PHYSIQUE') {
+              <div class="cle-valeur"><span>Régime matrimonial</span><span>{{ f.client.regimeMatrimonial ?? '—' }}</span></div>
+            }
+            @if (f.client.notes) { <p class="petit muet">{{ f.client.notes }}</p> }
+          </div>
+        </section>
+
+        <section class="carte">
+          <div class="carte__entete"><h2>Personnes liées</h2></div>
+          <ul class="liees">
+            @for (p of f.personnesLiees; track p.clientId) {
+              <li>
+                <a [routerLink]="['/clients', p.clientId]">{{ p.nom }}</a>
+                <span class="muet petit">{{ p.dossiersCommuns }} dossier{{ p.dossiersCommuns > 1 ? 's' : '' }} en commun</span>
+              </li>
+            } @empty {
+              <li class="vide">Aucune autre partie dans ses dossiers.</li>
+            }
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+}

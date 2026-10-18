@@ -5,26 +5,26 @@ package sn.afrierp.notarius.domain;
  * du workflow : il sert a savoir si une etape est franchie.
  */
 public enum StatutDossier {
-    DRAFT("Creation / Brouillon", "Accueil / Clerc",
+    DRAFT("Création / Brouillon", "Accueil / Clerc",
             "Saisie des informations de base : type d'acte, parties prenantes."),
-    PENDING_DOCS("Instruction & Pieces", "Clerc redacteur",
-            "Collecte des pieces (etat des droits reels, CNI, statuts). Bloque si pieces manquantes."),
-    DRAFTING("Redaction en cours", "Clerc redacteur",
-            "Redaction du projet d'acte."),
+    PENDING_DOCS("Instruction & Pièces", "Clerc rédacteur",
+            "Collecte des pièces (état des droits réels, CNI, statuts). Bloqué si pièces manquantes."),
+    DRAFTING("Rédaction en cours", "Clerc rédacteur",
+            "Rédaction du projet d'acte."),
     REVIEW("Validation Titulaire", "Notaire titulaire",
             "Relecture, correction et validation finale du projet d'acte."),
-    TAXING("Taxage previsionnel", "Comptable-taxateur",
-            "Calcul des frais : emoluments, timbres, enregistrement DGID."),
+    TAXING("Taxage prévisionnel", "Comptable-taxateur",
+            "Calcul des frais : émoluments, timbres, enregistrement DGID."),
     FUNDING("En attente de provision", "Comptable / Client",
-            "Depot des fonds et de la provision sur le compte sequestre de l'etude."),
-    READY_TO_SIGN("Pret pour signature", "Secretariat / Clerc",
-            "Planification du rendez-vous de signature en etude."),
-    SIGNED("Signe (minute etablie)", "Notaire titulaire",
-            "Signature physique ou electronique (cle PKI GAINDE 2000)."),
-    POST_ACT("Formalites en cours", "Formaliste",
-            "Depot a la Conservation fonciere (DGID) ou au Greffe (RCCM)."),
-    CLOSED("Cloture & archive", "Comptable / Archiviste",
-            "Taxage definitif, restitution du reliquat, archivage de la minute.");
+            "Dépôt des fonds et de la provision sur le compte séquestre de l'étude."),
+    READY_TO_SIGN("Prêt pour signature", "Secrétariat / Clerc",
+            "Planification du rendez-vous de signature en étude."),
+    SIGNED("Signé (minute établie)", "Notaire titulaire",
+            "Signature physique ou électronique (clé PKI GAINDE 2000)."),
+    POST_ACT("Formalités en cours", "Formaliste",
+            "Dépôt à la Conservation foncière (DGID) ou au Greffe (RCCM)."),
+    CLOSED("Clôturé & archivé", "Comptable / Archiviste",
+            "Taxage définitif, restitution du reliquat, archivage de la minute.");
 
     private final String libelle;
     private final String acteur;

@@ -95,19 +95,6 @@ public class ApiController {
                 .toList();
     }
 
-    /** Repertoire des minutes archivees (conservation legale de 75 ans). */
-    @GetMapping("/minutier")
-    @Transactional(readOnly = true)
-    public List<LigneMinutier> minutier() {
-        java.util.function.Function<String, String> nom = id -> id == null ? null
-                : utilisateurs.findById(id).map(Utilisateur::nomComplet).orElse(id);
-        return dossiers.findByNumeroRepertoireNotNullOrderByNumeroRepertoireDesc().stream()
-                .map(d -> new LigneMinutier(d.getNumeroRepertoire(), d.getId(), d.getReference(), d.getIntitule(),
-                        d.getTypeActe().getLibelle(), d.getDateSignature(), nom.apply(d.getNotaireSignataireId()),
-                        nom.apply(d.getNotaireResponsableId()), d.getDateArchivage(), d.getConservationJusquau()))
-                .toList();
-    }
-
     @GetMapping("/moi")
     public UtilisateurVue moi(@UtilisateurCourant Utilisateur moi) {
         return UtilisateurVue.de(moi);
@@ -185,7 +172,7 @@ public class ApiController {
     @Transactional
     public LigneReleve executerVirement(@Valid @RequestBody Commandes.DemandeVirement cmd, @UtilisateurCourant Utilisateur moi) {
         MouvementComptable m = compta.executerVirement(compta.dossier(cmd.dossierId()), cmd.montant(), cmd.nature(),
-                cmd.beneficiaire() == null || cmd.beneficiaire().isBlank() ? "beneficiaire non precise" : cmd.beneficiaire().trim(), moi);
+                cmd.beneficiaire() == null || cmd.beneficiaire().isBlank() ? "bénéficiaire non précisé" : cmd.beneficiaire().trim(), moi);
         return compta.releve(cmd.dossierId()).stream().filter(l -> l.id().equals(m.getId())).findFirst().orElseThrow();
     }
 

@@ -2,16 +2,16 @@ import { Component, computed, input } from '@angular/core';
 import { NiveauAlerte, StatutDossier, StatutPiece } from '../core/models';
 
 const LIBELLES_STATUT: Record<StatutDossier, string> = {
-  DRAFT: 'Creation / Brouillon',
-  PENDING_DOCS: 'Instruction & Pieces',
-  DRAFTING: 'Redaction en cours',
-  REVIEW: 'Validation Titulaire',
-  TAXING: 'Taxage previsionnel',
-  FUNDING: 'En attente de provision',
-  READY_TO_SIGN: 'Pret pour signature',
-  SIGNED: 'Signe (minute etablie)',
-  POST_ACT: 'Formalites en cours',
-  CLOSED: 'Cloture & archive',
+  DRAFT: 'Ouverture',
+  PENDING_DOCS: 'Pièces en attente',
+  DRAFTING: 'Rédaction',
+  REVIEW: 'Relecture notaire',
+  TAXING: 'Taxation',
+  FUNDING: 'Provision des fonds',
+  READY_TO_SIGN: 'Prêt à signer',
+  SIGNED: 'Signé',
+  POST_ACT: 'Formalités',
+  CLOSED: 'Archivé',
 };
 
 /**
@@ -49,10 +49,10 @@ export class BadgeStatutComponent {
 
 const PIECE: Record<StatutPiece, { libelle: string; ton: string }> = {
   MANQUANTE: { libelle: 'Manquante', ton: 'critique' },
-  DEMANDEE: { libelle: 'Demandee', ton: 'vigilance' },
-  RECUE: { libelle: 'Recue', ton: 'neutre' },
-  VALIDEE: { libelle: 'Validee', ton: 'bon' },
-  REJETEE: { libelle: 'Rejetee', ton: 'critique' },
+  DEMANDEE: { libelle: 'Demandée', ton: 'vigilance' },
+  RECUE: { libelle: 'Reçue', ton: 'neutre' },
+  VALIDEE: { libelle: 'Validée', ton: 'bon' },
+  REJETEE: { libelle: 'Rejetée', ton: 'critique' },
 };
 
 @Component({
@@ -67,7 +67,7 @@ export class BadgePieceComponent {
 
 const NIVEAU: Record<NiveauAlerte, { libelle: string; ton: string }> = {
   CRITIQUE: { libelle: 'Critique', ton: 'critique' },
-  SERIEUX: { libelle: 'Serieux', ton: 'serieux' },
+  SERIEUX: { libelle: 'Sérieux', ton: 'serieux' },
   VIGILANCE: { libelle: 'Vigilance', ton: 'vigilance' },
   INFO: { libelle: 'Information', ton: 'neutre' },
 };
@@ -75,7 +75,7 @@ const NIVEAU: Record<NiveauAlerte, { libelle: string; ton: string }> = {
 @Component({
   selector: 'app-badge-niveau',
   standalone: true,
-  template: `<span [class]="'badge badge--' + NIVEAU[niveau()].ton">⚠ {{ NIVEAU[niveau()].libelle }}</span>`,
+  template: `<span [class]="'badge badge--' + NIVEAU[niveau()].ton">{{ NIVEAU[niveau()].libelle }}</span>`,
 })
 export class BadgeNiveauComponent {
   readonly niveau = input.required<NiveauAlerte>();

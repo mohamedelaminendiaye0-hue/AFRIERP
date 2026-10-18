@@ -65,16 +65,16 @@ public class TaxationService {
             double taux = param.tauxEnregistrement();
             lignes.add(new LigneDecompte("ENR", "Droits d'enregistrement", DROIT_ENREGISTREMENT, assiette, taux,
                     Math.round(assiette * taux), false,
-                    String.format(Locale.FRANCE, "Droit proportionnel %.2f %% — bareme %s", taux * 100, Bareme.VERSION)));
+                    String.format(Locale.FRANCE, "Droit proportionnel %.2f %% — barème %s", taux * 100, Bareme.VERSION)));
         } else {
             lignes.add(new LigneDecompte("ENR", "Droit fixe d'enregistrement", DROIT_ENREGISTREMENT, 0, null,
-                    param.droitFixe(), false, "Acte soumis au droit fixe — bareme " + Bareme.VERSION));
+                    param.droitFixe(), false, "Acte soumis au droit fixe — barème " + Bareme.VERSION));
         }
 
         /* --- 2. Publicite fonciere : uniquement pour les actes publies au livre foncier --- */
         if (param.publiciteFonciere()) {
             long montantCf = Math.max(Math.round(assiette * Bareme.CONSERVATION_FONCIERE_TAUX), Bareme.CONSERVATION_FONCIERE_MINIMUM);
-            lignes.add(new LigneDecompte("CF", "Conservation fonciere — publicite au livre foncier", CONSERVATION_FONCIERE,
+            lignes.add(new LigneDecompte("CF", "Conservation foncière — publicité au livre foncier", CONSERVATION_FONCIERE,
                     assiette, Bareme.CONSERVATION_FONCIERE_TAUX, montantCf, false,
                     String.format(Locale.FRANCE, "Taux %.2f %%, minimum de perception %,d FCFA",
                             Bareme.CONSERVATION_FONCIERE_TAUX * 100, Bareme.CONSERVATION_FONCIERE_MINIMUM)));
@@ -82,23 +82,23 @@ public class TaxationService {
 
         /* --- 3. Emolument : bareme proportionnel degressif ou forfait --- */
         if (param.emolumentFixe() == null) {
-            lignes.add(new LigneDecompte("EMO-PROP", "Emoluments proportionnels du notaire", EMOLUMENT_PROPORTIONNEL,
+            lignes.add(new LigneDecompte("EMO-PROP", "Émoluments proportionnels du notaire", EMOLUMENT_PROPORTIONNEL,
                     assiette, null, emolumentsProportionnels(assiette), true,
-                    String.format(Locale.FRANCE, "Bareme degressif — minimum %,d FCFA", Bareme.EMOLUMENTS_MINIMUM)));
+                    String.format(Locale.FRANCE, "Barème dégressif — minimum %,d FCFA", Bareme.EMOLUMENTS_MINIMUM)));
         } else {
-            lignes.add(new LigneDecompte("EMO-FIXE", "Emolument forfaitaire de l'acte", EMOLUMENT_PROPORTIONNEL,
-                    0, null, param.emolumentFixe(), true, "Acte a emolument fixe — bareme " + Bareme.VERSION));
+            lignes.add(new LigneDecompte("EMO-FIXE", "Émolument forfaitaire de l'acte", EMOLUMENT_PROPORTIONNEL,
+                    0, null, param.emolumentFixe(), true, "Acte à émolument fixe — barème " + Bareme.VERSION));
         }
 
         /* --- 4. Emoluments de formalites (forfait par acte) --- */
         if (param.emolumentFormalites() > 0) {
-            lignes.add(new LigneDecompte("EMO-FORM", "Emoluments de formalites et actes annexes", EMOLUMENT_FORMALITES,
-                    0, null, param.emolumentFormalites(), true, "Forfait par acte — bareme interne parametrable"));
+            lignes.add(new LigneDecompte("EMO-FORM", "Émoluments de formalités et actes annexes", EMOLUMENT_FORMALITES,
+                    0, null, param.emolumentFormalites(), true, "Forfait par acte — barème interne paramétrable"));
         }
 
         if (honoraireLibre > 0) {
-            lignes.add(new LigneDecompte("HON", "Honoraires de conseil et de redaction (libres)", HONORAIRE_LIBRE,
-                    0, null, honoraireLibre, true, "Convention d'honoraires signee par le client"));
+            lignes.add(new LigneDecompte("HON", "Honoraires de conseil et de rédaction (libres)", HONORAIRE_LIBRE,
+                    0, null, honoraireLibre, true, "Convention d'honoraires signée par le client"));
         }
 
         /* --- 5. Debours : les debours fonciers ne concernent que les actes publies au livre foncier --- */
@@ -107,21 +107,21 @@ public class TaxationService {
                 continue;
             }
             lignes.add(new LigneDecompte(d.code(), d.libelle(), DEBOURS, 0, null, d.montant(), false,
-                    "Debours avance par l'etude, refacture a l'identique"));
+                    "Débours avancé par l'étude, refacturé à l'identique"));
         }
 
         long assietteTva = lignes.stream().filter(l -> ASSIETTE_TVA.contains(l.categorie())).mapToLong(LigneDecompte::montant).sum();
         long montantTva = Math.round(assietteTva * Bareme.TVA_TAUX);
-        lignes.add(new LigneDecompte("TVA", "TVA sur emoluments et honoraires", TVA, assietteTva, Bareme.TVA_TAUX,
-                montantTva, false, "TVA %.0f %% — assiette : emoluments + honoraires uniquement".formatted(Bareme.TVA_TAUX * 100)));
+        lignes.add(new LigneDecompte("TVA", "TVA sur émoluments et honoraires", TVA, assietteTva, Bareme.TVA_TAUX,
+                montantTva, false, "TVA %.0f %% — assiette : émoluments + honoraires uniquement".formatted(Bareme.TVA_TAUX * 100)));
 
         long retenueVendeur = 0;
         if (param.plusValue() && prixAcquisition != null && prixAcquisition > 0) {
             long plusValue = Math.max(0, assiette - prixAcquisition);
             retenueVendeur = Math.round(plusValue * Bareme.TAUX_PLUS_VALUE);
-            lignes.add(new LigneDecompte("PV", "Taxe sur la plus-value immobiliere (a la charge du vendeur)", PLUS_VALUE,
+            lignes.add(new LigneDecompte("PV", "Taxe sur la plus-value immobilière (à la charge du vendeur)", PLUS_VALUE,
                     plusValue, Bareme.TAUX_PLUS_VALUE, retenueVendeur, false,
-                    String.format(Locale.FRANCE, "Plus-value = prix %,d - acquisition %,d FCFA ; retenue sur le prix verse au vendeur",
+                    String.format(Locale.FRANCE, "Plus-value = prix %,d - acquisition %,d FCFA ; retenue sur le prix versé au vendeur",
                             assiette, prixAcquisition)));
         }
 

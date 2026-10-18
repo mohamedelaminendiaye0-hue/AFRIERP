@@ -1,0 +1,108 @@
+<div class="coque" [class.menu-ouvert]="menuMobile()">
+  <aside class="lateral sans-impression" aria-label="Menu principal">
+    <a class="marque" routerLink="/">
+      @if (identite().logo; as logo) {
+        <img class="marque__logo-image" [src]="logo" alt="" />
+      } @else {
+        <span class="marque__sceau" aria-hidden="true">{{ identite().monogramme || identite().nom.charAt(0) }}</span>
+      }
+      <span class="marque__texte">
+        <span class="marque__nom">{{ identite().nom }}</span>
+        @if (identite().sousTitre) { <span class="marque__sous">{{ identite().sousTitre }}</span> }
+      </span>
+    </a>
+
+    @if (actionPrincipale(); as action) {
+      <a class="bouton bouton--creer action-principale" [routerLink]="action.lien" [queryParams]="action.params">
+        <app-icone [nom]="action.icone" [taille]="18" />{{ action.libelle }}
+      </a>
+    }
+
+    <nav class="nav">
+      @for (section of sections(); track section.titre) {
+        <p class="nav__section">{{ section.titre }}</p>
+        @for (item of section.liens; track item.lien) {
+          <a class="nav__lien" [routerLink]="item.lien" routerLinkActive="actif" #rla="routerLinkActive"
+             [attr.aria-current]="rla.isActive ? 'page' : null">
+            <app-icone [nom]="item.icone" [taille]="19" />
+            <span>{{ item.libelle }}</span>
+            @if (item.lien === '/dossiers' && notifications().length) {
+              <span class="nav__compteur" [attr.aria-label]="notifications().length + ' en retard'">{{ notifications().length }}</span>
+            }
+          </a>
+        }
+      }
+    </nav>
+
+    <div class="profil">
+      <button class="profil__bouton" type="button" (click)="profilOuvert.set(!profilOuvert())"
+              [attr.aria-expanded]="profilOuvert()" aria-haspopup="menu">
+        <span class="avatar profil__avatar" aria-hidden="true">{{ session.utilisateur()?.initiales }}</span>
+        <span class="profil__texte">
+          <span class="profil__nom">{{ session.utilisateur()?.nomComplet }}</span>
+          <span class="profil__role">{{ session.utilisateur()?.roleLibelle }}</span>
+        </span>
+        <span class="profil__chevron" aria-hidden="true">⌃</span>
+      </button>
+      @if (profilOuvert()) {
+        <div class="profil__menu" role="menu">
+          <p class="profil__email">{{ session.utilisateur()?.email }}</p>
+          <button type="button" role="menuitem" class="profil__item" (click)="deconnexion()">
+            <app-icone nom="sortie" [taille]="18" />Se déconnecter
+          </button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <button class="voile-menu" type="button" aria-label="Fermer le menu" (click)="menuMobile.set(false)"></button>
+
+  <div class="contenu">
+    <header class="entete sans-impression">
+      <button class="outil outil--menu" type="button" aria-label="Ouvrir le menu" (click)="menuMobile.set(true)">
+        <app-icone nom="menu" />
+      </button>
+
+      @if (estMembre()) {
+        <form class="recherche-globale" role="search" (submit)="$event.preventDefault(); rechercher(terme.value)">
+          <app-icone nom="recherche" [taille]="18" />
+          <label class="sr-only" for="recherche-globale">Rechercher un dossier</label>
+          <input #terme id="recherche-globale" type="search" placeholder="Rechercher un dossier, une partie, un titre foncier…" />
+        </form>
+
+        <div class="cloche">
+          <button class="outil" type="button" (click)="panneauOuvert.set(!panneauOuvert())"
+                  [attr.aria-expanded]="panneauOuvert()" aria-haspopup="dialog" aria-label="Dossiers en retard">
+            <app-icone nom="cloche" />
+            @if (notifications().length) { <span class="cloche__compteur">{{ notifications().length }}</span> }
+          </button>
+          @if (panneauOuvert()) {
+            <div class="cloche__panneau" role="dialog" aria-label="Délais dépassés">
+              <p class="cloche__titre">Délais dépassés sur vos dossiers</p>
+              @for (n of notifications().slice(0, 8); track n.dossierId) {
+                <a class="cloche__ligne" [routerLink]="['/dossiers', n.dossierId]">
+                  <span class="cloche__texte">
+                    <span class="ref">{{ n.reference }}</span>
+                    <span class="tres-petit muet">{{ libelleStatut(n.statut) }} · {{ n.joursDansStatut }} j (cible {{ n.delaiCibleJours }} j)</span>
+                  </span>
+                  <app-badge-niveau [niveau]="n.niveau" />
+                </a>
+              } @empty {
+                <p class="vide">Aucun retard sur vos dossiers.</p>
+              }
+              @if (notifications().length) {
+                <a class="cloche__tout" routerLink="/dossiers" [queryParams]="{ vue: 'retard' }">Voir tous les dossiers en retard</a>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="entete__admin">Administration de la plateforme</p>
+      }
+    </header>
+
+    <main class="principal" id="contenu">
+      <router-outlet />
+    </main>
+  </div>
+</div>

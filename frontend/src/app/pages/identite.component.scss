@@ -1,0 +1,56 @@
+.disposition { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr); gap: 20px; align-items: start; }
+.formulaire h2 { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--ligne-2); }
+.formulaire h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.monogramme { flex: 0 0 120px !important; }
+.etiquette { display: block; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+
+.logo { display: flex; gap: 16px; align-items: center; padding: 14px; border: 1.5px dashed var(--ligne-forte); border-radius: 10px; }
+.logo__image { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid var(--ligne); }
+.logo__sceau { width: 56px; height: 56px; border-radius: 50%; border: 2px solid; display: grid; place-items: center; font-size: 24px; font-weight: 700; flex-shrink: 0; }
+.logo__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.logo__import { margin: 0; }
+.logo__actions .champ__aide { flex-basis: 100%; margin: 0; }
+
+.nuancier { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.nuance {
+  width: 40px; height: 40px; border-radius: 8px; border: 2px solid #fff; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--ligne-forte); padding: 0;
+}
+.nuance[aria-checked='true'] { box-shadow: 0 0 0 3px var(--texte); }
+.nuance--libre { display: grid; place-items: center; overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); margin: 0; }
+.nuance--libre input { opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.nuancier code { font-size: 14px; color: var(--texte-2); }
+
+.polices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.police {
+  text-align: left; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ligne-forte); background: var(--surface);
+  font-size: 16px; color: var(--texte); cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+}
+.police small { font-size: 13px; color: var(--texte-2); }
+.police.actif { border-color: var(--primaire); box-shadow: 0 0 0 1px var(--primaire); }
+
+.apercu { position: sticky; top: 92px; background: #e6e8ec; border-radius: 12px; padding: 16px; }
+.apercu__titre { margin: 0 0 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texte-2); }
+.mini { display: grid; grid-template-columns: 170px 1fr; min-height: 320px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(16, 24, 40, 0.16); background: #f3f4f6; }
+.mini__menu { padding: 14px 10px; color: #d3dbe6; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.mini__marque { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.mini__marque img { width: 30px; height: 30px; object-fit: contain; background: #fff; border-radius: 4px; }
+.mini__marque strong { display: block; color: #fff; font-size: 13px; line-height: 1.2; }
+.mini__marque small { color: #a9b7c9; font-size: 11.5px; }
+.mini__sceau { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid; display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
+.mini__creer { border-radius: 6px; padding: 7px; text-align: center; font-weight: 700; margin-bottom: 8px; }
+.mini__lien { padding: 6px 8px; border-radius: 5px; }
+.mini__lien--actif { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.mini__contenu { padding: 16px; display: flex; flex-direction: column; gap: 12px; color: #161b26; }
+.mini__h { font-size: 18px; }
+.mini__cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mini__cartes span { background: #fff; border: 1px solid #e1e4e9; border-radius: 6px; padding: 8px 10px; }
+.mini__cartes small { display: block; font-size: 12px; color: #485263; font-weight: 700; }
+.mini__cartes b { font-size: 20px; }
+.mini__bouton { align-self: start; border-radius: 6px; padding: 8px 14px; font-weight: 700; font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .disposition { grid-template-columns: 1fr; }
+  .apercu { position: static; }
+}
+@media (max-width: 560px) { .mini { grid-template-columns: 1fr; } .mini__menu { display: none; } }

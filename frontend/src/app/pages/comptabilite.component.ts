@@ -9,13 +9,13 @@ import { BadgeNiveauComponent } from '../shared/badges';
 import { DateFrPipe, XofPipe } from '../shared/format.pipes';
 
 const NATURES_DECAISSEMENT = [
-  { code: 'PAIEMENT_TRESOR', libelle: 'Paiement Tresor (droits, conservation)' },
-  { code: 'PAIEMENT_TIERS', libelle: 'Paiement tiers (creancier, geometre…)' },
+  { code: 'PAIEMENT_TRESOR', libelle: 'Paiement Trésor (droits, conservation)' },
+  { code: 'PAIEMENT_TIERS', libelle: 'Paiement tiers (créancier, géomètre…)' },
   { code: 'VERSEMENT_VENDEUR', libelle: 'Versement du prix au vendeur / cedant' },
-  { code: 'DEBLOCAGE_CAPITAL', libelle: 'Liberation du capital a la societe immatriculee' },
-  { code: 'HONORAIRES_ETUDE', libelle: 'Prelevement des emoluments' },
+  { code: 'DEBLOCAGE_CAPITAL', libelle: 'Libération du capital à la société immatriculée' },
+  { code: 'HONORAIRES_ETUDE', libelle: 'Prélèvement des émoluments' },
   { code: 'RESTITUTION_CLIENT', libelle: 'Restitution du reliquat au client' },
-  { code: 'TRANSFERT_CDC', libelle: 'Transfert a la CDC' },
+  { code: 'TRANSFERT_CDC', libelle: 'Transfert à la CDC' },
 ];
 
 /**
@@ -81,7 +81,7 @@ export class ComptabiliteComponent implements OnInit {
       .executerVirement({ dossierId: this.dossierId, montant: Number(this.montant), nature: this.nature, beneficiaire: this.beneficiaire })
       .subscribe({
         next: (l) => {
-          this.confirmation.set(`Ordre emis : piece ${l.numeroPiece}, ${l.libelle}.`);
+          this.confirmation.set(`Ordre émis : pièce ${l.numeroPiece}, ${l.libelle}.`);
           this.montant = 0;
           this.charger();
           this.choisirSousCompte(this.dossierId);

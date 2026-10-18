@@ -91,7 +91,8 @@ class ReglesMetierTest {
     @Test
     void I3_regle_cdc_detecte_les_fonds_immobilises_au_dela_du_seuil() {
         var obligatoires = compta.detecterFondsImmobilises().stream().filter(f -> f.transfertObligatoire()).toList();
-        assertThat(obligatoires).extracting(f -> f.sousCompte().dossierId()).contains("D-0091", "D-0087", "D-0082");
+        assertThat(obligatoires).extracting(f -> f.sousCompte().dossierId()).contains("D-0091", "D-0087")
+                .doesNotContain("D-0082"); // reliquat restitué : plus de fonds immobilisés
         assertThat(obligatoires).allMatch(f -> f.ancienneteJours() >= Bareme.CDC_SEUIL_IMMOBILISATION_JOURS);
     }
 
@@ -166,7 +167,7 @@ class ReglesMetierTest {
         VerdictTransition v = workflow.verifier(d, StatutDossier.DRAFTING, u("U-005"), null, null);
         assertThat(codes(v)).contains("PIECES_MANQUANTES", "PIECES_PERIMEES");
         assertThat(v.blocages().stream().filter(b -> b.code().equals("PIECES_PERIMEES")).findFirst().orElseThrow().message())
-                .contains("Etat des droits reels");
+                .contains("État des droits réels");
     }
 
     @Test
@@ -281,7 +282,7 @@ class ReglesMetierTest {
         Dossier cloture = workflow.appliquer(id, StatutDossier.CLOSED, u("U-012"), null, null);
 
         assertThat(cloture.getStatut()).isEqualTo(StatutDossier.CLOSED);
-        assertThat(cloture.getNumeroRepertoire()).isEqualTo("2026/0002");
+        assertThat(cloture.getNumeroRepertoire()).isEqualTo("2026/0010"); // inscrit au repertoire des la signature
         assertThat(cloture.getConservationJusquau()).isEqualTo(HorlogeDeTest.AUJOURDHUI.plusYears(75));
         assertThat(cloture.getNotaireResponsableId()).isEqualTo("U-002");
         assertThat(compta.controlerEtancheite().conforme()).isTrue();

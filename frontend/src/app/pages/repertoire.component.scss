@@ -1,0 +1,11 @@
+.visa { display: flex; align-items: center; gap: 16px; padding: 14px 20px; box-shadow: inset 4px 0 0 var(--accent), var(--ombre); flex-wrap: wrap; }
+.visa__texte { display: flex; flex-direction: column; gap: 2px; }
+.parties { white-space: normal; min-width: 240px; max-width: 340px; }
+.partie { display: block; line-height: 1.4; }
+.partie a { font-weight: 700; }
+.entete-impression { display: none; }
+@media print {
+  .entete-impression { display: block; font-weight: 700; margin: 0; }
+  .registre th, .registre td { padding: 6px 8px; font-size: 11pt; }
+  .visa { box-shadow: none; }
+}

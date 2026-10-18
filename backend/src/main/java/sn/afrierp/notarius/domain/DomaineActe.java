@@ -2,10 +2,10 @@ package sn.afrierp.notarius.domain;
 
 /** Grands domaines d'intervention de l'etude notariale. */
 public enum DomaineActe {
-    IMMOBILIER("Immobilier, foncier & suretes"),
-    AFFAIRES("Societes & affaires (OHADA)"),
+    IMMOBILIER("Immobilier, foncier & sûretés"),
+    AFFAIRES("Sociétés & affaires (OHADA)"),
     FAMILLE("Famille, successions & patrimoine"),
-    AUTHENTIFICATION("Conservation, authentification & encheres");
+    AUTHENTIFICATION("Conservation, authentification & enchères");
 
     private final String libelle;
 

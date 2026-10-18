@@ -38,6 +38,6 @@ public class GestionErreurs {
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<Erreur> concurrence(ObjectOptimisticLockingFailureException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new Erreur(
-                "Le dossier a ete modifie entre-temps par un autre utilisateur : rechargez-le.", List.of()));
+                "Le dossier a été modifié entre-temps par un autre utilisateur : rechargez-le.", List.of()));
     }
 }

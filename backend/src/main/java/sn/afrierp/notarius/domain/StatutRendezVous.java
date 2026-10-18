@@ -1,10 +1,10 @@
 package sn.afrierp.notarius.domain;
 
 public enum StatutRendezVous {
-    PLANIFIE("Planifie", true),
-    CONFIRME("Confirme", true),
-    HONORE("Honore", false),
-    ANNULE("Annule", false),
+    PLANIFIE("Planifié", true),
+    CONFIRME("Confirmé", true),
+    HONORE("Honoré", false),
+    ANNULE("Annulé", false),
     ABSENT("Client absent", false);
 
     private final String libelle;

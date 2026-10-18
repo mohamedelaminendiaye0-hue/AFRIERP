@@ -1,0 +1,114 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <p class="surtitre">Conservation des minutes</p>
+      <h1>Minutier et archives</h1>
+      <p>Les minutes signées sont conservées au moins 75 ans. Archiver une minute la range à son emplacement et clôture le dossier.</p>
+    </div>
+    <div class="actions">
+      <a class="bouton bouton--secondaire" routerLink="/repertoire"><app-icone nom="repertoire" [taille]="18" />Répertoire des actes</a>
+      @if (peutArchiver()) {
+        <button class="bouton bouton--creer" type="button" [disabled]="!archivablesSelectionnes().length"
+                (click)="demanderSelection()">
+          <app-icone nom="archiver" [taille]="18" />Archiver la sélection@if (archivablesSelectionnes().length) { ({{ archivablesSelectionnes().length }}) }
+        </button>
+      }
+    </div>
+  </header>
+
+  <div class="grille grille--4">
+    <div class="carte kpi"><span class="kpi__libelle">Minutes au répertoire</span><span class="kpi__valeur">{{ minutes().length }}</span></div>
+    <div class="carte kpi"><span class="kpi__libelle">Inscrites en {{ anneeCourante }}</span><span class="kpi__valeur">{{ inscritesAnnee() }}</span></div>
+    <div class="carte kpi"><span class="kpi__libelle">À archiver</span><span class="kpi__valeur">{{ compte('A_ARCHIVER') }}</span></div>
+    <div class="carte kpi"><span class="kpi__libelle">Archivées</span><span class="kpi__valeur">{{ compte('ARCHIVEE') }}</span></div>
+  </div>
+
+  @if (resultats(); as r) {
+    <div class="bandeau" [class.bandeau--bon]="!refus().length" [class.bandeau--vigilance]="refus().length" role="status">
+      <div>
+        <strong>{{ r.length - refus().length }} minute(s) archivée(s).</strong>
+        @if (refus().length) {
+          <ul>
+            @for (x of refus(); track x.dossierId) { <li>{{ reference(x.dossierId) }} : {{ x.blocages.length ? x.blocages[0].message : "" }}</li> }
+          </ul>
+        }
+      </div>
+    </div>
+  }
+
+  <section class="carte">
+    <div class="filtres">
+      <div class="segment" role="tablist" aria-label="État des minutes">
+        @for (e of etats; track e.cle) {
+          <button type="button" role="tab" [class.actif]="onglet() === e.cle" [attr.aria-selected]="onglet() === e.cle"
+                  (click)="onglet.set(e.cle)">{{ e.libelle }} · {{ compte(e.cle) }}</button>
+        }
+      </div>
+    </div>
+    <div class="table-defilante">
+      <table>
+        <thead>
+          <tr>
+            @if (peutArchiver()) {
+              <th style="width: 44px"><input type="checkbox" aria-label="Tout sélectionner" [checked]="toutSelectionne()" (change)="basculerTout()" /></th>
+            }
+            <th>N° d'ordre</th><th>Acte</th><th>Signature</th><th>Notaire</th><th>Conservation</th><th>État</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of visibles(); track m.numeroRepertoire) {
+            <tr [class.selectionnee]="selection().has(m.dossierId)">
+              @if (peutArchiver()) {
+                <td>
+                  @if (m.etat === 'A_ARCHIVER') {
+                    <input type="checkbox" [attr.aria-label]="'Sélectionner la minute ' + m.numeroRepertoire"
+                           [checked]="selection().has(m.dossierId)" (change)="basculer(m.dossierId)" />
+                  }
+                </td>
+              }
+              <td><a class="ref" [routerLink]="['/dossiers', m.dossierId]">{{ m.numeroRepertoire }}</a></td>
+              <td>{{ m.intitule }}<span class="sous">{{ m.typeActeLibelle }} · {{ m.reference }}</span></td>
+              <td class="chiffres">{{ m.dateSignature | dateFr }}</td>
+              <td>{{ m.notaireSignataire ?? '—' }}</td>
+              <td class="chiffres">jusqu'au {{ m.conservationJusquau | dateFr }}</td>
+              <td>
+                @switch (m.etat) {
+                  @case ('ARCHIVEE') { <span class="badge badge--or">Archivée</span><span class="sous">{{ m.emplacement ?? 'Emplacement non précisé' }} · {{ m.dateArchivage | dateFr }}</span> }
+                  @case ('A_ARCHIVER') { <span class="badge badge--vigilance">À archiver</span> }
+                  @default { <span class="badge badge--neutre-clair">Formalités en cours</span><span class="sous" [title]="m.blocages.join(' · ')">{{ m.blocages[0] }}</span> }
+                }
+              </td>
+              <td class="droite">
+                @if (m.etat === 'A_ARCHIVER' && peutArchiver()) {
+                  <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="demander([m.dossierId])">Archiver</button>
+                } @else {
+                  <a class="bouton bouton--fantome bouton--petit" [routerLink]="['/dossiers', m.dossierId]">Consulter</a>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="vide">Aucune minute dans cette catégorie.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+@if (confirmation(); as ids) {
+  <app-confirmation
+    [titre]="ids.length > 1 ? 'Archiver ' + ids.length + ' minutes ?' : 'Archiver cette minute ?'"
+    message="Les dossiers seront clôturés : plus aucune pièce, partie ni écriture ne pourra y être ajoutée."
+    [recap]="recap()"
+    avertissement="La clôture d'un dossier ne peut pas être annulée."
+    [libelleAction]="ids.length > 1 ? 'Archiver ' + ids.length + ' minutes' : 'Archiver la minute'"
+    icone="archiver"
+    [occupe]="occupe()"
+    (confirmer)="archiver()"
+    (annuler)="confirmation.set(null)">
+    <div>
+      <label for="emplacement">Emplacement physique</label>
+      <input id="emplacement" name="emplacement" [(ngModel)]="emplacement" placeholder="Liasse, rayonnage, coffre…" />
+    </div>
+  </app-confirmation>
+}

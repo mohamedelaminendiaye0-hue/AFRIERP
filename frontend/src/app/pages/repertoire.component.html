@@ -1,0 +1,83 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <p class="surtitre">Registre légal · ordre chronologique</p>
+      <h1>Répertoire des actes</h1>
+      <p>Chaque acte signé reçoit un numéro d'ordre définitif. Les inscriptions ne peuvent être ni modifiées ni supprimées.</p>
+    </div>
+    <div class="actions sans-impression">
+      <button class="bouton bouton--secondaire" type="button" (click)="exporter()"><app-icone nom="telecharger" [taille]="18" />Exporter (Excel)</button>
+      <button class="bouton" type="button" (click)="imprimer()"><app-icone nom="imprimer" [taille]="18" />Imprimer pour le visa</button>
+    </div>
+  </header>
+
+  <p class="entete-impression">{{ identite().nom }} — Répertoire des actes {{ repertoire()?.annee }}</p>
+
+  @if (trimestreCourant(); as t) {
+    <section class="carte visa">
+      <span class="badge badge--or badge--sans-point">Visa trimestriel</span>
+      <div class="visa__texte">
+        <strong>{{ t.trimestre === 1 ? '1er' : t.trimestre + 'e' }} trimestre {{ t.annee }} : {{ t.nbActes }} acte(s), du n° {{ t.premier }} au n° {{ t.dernier }}</strong>
+        <span class="muet">À présenter au receveur de l'enregistrement avant le {{ t.visaAvant | dateFr }}</span>
+      </div>
+    </section>
+  }
+
+  <section class="carte">
+    <div class="filtres sans-impression">
+      @if (repertoire(); as r) {
+        <div class="segment" role="tablist" aria-label="Année">
+          @for (a of r.annees; track a) {
+            <button type="button" role="tab" [class.actif]="a === r.annee" [attr.aria-selected]="a === r.annee" (click)="charger(a)">{{ a }}</button>
+          }
+        </div>
+      }
+      <select class="filtre-domaine" aria-label="Mois" [ngModel]="mois()" (ngModelChange)="mois.set($event)">
+        <option value="">Tous les mois</option>
+        @for (m of moisDisponibles(); track m) { <option [value]="m">{{ libelleMois(m) }}</option> }
+      </select>
+      <select class="filtre-domaine" aria-label="Nature de l'acte" [ngModel]="nature()" (ngModelChange)="nature.set($event)">
+        <option value="">Toutes les natures</option>
+        @for (n of natures(); track n) { <option [value]="n">{{ n }}</option> }
+      </select>
+      <input class="recherche" type="search" placeholder="Partie, n° d'ordre, dossier…" aria-label="Rechercher dans le répertoire"
+             [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
+    </div>
+    <div class="table-defilante">
+      <table class="registre">
+        <thead>
+          <tr><th>N° d'ordre</th><th>Date</th><th>Nature de l'acte</th><th>Parties</th><th>Enregistrement</th><th class="droite">Droits perçus</th><th>Notaire</th></tr>
+        </thead>
+        <tbody>
+          @for (l of lignes(); track l.numero) {
+            <tr>
+              <td><a class="ref" [routerLink]="['/dossiers', l.dossierId]">{{ l.numero }}</a></td>
+              <td class="chiffres">{{ l.date | dateFr }}</td>
+              <td>{{ l.nature }}<span class="sous">{{ l.forme }} · {{ l.dossierId }}</span></td>
+              <td class="parties">
+                @for (p of l.parties; track $index) {
+                  <span class="partie">
+                    @if (p.clientId) { <a [routerLink]="['/clients', p.clientId]">{{ p.nom }}</a> } @else { {{ p.nom }} }&nbsp;<span class="muet">({{ p.qualite | lowercase }})</span>
+                  </span>
+                } @empty { <span class="muet">Parties non saisies</span> }
+              </td>
+              <td>
+                @if (l.enregistrement?.dateAchevement) {
+                  {{ l.enregistrement?.reference }}<span class="sous">enregistré le {{ l.enregistrement?.dateAchevement | dateFr }}</span>
+                } @else if (l.enregistrement) {
+                  <span class="badge badge--neutre">Déposé</span><span class="sous">le {{ l.enregistrement.dateDepot | dateFr }}</span>
+                } @else {
+                  <span class="badge badge--vigilance">À enregistrer</span>
+                }
+              </td>
+              <td class="droite chiffres">{{ l.droitsEnregistrement === null ? '—' : (l.droitsEnregistrement | xof) }}</td>
+              <td>{{ l.notaire ?? '—' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="vide">Aucun acte ne correspond à ces critères.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

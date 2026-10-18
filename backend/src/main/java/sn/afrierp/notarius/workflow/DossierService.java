@@ -8,6 +8,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sn.afrierp.notarius.audit.AuditService;
+import sn.afrierp.notarius.clients.ClientService;
 import sn.afrierp.notarius.common.RegleMetierException;
 import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.Dossier;
@@ -25,10 +26,12 @@ public class DossierService {
 
     private final DossierRepository dossiers;
     private final AuditService audit;
+    private final ClientService clients;
     private final Clock clock;
 
-    public DossierService(DossierRepository dossiers, AuditService audit, Clock clock) {
+    public DossierService(DossierRepository dossiers, AuditService audit, ClientService clients, Clock clock) {
         this.dossiers = dossiers;
+        this.clients = clients;
         this.audit = audit;
         this.clock = clock;
     }
@@ -39,18 +42,18 @@ public class DossierService {
                          String dossierLieId, Utilisateur auteur) {
         if (!EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.PRINCIPAL_CLERC, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE,
                 Role.NOTAIRE_SALARIE).contains(auteur.getRole())) {
-            throw new RegleMetierException("ROLE_NON_HABILITE", "Ouverture de dossier reservee a l'accueil, aux clercs et aux notaires.");
+            throw new RegleMetierException("ROLE_NON_HABILITE", "Ouverture de dossier réservée à l'accueil, aux clercs et aux notaires.");
         }
         // Le clerc peut etre affecte plus tard par le principal clerc (file « a assigner »).
         if (clerc != null && ((clerc.getRole() != Role.CLERC && clerc.getRole() != Role.PRINCIPAL_CLERC) || !clerc.isActif())) {
-            throw new RegleMetierException("CLERC_INVALIDE", "Le clerc redacteur doit etre un clerc actif.");
+            throw new RegleMetierException("CLERC_INVALIDE", "Le clerc rédacteur doit être un clerc actif.");
         }
         if (!notaire.getRole().estNotaire() || !notaire.isActif()) {
-            throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit etre un notaire actif.");
+            throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit être un notaire actif.");
         }
         if (clerc != null && !Role.ENCADREMENT.contains(auteur.getRole()) && !clerc.getId().equals(auteur.getId())) {
             throw new RegleMetierException("ROLE_NON_HABILITE",
-                    "Seuls le principal clerc et les notaires en titre affectent un dossier a un autre clerc.");
+                    "Seuls le principal clerc et les notaires en titre affectent un dossier à un autre clerc.");
         }
         LocalDate date = LocalDate.now(clock);
         long sequence = dossiers.count() + 147;
@@ -73,7 +76,7 @@ public class DossierService {
             Dossier lie = dossiers.findById(dossierLieId)
                     .orElseThrow(() -> new RegleMetierException("DOSSIER_LIE_INCONNU", "Dossier d'origine introuvable : " + dossierLieId));
             if (typeActe == TypeActe.MAINLEVEE_HYPOTHEQUE && lie.getTypeActe() != TypeActe.AFFECTATION_HYPOTHECAIRE) {
-                throw new RegleMetierException("DOSSIER_LIE_INVALIDE", "Une mainlevee se rattache a une affectation hypothecaire.");
+                throw new RegleMetierException("DOSSIER_LIE_INVALIDE", "Une mainlevée se rattache à une affectation hypothécaire.");
             }
             d.setDossierLieId(lie.getId());
         }
@@ -83,11 +86,12 @@ public class DossierService {
         intervenants.forEach(i -> {
             i.setKycValide(false);
             d.ajouterIntervenant(i);
+            clients.rattacher(i);
         });
         ModelesPieces.pour(typeActe).forEach(m -> d.ajouterPiece(m.instancier()));
         Dossier enregistre = dossiers.save(d);
         audit.tracer(enregistre, TypeEvenement.CREATION, auteur, "Ouverture du dossier — " + enregistre.getIntitule(),
-                Map.of("reference", enregistre.getReference(), "clerc", clerc == null ? "a assigner" : clerc.getId(),
+                Map.of("reference", enregistre.getReference(), "clerc", clerc == null ? "à assigner" : clerc.getId(),
                         "notaire", notaire.getId()));
         return enregistre;
     }

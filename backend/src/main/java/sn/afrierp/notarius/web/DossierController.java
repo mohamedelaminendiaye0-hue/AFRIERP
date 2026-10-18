@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import sn.afrierp.notarius.clients.ClientService;
+import sn.afrierp.notarius.common.RegleMetierException;
 import sn.afrierp.notarius.common.RessourceIntrouvableException;
 import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.Dossier;
@@ -39,9 +41,12 @@ public class DossierController {
     private final DossierService dossierService;
     private final WorkflowService workflow;
     private final VueMapper mapper;
+    private final ClientService clients;
 
     public DossierController(DossierRepository dossiers, UtilisateurRepository utilisateurs,
-                             DossierService dossierService, WorkflowService workflow, VueMapper mapper) {
+                             DossierService dossierService, WorkflowService workflow, VueMapper mapper,
+                             ClientService clients) {
+        this.clients = clients;
         this.dossiers = dossiers;
         this.utilisateurs = utilisateurs;
         this.dossierService = dossierService;
@@ -73,7 +78,7 @@ public class DossierController {
                 : new Bien(cmd.bien().designation(), cmd.bien().titreFoncier(), cmd.bien().adresse(), cmd.bien().commune(),
                 cmd.bien().superficieM2(), cmd.bien().usage());
         List<Intervenant> intervenants = cmd.intervenants() == null ? List.of() : cmd.intervenants().stream()
-                .map(DossierController::intervenant).toList();
+                .map(this::intervenant).toList();
         Dossier d = dossierService.creer(cmd.intitule(), cmd.typeActe(), cmd.montantTransaction(), cmd.prixAcquisition(),
                 optionnel(cmd.clercId()), utilisateur(cmd.notaireId()), bien, intervenants, cmd.dossierLieId(), moi);
         return mapper.detail(d, moi);
@@ -83,7 +88,15 @@ public class DossierController {
         return id == null || id.isBlank() ? null : utilisateur(id);
     }
 
-    private static Intervenant intervenant(Commandes.NouvelIntervenant i) {
+    private Intervenant intervenant(Commandes.NouvelIntervenant i) {
+        if (i.clientId() != null && !i.clientId().isBlank()) {
+            Intervenant connu = new Intervenant();
+            connu.setQualite(i.qualite());
+            return clients.depuisClient(i.clientId(), connu);
+        }
+        if (i.type() == null || i.nom() == null || i.nom().isBlank()) {
+            throw new RegleMetierException("PARTIE_INCOMPLETE", "Indiquez le type et le nom de la partie, ou choisissez un client existant.");
+        }
         Intervenant intervenant = new Intervenant(i.type(), i.nom().trim(), i.qualite(), i.identifiant(), false);
         intervenant.setTelephone(i.telephone());
         intervenant.setEmail(i.email());

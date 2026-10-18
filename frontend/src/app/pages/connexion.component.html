@@ -1,0 +1,70 @@
+<div class="connexion">
+  <section class="presentation" aria-hidden="false">
+    @if (identite().logo; as logo) {
+      <img class="presentation__logo" [src]="logo" alt="" />
+    } @else {
+      <span class="presentation__sceau" aria-hidden="true">{{ identite().monogramme || identite().nom.charAt(0) }}</span>
+    }
+    <div class="presentation__texte">
+      @if (identite().sousTitre) { <p class="presentation__sous">{{ identite().sousTitre }}</p> }
+      <h1 class="presentation__nom">{{ identite().nom }}</h1>
+      <p class="presentation__desc">Espace de travail de l'étude : dossiers, actes, répertoire, fonds clients et conservation des minutes.</p>
+    </div>
+    <address class="presentation__pied">
+      @if (identite().adresse) { <span>{{ identite().adresse }}</span> }
+      @if (identite().telephone || identite().email) {
+        <span>{{ identite().telephone }}@if (identite().telephone && identite().email) { · }{{ identite().email }}</span>
+      }
+    </address>
+  </section>
+
+  <main class="formulaire">
+    <div class="formulaire__boite">
+      <p class="surtitre">Espace sécurisé</p>
+      <h2 class="formulaire__titre">Connexion</h2>
+      <p class="muet formulaire__intro">Identifiez-vous avec votre adresse professionnelle.</p>
+
+      @if (expiree()) {
+        <div class="bandeau bandeau--info">Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez.</div>
+      }
+
+      <form (ngSubmit)="connecter()" novalidate>
+        <div class="champ">
+          <label for="email">Adresse e-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" [(ngModel)]="email" required />
+        </div>
+        <div class="champ">
+          <label for="mdp">Mot de passe</label>
+          <div class="mdp">
+            <input id="mdp" name="mdp" [type]="visible() ? 'text' : 'password'" autocomplete="current-password" [(ngModel)]="motDePasse" required />
+            <button type="button" class="mdp__voir" (click)="visible.set(!visible())" [attr.aria-pressed]="visible()">
+              {{ visible() ? 'Masquer' : 'Afficher' }}
+            </button>
+          </div>
+        </div>
+
+        @if (erreur(); as e) {
+          <p class="erreur" role="alert">{{ e }}</p>
+        }
+
+        <button class="bouton bouton--plein" type="submit" [disabled]="envoi()">
+          {{ envoi() ? 'Connexion…' : 'Se connecter' }}
+        </button>
+      </form>
+
+      @if (comptes().length) {
+        <div class="demo">
+          <p class="demo__titre">Comptes de démonstration · mot de passe {{ comptes()[0].motDePasse }}</p>
+          <div class="demo__grille">
+            @for (c of comptes(); track c.email) {
+              <button type="button" class="demo__compte" (click)="choisir(c)" [disabled]="envoi()" [title]="c.nom + ' — ' + c.email">
+                <i [style.background]="teinte(c.role)"></i>
+                <span><strong>{{ c.roleLibelle }}</strong><small>{{ c.nom }}</small></span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </main>
+</div>

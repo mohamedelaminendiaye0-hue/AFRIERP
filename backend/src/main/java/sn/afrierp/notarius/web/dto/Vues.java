@@ -36,12 +36,12 @@ public final class Vues {
 
     public record UtilisateurVue(String id, String prenom, String nom, String nomComplet, Role role,
                                  String roleLibelle, String initiales, boolean actif, boolean notaire,
-                                 boolean encadrement) {
+                                 boolean encadrement, String email) {
 
         public static UtilisateurVue de(Utilisateur u) {
             return new UtilisateurVue(u.getId(), u.getPrenom(), u.getNom(), u.nomComplet(), u.getRole(),
                     u.getRole().getLibelle(), u.getInitiales(), u.isActif(), u.getRole().estNotaire(),
-                    Role.ENCADREMENT.contains(u.getRole()));
+                    Role.ENCADREMENT.contains(u.getRole()), u.getEmail());
         }
     }
 
@@ -84,10 +84,14 @@ public final class Vues {
                             LocalDate conservationJusquau) {
     }
 
-    /** Ligne du minutier (repertoire des minutes archivees). */
+    /**
+     * Ligne du minutier : minute signee, a archiver ou archivee. {@code etat} vaut
+     * FORMALITES (formalites en cours), A_ARCHIVER (cloture possible) ou ARCHIVEE.
+     */
     public record LigneMinutier(String numeroRepertoire, String dossierId, String reference, String intitule,
                                 String typeActeLibelle, LocalDate dateSignature, String notaireSignataire,
-                                String notaireResponsable, LocalDate dateArchivage, LocalDate conservationJusquau) {
+                                String notaireResponsable, LocalDate dateArchivage, LocalDate conservationJusquau,
+                                String etat, String emplacement, List<String> blocages) {
     }
 
     public record StatutVue(StatutDossier code, String libelle, String acteur, String description, int rang,
@@ -118,7 +122,7 @@ public final class Vues {
             String enr = p.tauxEnregistrement() != null
                     ? String.format(java.util.Locale.FRANCE, "Droit proportionnel %.2f %%", p.tauxEnregistrement() * 100)
                     : String.format(java.util.Locale.FRANCE, "Droit fixe %,d FCFA", p.droitFixe());
-            String emo = p.emolumentFixe() == null ? "Bareme proportionnel degressif"
+            String emo = p.emolumentFixe() == null ? "Barème proportionnel dégressif"
                     : String.format(java.util.Locale.FRANCE, "Forfait %,d FCFA", p.emolumentFixe());
             return new TypeActeVue(t, t.getLibelle(), t.getCode(), t.getDomaine(), t.getDomaine().getLibelle(),
                     t.estComplexe(), t.getAssietteLibelle(), enr, p.publiciteFonciere(), emo, p.sequestre(),
@@ -159,12 +163,14 @@ public final class Vues {
         }
     }
 
-    public record IntervenantVue(Long id, String type, String nom, String qualite, String identifiant,
-                                 String telephone, String email, boolean kycValide) {
+    public record IntervenantVue(Long id, String type, String nom, String qualite, String qualiteLibelle,
+                                 String identifiant, String telephone, String email, boolean kycValide,
+                                 String clientId) {
 
         public static IntervenantVue de(Intervenant i) {
             return new IntervenantVue(i.getId(), i.getType().name(), i.getNom(), i.getQualite().name(),
-                    i.getIdentifiant(), i.getTelephone(), i.getEmail(), i.isKycValide());
+                    i.getQualite().getLibelle(), i.getIdentifiant(), i.getTelephone(), i.getEmail(), i.isKycValide(),
+                    i.getClient() == null ? null : i.getClient().getId());
         }
     }
 

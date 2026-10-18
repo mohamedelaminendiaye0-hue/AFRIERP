@@ -27,6 +27,8 @@ services:
       # Fuseau de l'etude : les delais et dates d'audit sont calcules a l'heure de Dakar.
       TZ: Africa/Dakar
       NOTARIUS_DONNEES_DEMO: "true"
+      # Clé de signature des jetons de session : à remplacer (32 caractères minimum).
+      JWT_SECRET: ${JWT_SECRET:-notarius-cle-docker-a-remplacer-en-production}
     depends_on:
       postgres:
         condition: service_healthy

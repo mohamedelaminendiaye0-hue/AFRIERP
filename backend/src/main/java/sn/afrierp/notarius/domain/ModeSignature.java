@@ -1,8 +1,8 @@
 package sn.afrierp.notarius.domain;
 
 public enum ModeSignature {
-    PHYSIQUE("Signature physique en etude"),
-    ELECTRONIQUE_GAINDE("Signature electronique — GAINDE 2000");
+    PHYSIQUE("Signature physique en étude"),
+    ELECTRONIQUE_GAINDE("Signature électronique — GAINDE 2000");
 
     private final String libelle;
 

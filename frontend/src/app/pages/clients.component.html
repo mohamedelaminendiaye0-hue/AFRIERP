@@ -1,0 +1,94 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <h1>Clients</h1>
+      <p>Chaque personne, physique ou morale, avec l'historique de tous ses dossiers à l'étude.</p>
+    </div>
+    @if (peutSaisir() && !formulaire()) {
+      <button class="bouton bouton--creer" type="button" (click)="formulaire.set(true)"><app-icone nom="plus" [taille]="18" />Nouveau client</button>
+    }
+  </header>
+
+  @if (formulaire()) {
+    <section class="carte">
+      <div class="carte__entete"><h2>Nouveau client</h2></div>
+      <form class="carte__corps" (ngSubmit)="creer()">
+        <div class="grille grille--3">
+          <div class="champ">
+            <label for="c-type">Type</label>
+            <select id="c-type" name="type" [(ngModel)]="saisie.type">
+              <option value="PHYSIQUE">Personne physique</option>
+              <option value="MORALE">Personne morale</option>
+            </select>
+          </div>
+          <div class="champ span-2">
+            <label for="c-nom">{{ saisie.type === 'MORALE' ? 'Dénomination' : 'Nom complet' }}</label>
+            <input id="c-nom" name="nom" required [(ngModel)]="saisie.nom" [placeholder]="saisie.type === 'MORALE' ? 'SARL Teranga Immobilier' : 'Mme Aïssatou Sow'" />
+          </div>
+          <div class="champ">
+            <label for="c-id">{{ saisie.type === 'MORALE' ? 'NINEA' : 'CNI ou passeport' }}</label>
+            <input id="c-id" name="identifiant" [(ngModel)]="saisie.identifiant" />
+          </div>
+          <div class="champ">
+            <label for="c-tel">Téléphone</label>
+            <input id="c-tel" name="telephone" type="tel" [(ngModel)]="saisie.telephone" />
+          </div>
+          <div class="champ">
+            <label for="c-email">E-mail</label>
+            <input id="c-email" name="email" type="email" [(ngModel)]="saisie.email" />
+          </div>
+          <div class="champ span-2">
+            <label for="c-adr">Adresse</label>
+            <input id="c-adr" name="adresse" [(ngModel)]="saisie.adresse" />
+          </div>
+        </div>
+        @if (erreur(); as e) { <div class="bandeau bandeau--critique">{{ e }}</div> }
+        <div class="actions-form">
+          <span></span>
+          <div class="actions">
+            <button class="bouton bouton--fantome" type="button" (click)="annuler()">Annuler</button>
+            <button class="bouton" type="submit">Créer la fiche client</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="carte">
+    <div class="filtres">
+      <div class="segment" role="tablist" aria-label="Type de personne">
+        <button type="button" role="tab" [class.actif]="type() === ''" (click)="type.set('')">Tous · {{ clients().length }}</button>
+        <button type="button" role="tab" [class.actif]="type() === 'PHYSIQUE'" (click)="type.set('PHYSIQUE')">Personnes physiques</button>
+        <button type="button" role="tab" [class.actif]="type() === 'MORALE'" (click)="type.set('MORALE')">Personnes morales</button>
+      </div>
+      <input class="recherche" type="search" placeholder="Nom, CNI, NINEA, téléphone…" aria-label="Rechercher un client"
+             [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
+    </div>
+    <div class="table-defilante">
+      <table>
+        <thead>
+          <tr><th>Client</th><th>Identifiant</th><th>Contact</th><th class="droite">Dossiers</th><th class="droite">En cours</th><th>Dernier dossier</th><th>Contrôle KYC</th></tr>
+        </thead>
+        <tbody>
+          @for (c of visibles(); track c.id) {
+            <tr class="cliquable" tabindex="0" (click)="ouvrir(c.id)" (keydown.enter)="ouvrir(c.id)">
+              <td><a class="ref" [routerLink]="['/clients', c.id]" (click)="$event.stopPropagation()">{{ c.nom }}</a>
+                <span class="sous">{{ c.type === 'MORALE' ? 'Personne morale' : 'Personne physique' }}</span></td>
+              <td class="chiffres">{{ c.identifiant ?? '—' }}</td>
+              <td>{{ c.telephone ?? '—' }}@if (c.email) { <span class="sous">{{ c.email }}</span> }</td>
+              <td class="droite chiffres"><strong>{{ c.nbDossiers }}</strong></td>
+              <td class="droite chiffres">{{ c.nbEnCours }}</td>
+              <td class="chiffres">{{ c.dernierDossier | dateFr }}</td>
+              <td>
+                @if (c.kycValide) { <span class="badge badge--bon">Validé</span> }
+                @else { <span class="badge badge--vigilance">À réaliser</span> }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="vide">Aucun client ne correspond à cette recherche.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

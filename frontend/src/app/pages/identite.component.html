@@ -1,0 +1,134 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <p class="surtitre">Marque blanche · super administrateur</p>
+      <h1>Identité de l'étude</h1>
+      <p>Le nom, le logo, les couleurs et la police s'appliquent à toute la plateforme, à la page de connexion et aux documents imprimés.</p>
+    </div>
+    <div class="actions">
+      <button class="bouton bouton--fantome" type="button" (click)="retablir()">Annuler les modifications</button>
+      <button class="bouton" type="button" [disabled]="envoi()" (click)="enregistrer()">{{ envoi() ? 'Enregistrement…' : "Enregistrer l'identité" }}</button>
+    </div>
+  </header>
+
+  @if (message(); as m) {
+    <div class="bandeau" [class.bandeau--bon]="m.ok" [class.bandeau--critique]="!m.ok" role="status">{{ m.texte }}</div>
+  }
+
+  <div class="disposition">
+    <section class="carte">
+      <div class="carte__corps formulaire">
+        <h2>Nom de l'étude</h2>
+        <div class="champ">
+          <label for="i-nom">Nom affiché</label>
+          <input id="i-nom" [ngModel]="brouillon().nom" (ngModelChange)="maj('nom', $event)" maxlength="80" />
+        </div>
+        <div class="ligne-champs">
+          <div class="champ">
+            <label for="i-sous">Sous-titre</label>
+            <input id="i-sous" [ngModel]="brouillon().sousTitre" (ngModelChange)="maj('sousTitre', $event)" placeholder="Notaires associés · Dakar" />
+          </div>
+          <div class="champ monogramme">
+            <label for="i-mono">Monogramme</label>
+            <input id="i-mono" [ngModel]="brouillon().monogramme" (ngModelChange)="maj('monogramme', $event)" maxlength="3" />
+          </div>
+        </div>
+
+        <h2>Logo</h2>
+        <div class="logo">
+          @if (brouillon().logo; as logo) {
+            <img class="logo__image" [src]="logo" alt="Logo actuel" />
+          } @else {
+            <span class="logo__sceau" [style.borderColor]="brouillon().couleurAccent" [style.color]="brouillon().couleurAccent">{{ brouillon().monogramme || brouillon().nom.charAt(0) }}</span>
+          }
+          <div class="logo__actions">
+            <label class="bouton bouton--secondaire bouton--petit logo__import" for="i-logo">Importer un logo</label>
+            <input id="i-logo" class="sr-only" type="file" accept="image/png,image/jpeg,image/svg+xml" (change)="importerLogo($event)" />
+            @if (brouillon().logo) {
+              <button class="bouton bouton--fantome bouton--petit" type="button" (click)="maj('logo', null)">Retirer</button>
+            }
+            <p class="champ__aide">PNG, JPEG ou SVG, 300 Ko au plus. Sans logo, le monogramme est affiché.</p>
+          </div>
+        </div>
+
+        <h2>Couleurs</h2>
+        <div class="champ">
+          <span class="etiquette">Couleur principale</span>
+          <div class="nuancier" role="radiogroup" aria-label="Couleur principale">
+            @for (c of principales; track c) {
+              <button type="button" role="radio" class="nuance" [style.background]="c" [attr.aria-checked]="brouillon().couleurPrincipale === c"
+                      [attr.aria-label]="c" (click)="maj('couleurPrincipale', c)"></button>
+            }
+            <label class="nuance nuance--libre" title="Autre couleur">
+              <span class="sr-only">Autre couleur principale</span>
+              <input type="color" [ngModel]="brouillon().couleurPrincipale" (ngModelChange)="maj('couleurPrincipale', $event.toUpperCase())" />
+            </label>
+            <code>{{ brouillon().couleurPrincipale }}</code>
+          </div>
+        </div>
+        <div class="champ">
+          <span class="etiquette">Couleur d'accent (boutons de création, repères)</span>
+          <div class="nuancier" role="radiogroup" aria-label="Couleur d'accent">
+            @for (c of accents; track c) {
+              <button type="button" role="radio" class="nuance" [style.background]="c" [attr.aria-checked]="brouillon().couleurAccent === c"
+                      [attr.aria-label]="c" (click)="maj('couleurAccent', c)"></button>
+            }
+            <label class="nuance nuance--libre" title="Autre couleur">
+              <span class="sr-only">Autre couleur d'accent</span>
+              <input type="color" [ngModel]="brouillon().couleurAccent" (ngModelChange)="maj('couleurAccent', $event.toUpperCase())" />
+            </label>
+            <code>{{ brouillon().couleurAccent }}</code>
+          </div>
+        </div>
+
+        <h2>Police</h2>
+        <div class="polices" role="radiogroup" aria-label="Police">
+          @for (p of polices; track p.valeur) {
+            <button type="button" role="radio" class="police" [class.actif]="brouillon().police === p.valeur"
+                    [attr.aria-checked]="brouillon().police === p.valeur" [style.fontFamily]="p.pile" (click)="maj('police', p.valeur)">
+              {{ p.libelle }}<small>Acte authentique · 2026/0047</small>
+            </button>
+          }
+        </div>
+
+        <h2>Mentions des documents</h2>
+        <div class="grille grille--2">
+          <div class="champ span-2"><label for="i-adr">Adresse</label><input id="i-adr" [ngModel]="brouillon().adresse" (ngModelChange)="maj('adresse', $event)" /></div>
+          <div class="champ"><label for="i-tel">Téléphone</label><input id="i-tel" [ngModel]="brouillon().telephone" (ngModelChange)="maj('telephone', $event)" /></div>
+          <div class="champ"><label for="i-email">E-mail</label><input id="i-email" type="email" [ngModel]="brouillon().email" (ngModelChange)="maj('email', $event)" /></div>
+          <div class="champ"><label for="i-ninea">NINEA</label><input id="i-ninea" [ngModel]="brouillon().ninea" (ngModelChange)="maj('ninea', $event)" /></div>
+          <div class="champ"><label for="i-pied">Pied de page des documents</label><input id="i-pied" [ngModel]="brouillon().mentionPiedDePage" (ngModelChange)="maj('mentionPiedDePage', $event)" /></div>
+        </div>
+        @if (brouillon().miseAJourLe) {
+          <p class="champ__aide">Dernière modification le {{ brouillon().miseAJourLe | dateFr: true }} par {{ brouillon().miseAJourPar }}.</p>
+        }
+      </div>
+    </section>
+
+    <aside class="apercu" aria-label="Aperçu">
+      <p class="apercu__titre">Aperçu en direct</p>
+      <div class="mini" [style.fontFamily]="pileApercu()">
+        <div class="mini__menu" [style.background]="'color-mix(in srgb, ' + brouillon().couleurPrincipale + ' 52%, #050a12)'">
+          <div class="mini__marque">
+            @if (brouillon().logo; as logo) { <img [src]="logo" alt="" /> }
+            @else { <span class="mini__sceau" [style.borderColor]="brouillon().couleurAccent" [style.color]="brouillon().couleurAccent">{{ brouillon().monogramme || brouillon().nom.charAt(0) }}</span> }
+            <span><strong>{{ brouillon().nom }}</strong><small>{{ brouillon().sousTitre }}</small></span>
+          </div>
+          <span class="mini__creer" [style.background]="brouillon().couleurAccent" [style.color]="surAccent()">+ Nouveau dossier</span>
+          <span class="mini__lien mini__lien--actif" [style.boxShadow]="'inset 3px 0 0 ' + brouillon().couleurAccent">Tableau de bord</span>
+          <span class="mini__lien">Dossiers</span>
+          <span class="mini__lien">Clients</span>
+          <span class="mini__lien">Répertoire des actes</span>
+        </div>
+        <div class="mini__contenu">
+          <strong class="mini__h">Bonjour, Maître</strong>
+          <div class="mini__cartes">
+            <span><small>À signer</small><b>3</b></span>
+            <span><small>En retard</small><b>5</b></span>
+          </div>
+          <span class="mini__bouton" [style.background]="brouillon().couleurPrincipale" [style.color]="surPrincipale()">Se connecter</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

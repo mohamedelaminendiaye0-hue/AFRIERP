@@ -9,3 +9,5 @@ frontend/.angular/
 .vscode/
 *.iml
 .DS_Store
+# Archives de critique de design (outil local)
+frontend/.impeccable/

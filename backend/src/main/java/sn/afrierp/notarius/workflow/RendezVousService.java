@@ -44,7 +44,7 @@ import sn.afrierp.notarius.repository.RendezVousRepository;
 @Transactional(readOnly = true)
 public class RendezVousService {
 
-    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a' HH'h'mm", Locale.FRANCE);
+    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH'h'mm", Locale.FRANCE);
     private static final Set<Role> PLANIFICATION_SIGNATURE = EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.PRINCIPAL_CLERC,
             Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE);
 
@@ -111,21 +111,21 @@ public class RendezVousService {
 
         /* --- R1 : horaires --- */
         if (!d.debut().isAfter(LocalDateTime.now(clock))) {
-            blocages.add(new Blocage("DATE_PASSEE", "Le rendez-vous doit etre fixe a une date a venir."));
+            blocages.add(new Blocage("DATE_PASSEE", "Le rendez-vous doit être fixé à une date à venir."));
         }
         if (d.dureeMinutes() < 15 || d.dureeMinutes() > 240) {
-            blocages.add(new Blocage("DUREE_INVALIDE", "La duree doit etre comprise entre 15 minutes et 4 heures."));
+            blocages.add(new Blocage("DUREE_INVALIDE", "La durée doit être comprise entre 15 minutes et 4 heures."));
         }
         if (!Bareme.JOURS_OUVRES.contains(d.debut().getDayOfWeek())) {
-            blocages.add(new Blocage("HORS_JOURS_OUVRES", "L'etude recoit du lundi au vendredi."));
+            blocages.add(new Blocage("HORS_JOURS_OUVRES", "L'étude reçoit du lundi au vendredi."));
         } else if (d.debut().toLocalTime().isBefore(Bareme.OUVERTURE_ETUDE)
                 || fin.toLocalTime().isAfter(Bareme.FERMETURE_ETUDE) || !fin.toLocalDate().equals(d.debut().toLocalDate())) {
-            blocages.add(new Blocage("HORS_HORAIRES", "L'etude recoit de %s a %s.".formatted(Bareme.OUVERTURE_ETUDE, Bareme.FERMETURE_ETUDE)));
+            blocages.add(new Blocage("HORS_HORAIRES", "L'étude reçoit de %s à %s.".formatted(Bareme.OUVERTURE_ETUDE, Bareme.FERMETURE_ETUDE)));
         }
 
         /* --- Participants --- */
         if (d.notaire() == null && d.collaborateur() == null) {
-            blocages.add(new Blocage("SANS_INTERLOCUTEUR", "Designer le notaire ou le collaborateur qui recoit."));
+            blocages.add(new Blocage("SANS_INTERLOCUTEUR", "Désigner le notaire ou le collaborateur qui reçoit."));
         }
         if (d.notaire() != null && !d.notaire().getRole().estNotaire()) {
             blocages.add(new Blocage("NOTAIRE_INVALIDE", d.notaire().nomComplet() + " n'est pas notaire."));
@@ -137,21 +137,21 @@ public class RendezVousService {
         /* --- R3 : signature --- */
         if (d.type() == TypeRendezVous.SIGNATURE) {
             if (d.dossier() == null) {
-                blocages.add(new Blocage("DOSSIER_REQUIS", "Une signature se rattache a un dossier."));
+                blocages.add(new Blocage("DOSSIER_REQUIS", "Une signature se rattache à un dossier."));
             } else {
                 if (d.dossier().getStatut() != StatutDossier.READY_TO_SIGN) {
-                    blocages.add(new Blocage("DOSSIER_NON_PRET", "Le dossier %s est « %s » : la signature se planifie au statut « Pret pour signature »."
+                    blocages.add(new Blocage("DOSSIER_NON_PRET", "Le dossier %s est « %s » : la signature se planifie au statut « Prêt pour signature »."
                             .formatted(d.dossier().getReference(), d.dossier().getStatut().getLibelle())));
                 }
                 signatureActive(d.dossier().getId()).filter(r -> !r.getId().equals(ignorerId)).ifPresent(r ->
                         blocages.add(new Blocage("SIGNATURE_DEJA_PLANIFIEE",
-                                "Une signature est deja planifiee le " + FORMAT.format(r.getDebut()) + " : la reporter plutot.")));
+                                "Une signature est déjà planifiée le " + FORMAT.format(r.getDebut()) + " : la reporter plutôt.")));
             }
             if (d.notaire() == null) {
-                blocages.add(new Blocage("NOTAIRE_REQUIS", "La signature est recue par un notaire."));
+                blocages.add(new Blocage("NOTAIRE_REQUIS", "La signature est reçue par un notaire."));
             }
             if (d.salle() == Salle.BUREAU_CLERC) {
-                blocages.add(new Blocage("SALLE_INADAPTEE", "Une signature se tient en salle des signatures, au bureau du notaire ou en visioconference."));
+                blocages.add(new Blocage("SALLE_INADAPTEE", "Une signature se tient en salle des signatures, au bureau du notaire ou en visioconférence."));
             }
         }
 
@@ -163,13 +163,13 @@ public class RendezVousService {
             }
             String creneau = "%s (%s, %s)".formatted(r.getType().getLibelle(), FORMAT.format(r.getDebut()), r.getDureeMinutes() + " min");
             if (d.notaire() != null && r.getNotaire() != null && r.getNotaire().getId().equals(d.notaire().getId())) {
-                blocages.add(new Blocage("CONFLIT_NOTAIRE", d.notaire().nomComplet() + " est deja pris : " + creneau + "."));
+                blocages.add(new Blocage("CONFLIT_NOTAIRE", d.notaire().nomComplet() + " est déjà pris : " + creneau + "."));
             }
             if (d.collaborateur() != null && r.getCollaborateur() != null && r.getCollaborateur().getId().equals(d.collaborateur().getId())) {
-                blocages.add(new Blocage("CONFLIT_COLLABORATEUR", d.collaborateur().nomComplet() + " est deja pris : " + creneau + "."));
+                blocages.add(new Blocage("CONFLIT_COLLABORATEUR", d.collaborateur().nomComplet() + " est déjà pris : " + creneau + "."));
             }
             if (d.salle().estPartagee() && r.getSalle() == d.salle()) {
-                blocages.add(new Blocage("CONFLIT_SALLE", d.salle().getLibelle() + " est occupee : " + creneau + "."));
+                blocages.add(new Blocage("CONFLIT_SALLE", d.salle().getLibelle() + " est occupée : " + creneau + "."));
             }
         }
         return blocages;
@@ -182,7 +182,7 @@ public class RendezVousService {
     @Transactional
     public RendezVous creer(Demande d, Utilisateur auteur) {
         if (d.type() == TypeRendezVous.SIGNATURE && !PLANIFICATION_SIGNATURE.contains(auteur.getRole())) {
-            throw new RegleMetierException("ROLE_NON_HABILITE", "La signature est planifiee par le secretariat, les clercs ou les notaires.");
+            throw new RegleMetierException("ROLE_NON_HABILITE", "La signature est planifiée par le secrétariat, les clercs ou les notaires.");
         }
         List<Blocage> blocages = verifier(d, null);
         if (!blocages.isEmpty()) {
@@ -198,7 +198,7 @@ public class RendezVousService {
             if (r.getType() == TypeRendezVous.SIGNATURE) {
                 r.getDossier().setDateSignaturePrevue(r.getDebut().toLocalDate());
             }
-            tracer(r, auteur, "Rendez-vous planifie — " + r.getType().getLibelle(), null);
+            tracer(r, auteur, "Rendez-vous planifié — " + r.getType().getLibelle(), null);
         }
         return r;
     }
@@ -235,7 +235,7 @@ public class RendezVousService {
         if (r.getType() == TypeRendezVous.SIGNATURE && r.getDossier() != null) {
             r.getDossier().setDateSignaturePrevue(nouveauDebut.toLocalDate());
         }
-        tracer(r, auteur, "Rendez-vous reporte — " + r.getType().getLibelle(),
+        tracer(r, auteur, "Rendez-vous reporté — " + r.getType().getLibelle(),
                 Map.of("avant", FORMAT.format(ancien), "apres", FORMAT.format(nouveauDebut)));
         return r;
     }
@@ -247,7 +247,7 @@ public class RendezVousService {
         switch (statut) {
             case CONFIRME -> {
                 if (r.getStatut() == StatutRendezVous.CONFIRME) {
-                    throw new RegleMetierException("DEJA_CONFIRME", "Rendez-vous deja confirme.");
+                    throw new RegleMetierException("DEJA_CONFIRME", "Rendez-vous déjà confirmé.");
                 }
             }
             case HONORE, ABSENT -> {
@@ -256,7 +256,7 @@ public class RendezVousService {
                 }
                 if (statut == StatutRendezVous.HONORE && r.getType() == TypeRendezVous.SIGNATURE) {
                     throw new RegleMetierException("SIGNATURE_PAR_WORKFLOW",
-                            "Une signature est constatee par la transition « Signer la minute » du dossier.");
+                            "Une signature est constatée par la transition « Signer la minute » du dossier.");
                 }
             }
             case ANNULE -> {
@@ -268,7 +268,7 @@ public class RendezVousService {
                     r.getDossier().setDateSignaturePrevue(null);
                 }
             }
-            default -> throw new RegleMetierException("STATUT_INVALIDE", "Changement de statut non prevu.");
+            default -> throw new RegleMetierException("STATUT_INVALIDE", "Changement de statut non prévu.");
         }
         r.setStatut(statut);
         Map<String, String> detail = new LinkedHashMap<>();

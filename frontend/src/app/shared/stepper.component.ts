@@ -23,20 +23,32 @@ const ORDRE: StatutDossier[] = [
   `,
   styles: `
     .stepper { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; list-style: none; margin: 0; padding: 0; }
-    .stepper__etape { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; text-align: center; }
-    .stepper__etape:not(:last-child)::after { content: ''; position: absolute; top: 14px; left: calc(50% + 16px); right: calc(-50% + 16px); height: 1px; background: var(--ivoire-300); }
-    .stepper__etape.franchie:not(:last-child)::after { background: var(--marine-400); }
-    .stepper__pastille { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; border: 1px solid var(--ivoire-300); background: #fff; color: var(--marine-300); }
-    .franchie .stepper__pastille { background: var(--marine-700); border-color: var(--marine-700); color: #fff; }
-    .courante .stepper__pastille { background: var(--or-400); border-color: var(--or-400); color: var(--marine-800); box-shadow: 0 0 0 4px var(--or-100); }
-    .stepper__libelle { font-size: 11px; line-height: 1.25; color: var(--marine-300); }
-    .franchie .stepper__libelle { color: var(--marine-500); }
-    .courante .stepper__libelle { color: var(--marine-700); font-weight: 600; }
+    .stepper__etape { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; text-align: center; }
+    .stepper__etape:not(:last-child)::after {
+      content: ''; position: absolute; top: 13px; left: calc(50% + 16px); right: calc(-50% + 16px);
+      height: 2px; border-radius: 2px; background: var(--remplissage);
+    }
+    .stepper__etape.franchie:not(:last-child)::after { background: var(--teinte); }
+    .stepper__pastille {
+      width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+      font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+      background: var(--remplissage); color: var(--texte-3);
+      transition: background-color 200ms ease, box-shadow 200ms ease;
+    }
+    .franchie .stepper__pastille { background: var(--teinte); color: var(--sur-teinte); }
+    .courante .stepper__pastille {
+      background: var(--surface); color: var(--teinte);
+      box-shadow: inset 0 0 0 2px var(--teinte), 0 0 0 5px var(--teinte-fond);
+    }
+    .stepper__libelle { font-size: 12px; line-height: 1.25; color: var(--texte-3); }
+    .franchie .stepper__libelle { color: var(--texte-2); }
+    .courante .stepper__libelle { color: var(--texte); font-weight: 600; }
     @media (max-width: 900px) {
-      .stepper { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 16px; }
+      .stepper { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 18px; }
       .stepper__etape:nth-child(5)::after { display: none; }
     }
   `,
+
 })
 export class StepperComponent {
   readonly statut = input.required<StatutDossier>();

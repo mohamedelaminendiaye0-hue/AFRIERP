@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sn.afrierp.notarius.audit.AuditService;
+import sn.afrierp.notarius.clients.ClientService;
 import sn.afrierp.notarius.bareme.Bareme;
 import sn.afrierp.notarius.bareme.DecompteTaxation;
 import sn.afrierp.notarius.bareme.TaxationService;
@@ -74,6 +75,7 @@ public class WorkflowService {
             Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE);
 
     private final DossierRepository dossiers;
+    private final ClientService clients;
     private final ComptaService compta;
     private final TaxationService taxation;
     private final AuditService audit;
@@ -81,7 +83,8 @@ public class WorkflowService {
     private final Clock clock;
 
     public WorkflowService(DossierRepository dossiers, ComptaService compta, TaxationService taxation,
-                           AuditService audit, RendezVousService rendezVous, Clock clock) {
+                           AuditService audit, RendezVousService rendezVous, ClientService clients, Clock clock) {
+        this.clients = clients;
         this.dossiers = dossiers;
         this.compta = compta;
         this.taxation = taxation;
@@ -155,7 +158,7 @@ public class WorkflowService {
         Optional<Transition> trouvee = transition(dossier.getStatut(), vers);
         if (trouvee.isEmpty()) {
             return new VerdictTransition(false, null, List.of(new Blocage("TRANSITION_INTERDITE",
-                    "Passage « %s » -> « %s » non prevu : aucune etape ne peut etre sautee."
+                    "Passage « %s » -> « %s » non prévu : aucune étape ne peut être sautée."
                             .formatted(dossier.getStatut().getLibelle(), vers.getLibelle()))), null);
         }
         Transition t = trouvee.get();
@@ -164,17 +167,17 @@ public class WorkflowService {
 
         /* --- W2 : habilitation --- */
         if (!t.roles().contains(utilisateur.getRole())) {
-            blocages.add(new Blocage("ROLE_NON_HABILITE", "Action reservee au profil : %s."
+            blocages.add(new Blocage("ROLE_NON_HABILITE", "Action réservée au profil : %s."
                     .formatted(t.roles().stream().map(Role::getLibelle).sorted().collect(Collectors.joining(", ")))));
         } else if (t.notaireDuDossier() && !utilisateur.getRole().estNotaireEnTitre()
                 && !utilisateur.getId().equals(dossier.getNotaire().getId())) {
             blocages.add(new Blocage("NOTAIRE_NON_SUPERVISEUR",
-                    "Seul le notaire superviseur du dossier (ou un notaire en titre) peut realiser cette action."));
+                    "Seul le notaire superviseur du dossier (ou un notaire en titre) peut réaliser cette action."));
         }
 
         if (t.retour()) {
             if (motif == null || motif.isBlank()) {
-                blocages.add(new Blocage("MOTIF_OBLIGATOIRE", "Un retour en arriere doit etre motive (trace au journal)."));
+                blocages.add(new Blocage("MOTIF_OBLIGATOIRE", "Un retour en arrière doit être motivé (tracé au journal)."));
             }
             return new VerdictTransition(blocages.isEmpty(), t, blocages, null);
         }
@@ -183,10 +186,10 @@ public class WorkflowService {
         switch (vers) {
             case PENDING_DOCS -> {
                 if (dossier.getClerc() == null) {
-                    blocages.add(new Blocage("CLERC_NON_ASSIGNE", "Assigner un clerc redacteur au dossier (principal clerc ou notaire)."));
+                    blocages.add(new Blocage("CLERC_NON_ASSIGNE", "Assigner un clerc rédacteur au dossier (principal clerc ou notaire)."));
                 }
                 if (dossier.getIntervenants().isEmpty()) {
-                    blocages.add(new Blocage("INFOS_INCOMPLETES", "Renseigner au moins une partie a l'acte."));
+                    blocages.add(new Blocage("INFOS_INCOMPLETES", "Renseigner au moins une partie à l'acte."));
                 }
                 if (dossier.getTypeActe().aUneAssiette() && dossier.getMontantTransaction() <= 0) {
                     blocages.add(new Blocage("INFOS_INCOMPLETES",
@@ -197,13 +200,13 @@ public class WorkflowService {
             case REVIEW -> {
                 if (dossier.getTypeActe().estComplexe() && dossier.getVisaPrincipalClercDate() == null) {
                     blocages.add(new Blocage("VISA_PRINCIPAL_CLERC_ABSENT",
-                            "Dossier complexe (%s) : le projet d'acte doit etre vise par le principal clerc avant soumission au notaire."
+                            "Dossier complexe (%s) : le projet d'acte doit être visé par le principal clerc avant soumission au notaire."
                                     .formatted(dossier.getTypeActe().getLibelle().toLowerCase())));
                 }
             }
             case FUNDING -> {
                 if (dossier.getTypeActe().aUneAssiette() && dossier.getMontantTransaction() <= 0) {
-                    blocages.add(new Blocage("TAXATION_ABSENTE", "Assiette nulle : le taxage previsionnel ne peut pas etre arrete."));
+                    blocages.add(new Blocage("TAXATION_ABSENTE", "Assiette nulle : le taxage prévisionnel ne peut pas être arrêté."));
                 }
             }
             case READY_TO_SIGN -> {
@@ -212,26 +215,26 @@ public class WorkflowService {
                 if (!couverture.couvert()) {
                     String objet = switch (Bareme.parametres(dossier.getTypeActe()).sequestre()) {
                         case PRIX -> "frais + prix";
-                        case CAPITAL -> "frais + capital a liberer";
+                        case CAPITAL -> "frais + capital à libérer";
                         default -> "frais";
                     };
                     blocages.add(new Blocage("FONDS_INSUFFISANTS",
-                            String.format(Locale.FRANCE, "Fonds consignes insuffisants : %,d FCFA manquent sur le sequestre (%s).", couverture.manquant(), objet)));
+                            String.format(Locale.FRANCE, "Fonds consignés insuffisants : %,d FCFA manquent sur le séquestre (%s).", couverture.manquant(), objet)));
                 }
                 List<Intervenant> sansKyc = dossier.getIntervenants().stream().filter(i -> !i.isKycValide()).toList();
                 if (dossier.getIntervenants().isEmpty()) {
-                    blocages.add(new Blocage("KYC_INCOMPLET", "Aucune partie identifiee : controle KYC / LAB-FT impossible."));
+                    blocages.add(new Blocage("KYC_INCOMPLET", "Aucune partie identifiée : contrôle KYC / LAB-FT impossible."));
                 } else if (!sansKyc.isEmpty()) {
-                    blocages.add(new Blocage("KYC_INCOMPLET", "Controle KYC / LAB-FT a realiser : %s."
+                    blocages.add(new Blocage("KYC_INCOMPLET", "Contrôle KYC / LAB-FT à réaliser : %s."
                             .formatted(sansKyc.stream().map(Intervenant::getNom).collect(Collectors.joining(", ")))));
                 }
                 if (dossier.isPurgeConditionsEnCours()) {
-                    blocages.add(new Blocage("PURGE_EN_COURS", "Purge des droits de preemption / conditions suspensives non achevee."));
+                    blocages.add(new Blocage("PURGE_EN_COURS", "Purge des droits de préemption / conditions suspensives non achevée."));
                 }
             }
             case SIGNED -> {
                 if (rendezVous.signatureActive(dossier.getId()).isEmpty()) {
-                    blocages.add(new Blocage("RDV_NON_PLANIFIE", "Aucun rendez-vous de signature planifie (module Rendez-vous)."));
+                    blocages.add(new Blocage("RDV_NON_PLANIFIE", "Aucun rendez-vous de signature planifié (module Rendez-vous)."));
                 }
                 if (modeSignature == null) {
                     blocages.add(new Blocage("MODE_SIGNATURE_ABSENT", "Choisir le mode de signature (physique ou GAINDE 2000)."));
@@ -239,23 +242,23 @@ public class WorkflowService {
             }
             case POST_ACT -> {
                 if (dossier.getModeSignature() == ModeSignature.ELECTRONIQUE_GAINDE && dossier.getGaindeStatut() != StatutGainde.VALIDE) {
-                    blocages.add(new Blocage("GAINDE_NON_VALIDE", "Signature electronique non confirmee : statut GAINDE « %s »."
-                            .formatted(dossier.getGaindeStatut() == null ? "non renseigne" : dossier.getGaindeStatut().getLibelle())));
+                    blocages.add(new Blocage("GAINDE_NON_VALIDE", "Signature électronique non confirmée : statut GAINDE « %s »."
+                            .formatted(dossier.getGaindeStatut() == null ? "non renseigné" : dossier.getGaindeStatut().getLibelle())));
                 }
             }
             case CLOSED -> {
                 List<OrganismeFormalites> enAttente = formalitesNonAchevees(dossier);
                 if (!enAttente.isEmpty()) {
-                    blocages.add(new Blocage("FORMALITES_INCOMPLETES", "Formalites non achevees : %s."
+                    blocages.add(new Blocage("FORMALITES_INCOMPLETES", "Formalités non achevées : %s."
                             .formatted(enAttente.stream().map(OrganismeFormalites::getLibelle).collect(Collectors.joining(", ")))));
                 }
                 if (dossier.getTaxageDefinitifDate() == null) {
-                    blocages.add(new Blocage("TAXAGE_DEFINITIF_ABSENT", "Le comptable-taxateur doit arreter le taxage definitif."));
+                    blocages.add(new Blocage("TAXAGE_DEFINITIF_ABSENT", "Le comptable-taxateur doit arrêter le taxage définitif."));
                 }
                 long reliquat = compta.solde(dossier.getId());
                 if (reliquat != 0) {
                     blocages.add(new Blocage("RELIQUAT_NON_RESTITUE",
-                            String.format(Locale.FRANCE, "Reliquat de %,d FCFA a restituer avant archivage (taxage definitif).", reliquat)));
+                            String.format(Locale.FRANCE, "Reliquat de %,d FCFA à restituer avant archivage (taxage définitif).", reliquat)));
                 }
             }
             default -> {
@@ -275,11 +278,11 @@ public class WorkflowService {
     private void ajouterBlocagesPieces(Dossier dossier, StatutDossier statut, List<Blocage> blocages) {
         ControlePieces controle = controlerPieces(dossier, statut);
         if (!controle.manquantes().isEmpty()) {
-            blocages.add(new Blocage("PIECES_MANQUANTES", "%d piece(s) obligatoire(s) manquante(s) : %s."
+            blocages.add(new Blocage("PIECES_MANQUANTES", "%d pièce(s) obligatoire(s) manquante(s) : %s."
                     .formatted(controle.manquantes().size(), libelles(controle.manquantes()))));
         }
         if (!controle.perimees().isEmpty()) {
-            blocages.add(new Blocage("PIECES_PERIMEES", "%d piece(s) perimee(s), a renouveler : %s."
+            blocages.add(new Blocage("PIECES_PERIMEES", "%d pièce(s) périmée(s), à renouveler : %s."
                     .formatted(controle.perimees().size(), libelles(controle.perimees()))));
         }
     }
@@ -313,7 +316,7 @@ public class WorkflowService {
         Dossier dossier = dossier(dossierId);
         VerdictTransition verdict = verifier(dossier, vers, utilisateur, motif, modeSignature);
         if (!verdict.autorisee()) {
-            audit.tracerTentativeBloquee(dossier, utilisateur, "Transition refusee vers « %s »".formatted(vers.getLibelle()),
+            audit.tracerTentativeBloquee(dossier, utilisateur, "Transition refusée vers « %s »".formatted(vers.getLibelle()),
                     Map.of("vers", vers.name(),
                             "motifs", verdict.blocages().stream().map(Blocage::code).distinct().collect(Collectors.joining(", "))));
             throw new RegleMetierException(verdict.blocages());
@@ -330,7 +333,7 @@ public class WorkflowService {
         if (avant == StatutDossier.REVIEW && vers == StatutDossier.TAXING) {
             dossier.setValidationNotaireParId(utilisateur.getId());
             dossier.setValidationNotaireDate(date);
-            audit.tracer(dossier, TypeEvenement.VALIDATION_NOTAIRE, utilisateur, "Projet d'acte valide par le notaire", null);
+            audit.tracer(dossier, TypeEvenement.VALIDATION_NOTAIRE, utilisateur, "Projet d'acte validé par le notaire", null);
         }
         if (avant == StatutDossier.TAXING && vers == StatutDossier.FUNDING) {
             DecompteTaxation decompte = taxationPrevisionnelle(dossier);
@@ -345,7 +348,7 @@ public class WorkflowService {
             dossier.setCertificationFondsParId(utilisateur.getId());
             dossier.setCertificationFondsDate(date);
             dossier.setMontantCertifie(verdict.couverture().encaisse());
-            audit.tracer(dossier, TypeEvenement.CERTIFICATION_FONDS, utilisateur, "Fonds consignes certifies sur le compte sequestre",
+            audit.tracer(dossier, TypeEvenement.CERTIFICATION_FONDS, utilisateur, "Fonds consignés certifiés sur le compte séquestre",
                     Map.of("besoin", Long.toString(verdict.couverture().besoin()),
                             "encaisse", Long.toString(verdict.couverture().encaisse())));
         }
@@ -364,21 +367,31 @@ public class WorkflowService {
             if (responsable != utilisateur) {
                 signature.put("responsabilite", responsable.nomComplet() + " — notaire titulaire");
             }
-            audit.tracer(dossier, TypeEvenement.SIGNATURE, utilisateur, "Minute signee et scellee — " + modeSignature.getLibelle(), signature);
+            // Inscription au repertoire des actes : numero d'ordre chronologique, definitif.
+            String annee = String.valueOf(date.getYear());
+            long rang = dossiers.countByNumeroRepertoireStartingWith(annee + "/") + 1;
+            dossier.setNumeroRepertoire("%s/%04d".formatted(annee, rang));
+            dossier.setConservationJusquau(date.plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+            signature.put("repertoire", dossier.getNumeroRepertoire());
+            audit.tracer(dossier, TypeEvenement.SIGNATURE, utilisateur, "Minute signée et scellée — " + modeSignature.getLibelle()
+                    + " — répertoire n° " + dossier.getNumeroRepertoire(), signature);
             rendezVous.marquerSignatureHonoree(dossier);
         }
         if (vers == StatutDossier.CLOSED) {
-            String annee = String.valueOf(date.getYear());
-            long rang = dossiers.countByNumeroRepertoireStartingWith(annee + "/") + 1;
-            LocalDate depart = dossier.getDateSignature() != null ? dossier.getDateSignature() : date;
             dossier.setDateCloture(date);
-            dossier.setNumeroRepertoire("%s/%04d".formatted(annee, rang));
             dossier.setArchiveParId(utilisateur.getId());
             dossier.setDateArchivage(date);
-            dossier.setConservationJusquau(depart.plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+            if (dossier.getConservationJusquau() == null) {
+                LocalDate depart = dossier.getDateSignature() != null ? dossier.getDateSignature() : date;
+                dossier.setConservationJusquau(depart.plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+            }
+            Map<String, String> archive = new LinkedHashMap<>();
+            archive.put("conservationJusquau", dossier.getConservationJusquau().toString());
+            if (dossier.getEmplacementArchive() != null) {
+                archive.put("emplacement", dossier.getEmplacementArchive());
+            }
             audit.tracer(dossier, TypeEvenement.ARCHIVAGE_MINUTE, utilisateur,
-                    "Minute archivee — repertoire n° " + dossier.getNumeroRepertoire(),
-                    Map.of("conservationJusquau", dossier.getConservationJusquau().toString()));
+                    "Minute archivée — répertoire n° " + dossier.getNumeroRepertoire(), archive);
         }
 
         Map<String, String> detail = new LinkedHashMap<>();
@@ -395,6 +408,19 @@ public class WorkflowService {
         return dossier;
     }
 
+    /**
+     * Archivage de la minute : range la minute a son emplacement physique puis
+     * cloture le dossier (transition POST_ACT -> CLOSED et toutes ses conditions).
+     */
+    @Transactional
+    public Dossier archiver(String dossierId, String emplacement, Utilisateur utilisateur) {
+        Dossier dossier = dossier(dossierId);
+        if (emplacement != null && !emplacement.isBlank()) {
+            dossier.setEmplacementArchive(emplacement.trim());
+        }
+        return appliquer(dossierId, StatutDossier.CLOSED, utilisateur, null, null);
+    }
+
     /* ------------------------------------------------------------------ *
      *  Actions de suivi
      * ------------------------------------------------------------------ */
@@ -407,7 +433,7 @@ public class WorkflowService {
 
     private static void exigerNonCloture(Dossier dossier) {
         if (dossier.getStatut() == StatutDossier.CLOSED) {
-            throw new RegleMetierException("DOSSIER_CLOTURE", "Dossier cloture et archive : il n'est plus modifiable.");
+            throw new RegleMetierException("DOSSIER_CLOTURE", "Dossier clôturé et archivé : il n'est plus modifiable.");
         }
     }
 
@@ -420,15 +446,15 @@ public class WorkflowService {
     public Dossier assigner(String dossierId, Utilisateur clerc, Utilisateur notaire, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, Role.ENCADREMENT, "L'assignation des dossiers est reservee au principal clerc et aux notaires en titre.");
+        exigerRole(auteur, Role.ENCADREMENT, "L'assignation des dossiers est réservée au principal clerc et aux notaires en titre.");
         boolean change = false;
         if (clerc != null) {
             if (clerc.getRole() != Role.CLERC && clerc.getRole() != Role.PRINCIPAL_CLERC || !clerc.isActif()) {
-                throw new RegleMetierException("CLERC_INVALIDE", "Le dossier doit etre confie a un clerc actif.");
+                throw new RegleMetierException("CLERC_INVALIDE", "Le dossier doit être confié à un clerc actif.");
             }
-            String avant = dossier.getClerc() == null ? "non assigne" : dossier.getClerc().getId();
+            String avant = dossier.getClerc() == null ? "non assigné" : dossier.getClerc().getId();
             if (!avant.equals(clerc.getId())) {
-                audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Clerc redacteur : " + clerc.nomComplet(),
+                audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Clerc rédacteur : " + clerc.nomComplet(),
                         Map.of("role", "CLERC", "avant", avant, "apres", clerc.getId()));
                 dossier.setClerc(clerc);
                 change = true;
@@ -436,13 +462,13 @@ public class WorkflowService {
         }
         if (notaire != null) {
             if (!auteur.getRole().estNotaireEnTitre()) {
-                throw new RegleMetierException("ROLE_NON_HABILITE", "Seul un notaire en titre designe le notaire superviseur.");
+                throw new RegleMetierException("ROLE_NON_HABILITE", "Seul un notaire en titre désigne le notaire superviseur.");
             }
             if (!notaire.getRole().estNotaire() || !notaire.isActif()) {
-                throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit etre un notaire actif.");
+                throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit être un notaire actif.");
             }
             if (dossier.getStatut().estAuMoins(StatutDossier.SIGNED)) {
-                throw new RegleMetierException("ACTE_SIGNE", "L'acte est signe : le notaire instrumentaire ne peut plus changer.");
+                throw new RegleMetierException("ACTE_SIGNE", "L'acte est signé : le notaire instrumentaire ne peut plus changer.");
             }
             if (!notaire.getId().equals(dossier.getNotaire().getId())) {
                 audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Notaire superviseur : " + notaire.nomComplet(),
@@ -452,7 +478,7 @@ public class WorkflowService {
             }
         }
         if (!change) {
-            throw new RegleMetierException("AUCUN_CHANGEMENT", "Ces collaborateurs sont deja assignes au dossier.");
+            throw new RegleMetierException("AUCUN_CHANGEMENT", "Ces collaborateurs sont déjà assignés au dossier.");
         }
         return dossier;
     }
@@ -464,14 +490,14 @@ public class WorkflowService {
         exigerRole(auteur, EnumSet.of(Role.PRINCIPAL_CLERC, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE),
                 "Le visa du projet est donne par le principal clerc.");
         if (dossier.getStatut() != StatutDossier.DRAFTING) {
-            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le projet se vise pendant la redaction.");
+            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le projet se vise pendant la rédaction.");
         }
         if (dossier.getVisaPrincipalClercDate() != null) {
-            throw new RegleMetierException("DEJA_VISE", "Le projet a deja ete vise.");
+            throw new RegleMetierException("DEJA_VISE", "Le projet a déjà été visé.");
         }
         dossier.setVisaPrincipalClercParId(auteur.getId());
         dossier.setVisaPrincipalClercDate(aujourdhui());
-        audit.tracer(dossier, TypeEvenement.VISA_PRINCIPAL_CLERC, auteur, "Projet d'acte vise par le principal clerc", null);
+        audit.tracer(dossier, TypeEvenement.VISA_PRINCIPAL_CLERC, auteur, "Projet d'acte visé par le principal clerc", null);
         return dossier;
     }
 
@@ -481,9 +507,9 @@ public class WorkflowService {
                             String commentaire, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, GESTION_DOSSIER, "Mise a jour des pieces reservee aux clercs, au secretariat et aux notaires.");
+        exigerRole(auteur, GESTION_DOSSIER, "Mise à jour des pièces réservée aux clercs, au secrétariat et aux notaires.");
         PieceJustificative piece = dossier.getPieces().stream().filter(p -> p.getId().equals(pieceId)).findFirst()
-                .orElseThrow(() -> new RessourceIntrouvableException("Piece " + pieceId + " introuvable."));
+                .orElseThrow(() -> new RessourceIntrouvableException("Pièce " + pieceId + " introuvable."));
         StatutPiece avant = piece.getStatut();
         piece.setStatut(statut);
         if ((statut == StatutPiece.RECUE || statut == StatutPiece.VALIDEE) && piece.getDateReception() == null) {
@@ -515,13 +541,14 @@ public class WorkflowService {
     @Transactional
     public Dossier ajouterIntervenant(String dossierId, Intervenant intervenant, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
-        exigerRole(auteur, GESTION_DOSSIER, "Saisie des parties reservee aux clercs, au secretariat et aux notaires.");
+        exigerRole(auteur, GESTION_DOSSIER, "Saisie des parties réservée aux clercs, au secrétariat et aux notaires.");
         if (dossier.getStatut().estAuMoins(StatutDossier.SIGNED)) {
-            throw new RegleMetierException("ACTE_SIGNE", "Les parties d'un acte signe ne peuvent plus etre modifiees.");
+            throw new RegleMetierException("ACTE_SIGNE", "Les parties d'un acte signé ne peuvent plus être modifiées.");
         }
         intervenant.setKycValide(false);
         dossier.ajouterIntervenant(intervenant);
-        audit.tracer(dossier, TypeEvenement.PIECE_MODIFIEE, auteur, "Partie ajoutee : " + intervenant.getNom(),
+        clients.rattacher(intervenant);
+        audit.tracer(dossier, TypeEvenement.PIECE_MODIFIEE, auteur, "Partie ajoutée : " + intervenant.getNom(),
                 Map.of("qualite", intervenant.getQualite().name()));
         return dossier;
     }
@@ -531,23 +558,26 @@ public class WorkflowService {
     public Dossier validerKyc(String dossierId, Long intervenantId, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, JURIDIQUE, "Controle KYC reserve aux clercs et aux notaires.");
+        exigerRole(auteur, JURIDIQUE, "Contrôle KYC réservé aux clercs et aux notaires.");
         Intervenant intervenant = dossier.getIntervenants().stream().filter(i -> i.getId().equals(intervenantId)).findFirst()
                 .orElseThrow(() -> new RessourceIntrouvableException("Partie " + intervenantId + " introuvable."));
         intervenant.setKycValide(true);
-        audit.tracer(dossier, TypeEvenement.PIECE_VALIDEE, auteur, "Controle KYC / LAB-FT valide : " + intervenant.getNom(), null);
+        if (intervenant.getClient() != null) {
+            intervenant.getClient().setKycValide(true);
+        }
+        audit.tracer(dossier, TypeEvenement.PIECE_VALIDEE, auteur, "Contrôle KYC / LAB-FT validé : " + intervenant.getNom(), null);
         return dossier;
     }
 
     @Transactional
     public Dossier leverPurge(String dossierId, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
-        exigerRole(auteur, JURIDIQUE, "Action reservee aux clercs et aux notaires.");
+        exigerRole(auteur, JURIDIQUE, "Action réservée aux clercs et aux notaires.");
         if (!dossier.isPurgeConditionsEnCours()) {
             throw new RegleMetierException("AUCUNE_PURGE", "Aucune purge en cours sur ce dossier.");
         }
         dossier.setPurgeConditionsEnCours(false);
-        audit.tracer(dossier, TypeEvenement.PIECE_VALIDEE, auteur, "Purge des droits de preemption / conditions suspensives achevee", null);
+        audit.tracer(dossier, TypeEvenement.PIECE_VALIDEE, auteur, "Purge des droits de préemption / conditions suspensives achevée", null);
         return dossier;
     }
 
@@ -556,10 +586,10 @@ public class WorkflowService {
     public Dossier majStatutGainde(String dossierId, StatutGainde statut, String reference, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         if (dossier.getModeSignature() != ModeSignature.ELECTRONIQUE_GAINDE) {
-            throw new RegleMetierException("HORS_GAINDE", "Ce dossier n'a pas ete signe via GAINDE 2000.");
+            throw new RegleMetierException("HORS_GAINDE", "Ce dossier n'a pas été signé via GAINDE 2000.");
         }
         exigerRole(auteur, EnumSet.of(Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE, Role.FORMALISTE),
-                "Mise a jour reservee aux notaires et au formaliste.");
+                "Mise à jour réservée aux notaires et au formaliste.");
         Map<String, String> detail = new LinkedHashMap<>();
         detail.put("avant", String.valueOf(dossier.getGaindeStatut()));
         detail.put("apres", statut.name());
@@ -580,15 +610,15 @@ public class WorkflowService {
     public Dossier deposerFormalite(String dossierId, OrganismeFormalites organisme, String reference, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         if (dossier.getStatut() != StatutDossier.POST_ACT) {
-            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Les formalites se deposent au statut « Formalites en cours ».");
+            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Les formalités se déposent au statut « Formalités en cours ».");
         }
-        exigerRole(auteur, FORMALITES, "Depot reserve au formaliste.");
+        exigerRole(auteur, FORMALITES, "Dépôt réservé au formaliste.");
         if (dossier.formalite(organisme).isPresent()) {
-            throw new RegleMetierException("DEJA_DEPOSEE", "Formalite deja deposee : " + organisme.getLibelle() + ".");
+            throw new RegleMetierException("DEJA_DEPOSEE", "Formalité déjà déposée : " + organisme.getLibelle() + ".");
         }
         String ref = reference == null || reference.isBlank() ? null : reference.trim();
         dossier.getFormalites().add(new Formalite(organisme, aujourdhui(), ref, null));
-        audit.tracer(dossier, TypeEvenement.DEPOT_FORMALITES, auteur, "Formalite deposee — " + organisme.getLibelle(),
+        audit.tracer(dossier, TypeEvenement.DEPOT_FORMALITES, auteur, "Formalité déposée — " + organisme.getLibelle(),
                 ref == null ? null : Map.of("reference", ref));
         return dossier;
     }
@@ -598,15 +628,15 @@ public class WorkflowService {
     public Dossier acheverFormalite(String dossierId, OrganismeFormalites organisme, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, FORMALITES, "Suivi des formalites reserve au formaliste.");
+        exigerRole(auteur, FORMALITES, "Suivi des formalités réservé au formaliste.");
         Formalite f = dossier.formalite(organisme)
-                .orElseThrow(() -> new RegleMetierException("NON_DEPOSEE", "Formalite non deposee : " + organisme.getLibelle() + "."));
+                .orElseThrow(() -> new RegleMetierException("NON_DEPOSEE", "Formalité non déposée : " + organisme.getLibelle() + "."));
         if (f.estAchevee()) {
-            throw new RegleMetierException("DEJA_ACHEVEE", "Formalite deja achevee.");
+            throw new RegleMetierException("DEJA_ACHEVEE", "Formalité déjà achevée.");
         }
         f.setDateAchevement(aujourdhui());
         audit.tracer(dossier, TypeEvenement.ACHEVEMENT_FORMALITE, auteur,
-                "Formalite achevee — " + organisme.getLibelle() + " (" + organisme.getObjet().toLowerCase() + ")", null);
+                "Formalité achevée — " + organisme.getLibelle() + " (" + organisme.getObjet().toLowerCase() + ")", null);
         return dossier;
     }
 
@@ -615,9 +645,9 @@ public class WorkflowService {
     public Dossier arreterTaxageDefinitif(String dossierId, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerRole(auteur, EnumSet.of(Role.COMPTABLE_TAXATEUR, Role.NOTAIRE_TITULAIRE),
-                "Le taxage definitif est arrete par le comptable-taxateur.");
+                "Le taxage définitif est arrêté par le comptable-taxateur.");
         if (!dossier.getStatut().estAuMoins(StatutDossier.SIGNED) || dossier.getStatut() == StatutDossier.CLOSED) {
-            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le taxage definitif s'arrete apres la signature, avant la cloture.");
+            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le taxage définitif s'arrête après la signature, avant la clôture.");
         }
         long definitif = taxationPrevisionnelle(dossier).totaux().totalGeneral();
         Map<String, String> detail = new LinkedHashMap<>();
@@ -629,7 +659,7 @@ public class WorkflowService {
         dossier.setFraisDefinitifs(definitif);
         dossier.setTaxageDefinitifParId(auteur.getId());
         dossier.setTaxageDefinitifDate(aujourdhui());
-        audit.tracer(dossier, TypeEvenement.TAXAGE_DEFINITIF, auteur, "Taxage definitif arrete", detail);
+        audit.tracer(dossier, TypeEvenement.TAXAGE_DEFINITIF, auteur, "Taxage définitif arrêté", detail);
         return dossier;
     }
 

@@ -8,7 +8,7 @@ public class RegleMetierException extends RuntimeException {
     private final transient List<Blocage> blocages;
 
     public RegleMetierException(List<Blocage> blocages) {
-        super(blocages.stream().map(Blocage::message).reduce((a, b) -> a + " " + b).orElse("Operation refusee."));
+        super(blocages.stream().map(Blocage::message).reduce((a, b) -> a + " " + b).orElse("Opération refusée."));
         this.blocages = List.copyOf(blocages);
     }
 

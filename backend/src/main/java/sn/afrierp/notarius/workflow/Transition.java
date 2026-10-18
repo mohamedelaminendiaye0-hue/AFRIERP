@@ -35,15 +35,15 @@ public record Transition(StatutDossier de, StatutDossier vers, String action, Se
      */
     public static final List<Transition> TOUTES = List.of(
             avant(StatutDossier.DRAFT, StatutDossier.PENDING_DOCS, "Ouvrir l'instruction", avec(REDACTION, Role.ASSISTANT)),
-            avant(StatutDossier.PENDING_DOCS, StatutDossier.DRAFTING, "Lancer la redaction", REDACTION),
-            new Transition(StatutDossier.DRAFTING, StatutDossier.PENDING_DOCS, "Revenir a l'instruction", Set.of(REDACTION), false, true),
+            avant(StatutDossier.PENDING_DOCS, StatutDossier.DRAFTING, "Lancer la rédaction", REDACTION),
+            new Transition(StatutDossier.DRAFTING, StatutDossier.PENDING_DOCS, "Revenir à l'instruction", Set.of(REDACTION), false, true),
             avant(StatutDossier.DRAFTING, StatutDossier.REVIEW, "Soumettre au notaire", REDACTION),
             new Transition(StatutDossier.REVIEW, StatutDossier.DRAFTING, "Renvoyer pour correction", Set.of(NOTAIRES), true, true),
             new Transition(StatutDossier.REVIEW, StatutDossier.TAXING, "Valider le projet d'acte", Set.of(NOTAIRES), true, false),
-            avant(StatutDossier.TAXING, StatutDossier.FUNDING, "Arreter le taxage previsionnel", TAXATION),
+            avant(StatutDossier.TAXING, StatutDossier.FUNDING, "Arrêter le taxage prévisionnel", TAXATION),
             new Transition(StatutDossier.FUNDING, StatutDossier.TAXING, "Reprendre le taxage", Set.of(TAXATION), false, true),
-            avant(StatutDossier.FUNDING, StatutDossier.READY_TO_SIGN, "Certifier les fonds consignes", TAXATION),
+            avant(StatutDossier.FUNDING, StatutDossier.READY_TO_SIGN, "Certifier les fonds consignés", TAXATION),
             new Transition(StatutDossier.READY_TO_SIGN, StatutDossier.SIGNED, "Signer la minute", Set.of(NOTAIRES), true, false),
-            avant(StatutDossier.SIGNED, StatutDossier.POST_ACT, "Engager les formalites", Role.FORMALISTE, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE),
-            avant(StatutDossier.POST_ACT, StatutDossier.CLOSED, "Archiver la minute et cloturer", Role.ARCHIVISTE, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE));
+            avant(StatutDossier.SIGNED, StatutDossier.POST_ACT, "Engager les formalités", Role.FORMALISTE, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE),
+            avant(StatutDossier.POST_ACT, StatutDossier.CLOSED, "Archiver la minute et clôturer", Role.ARCHIVISTE, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE));
 }

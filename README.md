@@ -188,22 +188,49 @@ Tous les taux, tranches, seuils et délais sont regroupés dans
 (version `SN-2026.1`). **Ce sont des paramètres de démonstration** : ils doivent être validés par le conseil
 juridique de l'étude avant toute exploitation réelle.
 
-## Utilisateurs de démonstration
+## Connexion, profils et marque blanche
 
-L'en-tête de l'application permet d'« agir en tant que » chacun des profils ; l'API applique les
-contrôles de rôle côté serveur (en-tête `X-Utilisateur`).
+L'API est fermée par défaut : chaque requête porte un **jeton JWT** (`Authorization: Bearer …`, HS256, 10 h)
+obtenu par `POST /api/auth/connexion`. Seules la connexion et l'identité de l'étude (affichée sur la page de
+connexion) sont publiques. Les mots de passe sont stockés en **BCrypt**. En production, fixer la clé de signature
+avec la variable `JWT_SECRET` (32 caractères minimum).
 
-| Id | Nom | Rôle |
+Chaque profil arrive sur **son propre tableau de bord** (cartes-raccourcis vers les listes filtrées) et ne voit
+que les menus et boutons de son métier ; l'API revérifie chaque droit côté serveur.
+
+**Comptes de démonstration** — mot de passe commun : `notarius2026` (boutons « un clic » sur la page de connexion).
+
+| E-mail | Nom | Profil |
 |---|---|---|
-| U-001 | Aminata Ndoye | Notaire titulaire |
-| U-002 | Ousmane Sarr | Notaire associé (SCP) |
-| U-010 | Fatou Kane | Notaire salarié (sous la responsabilité de U-001) |
-| U-011 | Mamadou Gueye | Principal clerc |
-| U-003 → U-006 | Awa Diallo, Ibrahima Sow, Coumba Ndiaye, Moussa Faye | Clercs rédacteurs |
-| U-007 | Cheikh Diop | Comptable-taxateur |
-| U-008 | Mariama Tall | Formaliste |
-| U-012 | Seynabou Diouf | Archiviste |
-| U-009 | Ndeye Ba | Secrétariat / accueil |
+| a.ndoye@etude-ndoye.sn | Aminata Ndoye | Notaire titulaire |
+| o.sarr@etude-ndoye.sn | Ousmane Sarr | Notaire associé (SCP) |
+| f.kane@etude-ndoye.sn | Fatou Kane | Notaire salarié (sous la responsabilité du titulaire) |
+| m.gueye@etude-ndoye.sn | Mamadou Gueye | Principal clerc |
+| a.diallo@, i.sow@, c.ndiaye@, m.faye@etude-ndoye.sn | Awa Diallo, Ibrahima Sow, Coumba Ndiaye, Moussa Faye | Clercs rédacteurs |
+| c.diop@etude-ndoye.sn | Cheikh Diop | Comptable-taxateur |
+| m.tall@etude-ndoye.sn | Mariama Tall | Formaliste |
+| s.diouf@etude-ndoye.sn | Seynabou Diouf | Archiviste |
+| n.ba@etude-ndoye.sn | Ndeye Ba | Secrétariat / accueil |
+| admin@notarius.sn | Admin Plateforme | **Super administrateur** (marque blanche) |
+
+**Marque blanche** : le super administrateur (hors de l'étude, sans accès aux dossiers) règle dans
+*Administration › Identité de l'étude* le nom, le monogramme ou le **logo** (PNG, JPEG ou SVG, 300 Ko),
+la couleur principale, la couleur d'accent, la police et les mentions des documents. L'identité est
+appliquée à toute l'interface, à la page de connexion et au titre des onglets.
+
+## Clients, répertoire des actes et archivage
+
+- **Fichier clients** : chaque partie à un acte est rattachée à une fiche client (retrouvée par son CNI,
+  passeport ou NINEA). La fiche retrace **tous les dossiers** de la personne, quel que soit son rôle
+  (vendeur ici, acquéreur ou associé ailleurs), les personnes liées et les fonds détenus.
+- **Répertoire des actes** : registre légal tenu dans l'ordre chronologique. Le **numéro d'ordre est attribué à
+  la signature** (`2026/0001`…) et n'est jamais réutilisé ; l'enregistrement DGID et les droits perçus y
+  figurent. Récapitulatif pour le **visa trimestriel**, export Excel (CSV) et impression.
+- **Minutier et archives** : les minutes signées sont conservées 75 ans. L'archivage — **unitaire ou
+  groupé** — range la minute à son emplacement (liasse, coffre) et clôture le dossier ; chaque dossier non
+  archivable est refusé avec son motif (formalités, taxage définitif, reliquat).
+- **Actes irréversibles** (certification des fonds, signature, clôture, archivage, taxage définitif) :
+  confirmation explicite avec récapitulatif ; la signature exige de ressaisir la référence du dossier.
 
 ## API (extrait)
 
@@ -216,14 +243,20 @@ contrôles de rôle côté serveur (en-tête `X-Utilisateur`).
 | `POST` | `/api/dossiers/{id}/assignation` | `{ clercId?, notaireId? }` |
 | `POST` | `/api/dossiers/{id}/visa-principal-clerc`, `/taxage-definitif`, `/gainde`, `/formalites`, `/formalites/{organisme}/achevement`, `/intervenants`, `/intervenants/{iid}/kyc`, `/purge/levee` | Actions de suivi |
 | `GET/POST` | `/api/rendez-vous`, `/verification`, `/{id}/report`, `/{id}/statut`, `/aujourdhui`, `/referentiels` | Agenda et prise de rendez-vous |
-| `GET` | `/api/equipe`, `/api/minutier` | Organisation de l'étude, répertoire des minutes |
+| `POST` | `/api/auth/connexion` | `{ email, motDePasse }` → `{ jeton, expiration, utilisateur }` (public) |
+| `GET/PUT` | `/api/identite` | Marque blanche (lecture publique, écriture super administrateur) |
+| `GET/POST/PUT` | `/api/clients`, `/api/clients/{id}` | Fichier clients, fiche et historique des dossiers |
+| `GET` | `/api/repertoire?annee=` | Répertoire des actes et récapitulatif du visa trimestriel |
+| `GET/POST` | `/api/minutier`, `/api/minutier/archivage` | Minutier ; archivage unitaire ou groupé `{ dossierIds, emplacement }` |
+| `GET` | `/api/equipe` | Organisation de l'étude |
 | `GET` | `/api/dashboard`, `/api/notifications`, `/api/workflow` | Pilotage, retards, définition du workflow |
 | `GET/POST` | `/api/compta/...` | Contrôle, sous-comptes, alertes CDC, relevés, virements contrôlés |
 | `POST` | `/api/taxation/simulation` | Simulateur d'émoluments |
 
 ## Pistes pour la suite
 
-- Authentification (OIDC / JWT) : remplacer l'en-tête `X-Utilisateur` par l'identité du jeton.
+- Gestion des comptes par le super administrateur (création, désactivation, réinitialisation de mot de passe).
+- Multi-études (plusieurs marques blanches sur une même instance).
 - Migrations de schéma versionnées (Flyway) avant la mise en production.
 - Intégration GAINDE 2000 et télé-déclaration DGID quand les API seront disponibles.
 - GED réelle (dépôt des fichiers des pièces) et génération des actes depuis des modèles.

@@ -7,35 +7,35 @@ package sn.afrierp.notarius.domain;
  */
 public enum TypeActe {
     /* --- Immobilier, foncier & suretes --- */
-    VENTE_IMMOBILIERE("Vente immobiliere", "VI", DomaineActe.IMMOBILIER, true, "Prix de vente"),
+    VENTE_IMMOBILIERE("Vente immobilière", "VI", DomaineActe.IMMOBILIER, true, "Prix de vente"),
     PROMESSE_VENTE("Promesse / compromis de vente", "PV", DomaineActe.IMMOBILIER, false, "Prix convenu"),
-    AFFECTATION_HYPOTHECAIRE("Affectation hypothecaire (pret bancaire)", "AH", DomaineActe.IMMOBILIER, true, "Montant du credit garanti"),
-    MAINLEVEE_HYPOTHEQUE("Mainlevee d'hypotheque", "MH", DomaineActe.IMMOBILIER, false, "Montant de l'inscription levee"),
-    BAIL_EMPHYTEOTIQUE("Bail emphyteotique / bail a construction", "BE", DomaineActe.IMMOBILIER, true, "Loyers cumules sur la duree"),
-    REGLEMENT_COPROPRIETE("Reglement de copropriete & etat descriptif de division", "RC", DomaineActe.IMMOBILIER, true, "Valeur de l'immeuble"),
-    BAIL_COMMERCIAL("Bail commercial", "BC", DomaineActe.IMMOBILIER, false, "Loyers cumules sur la duree"),
+    AFFECTATION_HYPOTHECAIRE("Affectation hypothécaire (prêt bancaire)", "AH", DomaineActe.IMMOBILIER, true, "Montant du crédit garanti"),
+    MAINLEVEE_HYPOTHEQUE("Mainlevée d'hypothèque", "MH", DomaineActe.IMMOBILIER, false, "Montant de l'inscription levée"),
+    BAIL_EMPHYTEOTIQUE("Bail emphytéotique / bail à construction", "BE", DomaineActe.IMMOBILIER, true, "Loyers cumulés sur la durée"),
+    REGLEMENT_COPROPRIETE("Règlement de copropriété & état descriptif de division", "RC", DomaineActe.IMMOBILIER, true, "Valeur de l'immeuble"),
+    BAIL_COMMERCIAL("Bail commercial", "BC", DomaineActe.IMMOBILIER, false, "Loyers cumulés sur la durée"),
 
     /* --- Societes & affaires (OHADA) --- */
-    CONSTITUTION_SOCIETE("Constitution de societe (SARL, SA, SAS)", "CS", DomaineActe.AFFAIRES, true, "Capital social"),
+    CONSTITUTION_SOCIETE("Constitution de société (SARL, SA, SAS)", "CS", DomaineActe.AFFAIRES, true, "Capital social"),
     CESSION_PARTS("Cession de parts sociales / d'actions", "CP", DomaineActe.AFFAIRES, true, "Prix de cession"),
-    MODIFICATION_STATUTS("Modification statutaire (capital, forme, siege)", "MS", DomaineActe.AFFAIRES, false, "Variation de capital"),
-    FUSION_DISSOLUTION("Fusion, dissolution & liquidation de societe", "FD", DomaineActe.AFFAIRES, true, "Actif net apporte ou partage"),
+    MODIFICATION_STATUTS("Modification statutaire (capital, forme, siège)", "MS", DomaineActe.AFFAIRES, false, "Variation de capital"),
+    FUSION_DISSOLUTION("Fusion, dissolution & liquidation de société", "FD", DomaineActe.AFFAIRES, true, "Actif net apporté ou partagé"),
     CESSION_FONDS_COMMERCE("Cession de fonds de commerce", "FC", DomaineActe.AFFAIRES, true, "Prix du fonds"),
-    NANTISSEMENT("Nantissement de fonds de commerce ou de materiel", "NA", DomaineActe.AFFAIRES, false, "Montant de la creance garantie"),
+    NANTISSEMENT("Nantissement de fonds de commerce ou de matériel", "NA", DomaineActe.AFFAIRES, false, "Montant de la créance garantie"),
 
     /* --- Famille, successions & patrimoine --- */
-    SUCCESSION("Succession (notoriete, declaration, partage)", "SU", DomaineActe.FAMILLE, true, "Actif net successoral"),
-    DONATION("Donation / donation-partage", "DO", DomaineActe.FAMILLE, false, "Valeur des biens donnes"),
-    TESTAMENT("Testament (authentique ou depot d'olographe)", "TE", DomaineActe.FAMILLE, false, null),
+    SUCCESSION("Succession (notoriété, déclaration, partage)", "SU", DomaineActe.FAMILLE, true, "Actif net successoral"),
+    DONATION("Donation / donation-partage", "DO", DomaineActe.FAMILLE, false, "Valeur des biens donnés"),
+    TESTAMENT("Testament (authentique ou dépôt d'olographe)", "TE", DomaineActe.FAMILLE, false, null),
     CONTRAT_MARIAGE("Contrat de mariage", "CM", DomaineActe.FAMILLE, false, null),
-    CHANGEMENT_REGIME_MATRIMONIAL("Changement de regime matrimonial", "RM", DomaineActe.FAMILLE, false, null),
-    PARTAGE_COMMUNAUTE("Partage & liquidation de communaute (divorce)", "PC", DomaineActe.FAMILLE, false, "Actif net partage"),
-    PROCURATION("Procuration notariee / mandat de protection future", "PR", DomaineActe.FAMILLE, false, null),
+    CHANGEMENT_REGIME_MATRIMONIAL("Changement de régime matrimonial", "RM", DomaineActe.FAMILLE, false, null),
+    PARTAGE_COMMUNAUTE("Partage & liquidation de communauté (divorce)", "PC", DomaineActe.FAMILLE, false, "Actif net partagé"),
+    PROCURATION("Procuration notariée / mandat de protection future", "PR", DomaineActe.FAMILLE, false, null),
 
     /* --- Conservation, authentification & encheres --- */
-    DEPOT_RANG_MINUTES("Depot d'acte sous seing prive au rang des minutes", "DM", DomaineActe.AUTHENTIFICATION, false, null),
-    ACTE_NOTORIETE("Acte de notoriete / constat notarie", "AN", DomaineActe.AUTHENTIFICATION, false, null),
-    VENTE_ENCHERES("Vente aux encheres / adjudication", "VE", DomaineActe.AUTHENTIFICATION, true, "Prix d'adjudication");
+    DEPOT_RANG_MINUTES("Dépôt d'acte sous seing privé au rang des minutes", "DM", DomaineActe.AUTHENTIFICATION, false, null),
+    ACTE_NOTORIETE("Acte de notoriété / constat notarié", "AN", DomaineActe.AUTHENTIFICATION, false, null),
+    VENTE_ENCHERES("Vente aux enchères / adjudication", "VE", DomaineActe.AUTHENTIFICATION, true, "Prix d'adjudication");
 
     private final String libelle;
     private final String code;

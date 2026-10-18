@@ -1,0 +1,42 @@
+.fil { font-size: 15px; color: var(--texte-2); }
+.tete { display: flex; align-items: center; gap: 20px; padding: 22px 24px; flex-wrap: wrap; }
+.tete__avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primaire-fond); color: var(--primaire);
+  display: grid; place-items: center; font-size: 22px; font-weight: 700;
+}
+.tete__identite { flex: 1 1 320px; min-width: 0; }
+.tete__infos { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 6px 0 0; color: var(--texte-2); }
+.tete__chiffres { display: flex; gap: 28px; margin: 0; }
+.tete__chiffres div { text-align: right; }
+.tete__chiffres dt { font-size: 13.5px; font-weight: 700; color: var(--texte-2); }
+.tete__chiffres dd { margin: 2px 0 0; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.chrono { list-style: none; margin: 0; padding: 4px 20px 8px; }
+.chrono__evt {
+  display: grid;
+  grid-template-columns: 96px 16px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ligne-2);
+}
+.chrono__evt:last-child { border-bottom: 0; }
+.chrono__date { font-size: 14px; font-weight: 700; color: var(--texte-2); padding-top: 2px; }
+.chrono__point { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-fond); }
+.chrono__point--fini { background: var(--bon); box-shadow: 0 0 0 4px var(--bon-fond); }
+.chrono__titre { display: block; font-size: 16px; color: var(--texte); }
+.chrono__role {
+  display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 4px;
+  background: var(--remplissage); color: #3a4352; font-size: 13px; font-weight: 700;
+}
+.colonne { display: flex; flex-direction: column; gap: 18px; }
+.liees { list-style: none; margin: 0; padding: 8px 20px 14px; }
+.liees li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ligne-2); }
+.liees li:last-child { border-bottom: 0; }
+@media (max-width: 700px) {
+  .chrono__evt { grid-template-columns: 16px minmax(0, 1fr); }
+  .chrono__date { grid-column: 2; order: -1; }
+  .chrono__evt app-badge-statut { grid-column: 2; }
+  .tete__chiffres { width: 100%; justify-content: space-between; }
+}

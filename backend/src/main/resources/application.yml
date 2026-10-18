@@ -21,6 +21,9 @@ notarius:
   donnees-demo: true
   cors:
     origines: http://localhost:4200
+  jwt:
+    # A remplacer en production (variable JWT_SECRET, 32 caracteres minimum).
+    secret: ${JWT_SECRET:notarius-cle-de-developpement-a-changer-en-production}
 
 ---
 # Profil PostgreSQL (docker-compose) : SPRING_PROFILES_ACTIVE=postgres

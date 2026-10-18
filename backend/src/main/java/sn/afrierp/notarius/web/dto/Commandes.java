@@ -28,8 +28,9 @@ public final class Commandes {
     private Commandes() {
     }
 
-    public record NouvelIntervenant(@NotNull TypePersonne type, @NotBlank String nom, @NotNull QualiteIntervenant qualite,
-                                    String identifiant, String telephone, String email) {
+    /** Soit {@code clientId} (client deja connu), soit {@code type} et {@code nom} (nouveau client). */
+    public record NouvelIntervenant(TypePersonne type, String nom, @NotNull QualiteIntervenant qualite,
+                                    String identifiant, String telephone, String email, String clientId) {
     }
 
     public record NouveauBien(String designation, String titreFoncier, String adresse, String commune,

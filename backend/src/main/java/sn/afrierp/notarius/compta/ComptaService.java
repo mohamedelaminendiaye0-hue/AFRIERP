@@ -143,16 +143,16 @@ public class ComptaService {
         long manquant = Math.max(0, montant - solde);
 
         if (sc.isEmpty()) {
-            return new VerdictVirement(false, "SOUS_COMPTE_INTROUVABLE", "Aucun sous-compte auxiliaire rattache a ce dossier.", solde, montant, manquant);
+            return new VerdictVirement(false, "SOUS_COMPTE_INTROUVABLE", "Aucun sous-compte auxiliaire rattaché à ce dossier.", solde, montant, manquant);
         }
         if (montant <= 0) {
             return new VerdictVirement(false, "MONTANT_INVALIDE", "Saisir un montant strictement positif.", solde, montant, manquant);
         }
         if (!habiliteMouvementsFonds(utilisateur)) {
-            return new VerdictVirement(false, "HABILITATION_MANQUANTE", "Operation reservee aux profils habilites au maniement de fonds.", solde, montant, manquant);
+            return new VerdictVirement(false, "HABILITATION_MANQUANTE", "Opération réservée aux profils habilités au maniement de fonds.", solde, montant, manquant);
         }
         if (nature == NatureMouvement.VERSEMENT_VENDEUR && !dossier.getStatut().estAuMoins(StatutDossier.SIGNED)) {
-            return new VerdictVirement(false, "DOSSIER_NON_SIGNE", "Le versement du prix au vendeur suppose un acte signe.", solde, montant, manquant);
+            return new VerdictVirement(false, "DOSSIER_NON_SIGNE", "Le versement du prix au vendeur suppose un acte signé.", solde, montant, manquant);
         }
         Bareme.ParametresActe param = Bareme.parametres(dossier.getTypeActe());
         if (nature == NatureMouvement.VERSEMENT_VENDEUR && param.delaiOppositionJours() != null) {
@@ -162,30 +162,30 @@ public class ComptaService {
                     .map(f -> f.getDateAchevement());
             if (publication.isEmpty()) {
                 return new VerdictVirement(false, "PUBLICATION_REQUISE",
-                        "Prix sequestre : l'avis de cession doit etre publie avant toute remise du prix au vendeur.", solde, montant, manquant);
+                        "Prix séquestré : l'avis de cession doit être publié avant toute remise du prix au vendeur.", solde, montant, manquant);
             }
             LocalDate finDelai = publication.get().plusDays(param.delaiOppositionJours());
             if (aujourdhui().isBefore(finDelai)) {
                 return new VerdictVirement(false, "DELAI_OPPOSITION_EN_COURS", String.format(Locale.FRANCE,
-                        "Delai d'opposition des creanciers en cours jusqu'au %s : le prix reste sequestre.",
+                        "Délai d'opposition des créanciers en cours jusqu'au %s : le prix reste séquestré.",
                         finDelai.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))), solde, montant, manquant);
             }
         }
         if (nature == NatureMouvement.DEBLOCAGE_CAPITAL) {
             if (param.sequestre() != Bareme.Sequestre.CAPITAL) {
-                return new VerdictVirement(false, "NATURE_INVALIDE", "Aucun capital sequestre sur ce type d'acte.", solde, montant, manquant);
+                return new VerdictVirement(false, "NATURE_INVALIDE", "Aucun capital séquestré sur ce type d'acte.", solde, montant, manquant);
             }
             if (dossier.formalite(OrganismeFormalites.GREFFE_RCCM).map(f -> !f.estAchevee()).orElse(true)) {
                 return new VerdictVirement(false, "IMMATRICULATION_REQUISE",
-                        "Le capital n'est libere qu'une fois la societe immatriculee au RCCM.", solde, montant, manquant);
+                        "Le capital n'est libéré qu'une fois la société immatriculée au RCCM.", solde, montant, manquant);
             }
         }
         if (montant > solde) {
             return new VerdictVirement(false, "SOLDE_INSUFFISANT",
-                    "Virement bloque : le solde auxiliaire est insuffisant. Un sous-compte client ne peut jamais devenir debiteur.",
+                    "Virement bloqué : le solde auxiliaire est insuffisant. Un sous-compte client ne peut jamais devenir débiteur.",
                     solde, montant, manquant);
         }
-        return new VerdictVirement(true, null, "Controle d'etancheite valide — virement autorise.", solde, montant, 0);
+        return new VerdictVirement(true, null, "Contrôle d'étanchéité validé — virement autorisé.", solde, montant, 0);
     }
 
     /**
@@ -196,11 +196,11 @@ public class ComptaService {
     public MouvementComptable executerVirement(Dossier dossier, long montant, NatureMouvement nature,
                                                String beneficiaire, Utilisateur utilisateur) {
         if (nature == null || !nature.estDecaissement()) {
-            throw new RegleMetierException("NATURE_INVALIDE", "La nature choisie n'est pas un decaissement.");
+            throw new RegleMetierException("NATURE_INVALIDE", "La nature choisie n'est pas un décaissement.");
         }
         VerdictVirement verdict = autoriserVirement(dossier, montant, nature, utilisateur);
         if (!verdict.autorise()) {
-            audit.tracerTentativeBloquee(dossier, utilisateur, "Virement refuse : " + verdict.message(), Map.of(
+            audit.tracerTentativeBloquee(dossier, utilisateur, "Virement refusé : " + verdict.message(), Map.of(
                     "montantDemande", Long.toString(montant),
                     "soldeDisponible", Long.toString(verdict.soldeDisponible()),
                     "regle", verdict.code()));
@@ -211,7 +211,7 @@ public class ComptaService {
         CompteCollectif compte = compteCollectif();
         compte.setSoldeBancaire(compte.getSoldeBancaire() - montant);
         audit.tracer(dossier, TypeEvenement.MOUVEMENT_FONDS, utilisateur,
-                String.format(Locale.FRANCE, "Virement emis vers %s — %,d FCFA", beneficiaire, montant),
+                String.format(Locale.FRANCE, "Virement émis vers %s — %,d FCFA", beneficiaire, montant),
                 Map.of("nature", nature.name(), "montant", Long.toString(montant), "piece", m.getNumeroPiece()));
         return m;
     }
@@ -264,8 +264,8 @@ public class ComptaService {
                     ? (f.ancienneteJours() >= 120 ? NiveauAlerte.CRITIQUE : NiveauAlerte.SERIEUX)
                     : NiveauAlerte.VIGILANCE;
             String message = f.transfertObligatoire()
-                    ? "Fonds immobilises depuis %d jours : transfert CDC obligatoire ou justification tracee.".formatted(f.ancienneteJours())
-                    : "Pre-alerte : %d jours d'immobilisation, seuil a %d jours.".formatted(f.ancienneteJours(), Bareme.CDC_SEUIL_IMMOBILISATION_JOURS);
+                    ? "Fonds immobilisés depuis %d jours : transfert CDC obligatoire ou justification tracée.".formatted(f.ancienneteJours())
+                    : "Pré-alerte : %d jours d'immobilisation, seuil à %d jours.".formatted(f.ancienneteJours(), Bareme.CDC_SEUIL_IMMOBILISATION_JOURS);
             alertes.add(new AlerteConformite("ALR-CDC-" + f.sousCompte().dossierId(), f.sousCompte().dossierId(),
                     f.sousCompte().reference(), f.sousCompte().libelle(), niveau, "CDC_90J", message, f.montant(),
                     f.ancienneteJours(), f.transfertObligatoire() ? "TRANSFERT_CDC" : "JUSTIFIER", ref));
@@ -273,7 +273,7 @@ public class ComptaService {
         for (SousCompte sc : sousComptes()) {
             if (sc.solde() < 0) {
                 alertes.add(new AlerteConformite("ALR-DEB-" + sc.dossierId(), sc.dossierId(), sc.reference(), sc.libelle(),
-                        NiveauAlerte.CRITIQUE, "SOLDE_DEBITEUR", "Solde auxiliaire debiteur detecte — regularisation immediate requise.",
+                        NiveauAlerte.CRITIQUE, "SOLDE_DEBITEUR", "Solde auxiliaire débiteur détecté — régularisation immédiate requise.",
                         sc.solde(), null, "REGULARISER", ref));
             }
         }
@@ -304,12 +304,12 @@ public class ComptaService {
         LocalDate ref = aujourdhui();
         FondsImmobilise f = detecterFondsImmobilises().stream()
                 .filter(x -> x.sousCompte().dossierId().equals(dossierId)).findFirst()
-                .orElseThrow(() -> new RegleMetierException("AUCUN_FONDS_IMMOBILISE", "Aucun fonds immobilise a consigner sur ce dossier."));
+                .orElseThrow(() -> new RegleMetierException("AUCUN_FONDS_IMMOBILISE", "Aucun fonds immobilisé à consigner sur ce dossier."));
         return new OrdreVirementCdc("OV-CDC-" + ref.toString().replace("-", "") + "-" + dossierId, ref,
-                "Caisse des Depots et Consignations",
-                "Consignation de fonds immobilises — dossier " + f.sousCompte().reference(), f.montant(),
+                "Caisse des Dépôts et Consignations",
+                "Consignation de fonds immobilisés — dossier " + f.sousCompte().reference(), f.montant(),
                 f.sousCompte().reference(), f.ancienneteJours(), Bareme.CDC_REFERENCE,
-                "Parametrage a valider juridiquement avant exploitation — seuil d'immobilisation configure a %d jours."
+                "Paramétrage à valider juridiquement avant exploitation — seuil d'immobilisation configuré à %d jours."
                         .formatted(Bareme.CDC_SEUIL_IMMOBILISATION_JOURS));
     }
 

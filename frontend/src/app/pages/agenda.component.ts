@@ -294,7 +294,7 @@ export class AgendaComponent implements OnInit {
     this.erreur.set(null);
     this.api.creerRendezVous(this.commande()).subscribe({
       next: (r) => {
-        this.message.set(`Rendez-vous planifie : ${r.typeLibelle} le ${new Date(r.debut).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}.`);
+        this.message.set(`Rendez-vous planifié : ${r.typeLibelle} le ${new Date(r.debut).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}.`);
         this.formulaireOuvert.set(false);
         this.lundi.set(lundiDe(new Date(r.debut)));
         this.charger();
@@ -338,7 +338,7 @@ export class AgendaComponent implements OnInit {
     this.erreur.set(null);
     this.api.reporterRendezVous(r.id, `${this.reportDate}:00`).subscribe({
       next: (maj) => {
-        this.message.set('Rendez-vous reporte.');
+        this.message.set('Rendez-vous reporté.');
         this.lundi.set(lundiDe(new Date(maj.debut)));
         this.selection.set(maj);
         this.charger();

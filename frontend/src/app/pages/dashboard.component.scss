@@ -1,0 +1,20 @@
+.journee { list-style: none; margin: 0; padding: 0; }
+.journee__ligne {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--ligne-2);
+}
+.journee__ligne:last-child { border-bottom: 0; }
+.journee__heure { font-size: 20px; font-weight: 700; text-align: center; line-height: 1.1; }
+.journee__heure small { display: block; font-size: 12.5px; font-weight: 600; color: var(--texte-2); margin-top: 2px; }
+.journee__quoi { min-width: 0; }
+.journee__quoi strong { display: block; }
+.pipeline li:hover .pipeline__libelle > span:first-child { color: var(--primaire); text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 700px) {
+  .journee__ligne { grid-template-columns: 60px minmax(0, 1fr); }
+  .journee__ligne .badge { grid-column: 2; justify-self: start; }
+  .journee__ligne .bouton { grid-column: 2; justify-self: start; }
+}

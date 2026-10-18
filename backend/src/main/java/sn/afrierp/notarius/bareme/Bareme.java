@@ -123,12 +123,12 @@ public final class Bareme {
 
 
     public static final List<Debours> DEBOURS = List.of(
-            new Debours("DEB-ETAT-CIVIL", "Extraits d'etat civil et copies certifiees", 25_000, false),
+            new Debours("DEB-ETAT-CIVIL", "Extraits d'état civil et copies certifiées", 25_000, false),
             new Debours("DEB-URBANISME", "Extrait d'urbanisme et note de renseignement", 45_000, true),
-            new Debours("DEB-CADASTRE", "Releve cadastral et bornage", 60_000, true),
-            new Debours("DEB-TIMBRE", "Timbres fiscaux et papeterie legale", 35_000, false),
-            new Debours("DEB-PUBLICITE", "Frais de publication / telepublication", 55_000, true),
-            new Debours("DEB-TRANSPORT", "Deplacements et diligences administratives", 30_000, false));
+            new Debours("DEB-CADASTRE", "Relevé cadastral et bornage", 60_000, true),
+            new Debours("DEB-TIMBRE", "Timbres fiscaux et papeterie légale", 35_000, false),
+            new Debours("DEB-PUBLICITE", "Frais de publication / télépublication", 55_000, true),
+            new Debours("DEB-TRANSPORT", "Déplacements et diligences administratives", 30_000, false));
 
     /** TVA applicable aux seuls emoluments et honoraires de l'etude. */
     public static final double TVA_TAUX = 0.18;
@@ -138,7 +138,7 @@ public final class Bareme {
     public static final int CDC_SEUIL_PRE_ALERTE_JOURS = 75;
     public static final long CDC_SEUIL_MONTANT_MINIMUM = 50_000;
     public static final String CDC_REFERENCE =
-            "Regle d'immobilisation des fonds clients — consignation CDC (parametrable)";
+            "Règle d'immobilisation des fonds clients — consignation CDC (paramétrable)";
 
     /* --- Workflow des dossiers --- */
 

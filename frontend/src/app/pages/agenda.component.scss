@@ -8,12 +8,12 @@
 .agenda__heures span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--marine-300); }
 .agenda__jour { min-width: 130px; border-left: 1px solid var(--ivoire-200); }
 .agenda__titre { height: 34px; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--marine-500); }
-.agenda__titre.aujourdhui { color: var(--marine-800); background: var(--or-50); border-radius: 8px 8px 0 0; }
+.agenda__titre.aujourdhui { color: var(--teinte); }
 .agenda__colonne { position: relative; cursor: copy; }
 .ligne-heure { position: absolute; left: 0; right: 0; border-top: 1px solid var(--ivoire-200); pointer-events: none; }
 
 .rdv {
-  position: absolute; padding: 3px 6px; border-radius: 6px; overflow: hidden; text-align: left; cursor: pointer; font: inherit;
+  position: absolute; padding: 3px 7px; border-radius: 8px; transition: transform var(--pression), box-shadow 150ms ease; overflow: hidden; text-align: left; cursor: pointer; font: inherit;
   display: flex; flex-direction: column; gap: 1px; border: 1px solid transparent; border-left-width: 3px;
   background: var(--neutre-fond); border-color: var(--neutre); color: var(--marine-700);
 }
@@ -40,3 +40,5 @@
 @media (max-width: 800px) { .detail-rdv { grid-template-columns: 1fr; } }
 .rdv.court { flex-direction: row; gap: 4px; align-items: center; padding-top: 1px; padding-bottom: 1px; }
 .rdv.court .rdv__qui { display: none; }
+.rdv:active { transform: scale(0.98); }
+.agenda__colonne { border-radius: 0; }

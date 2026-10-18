@@ -4,7 +4,16 @@ import { Observable } from 'rxjs';
 import {
   AlerteConformite,
   Blocage,
+  Client,
+  ClientResume,
+  CompteDemo,
+  FicheClient,
+  IdentiteEtude,
   LigneMinutier,
+  Repertoire,
+  ResultatArchivage,
+  SaisieClient,
+  Session,
   Organisme,
   TypeActeVue,
   Membre,
@@ -43,7 +52,7 @@ export interface NouveauDossier {
   notaireId: string;
   dossierLieId?: string | null;
   bien?: { designation: string; titreFoncier: string; adresse: string; commune: string } | null;
-  intervenants: { type: 'PHYSIQUE' | 'MORALE'; nom: string; qualite: string; identifiant?: string }[];
+  intervenants: { type?: 'PHYSIQUE' | 'MORALE'; nom?: string; qualite: string; identifiant?: string; clientId?: string }[];
 }
 
 export interface NouveauRendezVous {
@@ -109,7 +118,7 @@ export class ApiService {
     return this.http.patch<DossierDetail>(`/api/dossiers/${id}/pieces/${pieceId}`, { statut, dateEmission });
   }
 
-  ajouterIntervenant(id: string, cmd: { type: string; nom: string; qualite: string; identifiant?: string }): Observable<DossierDetail> {
+  ajouterIntervenant(id: string, cmd: { type?: string; nom?: string; qualite: string; identifiant?: string; clientId?: string }): Observable<DossierDetail> {
     return this.http.post<DossierDetail>(`/api/dossiers/${id}/intervenants`, cmd);
   }
 
@@ -219,6 +228,56 @@ export class ApiService {
 
   simuler(typeActe: TypeActe, assiette: number, honoraireLibre: number, prixAcquisition?: number | null): Observable<DecompteTaxation> {
     return this.http.post<DecompteTaxation>('/api/taxation/simulation', { typeActe, assiette, honoraireLibre, prixAcquisition });
+  }
+
+  /* --- Session et identité de l'étude --- */
+
+  connexion(email: string, motDePasse: string): Observable<Session> {
+    return this.http.post<Session>('/api/auth/connexion', { email, motDePasse });
+  }
+
+  comptesDemo(): Observable<CompteDemo[]> {
+    return this.http.get<CompteDemo[]>('/api/auth/comptes-demo');
+  }
+
+  moi(): Observable<Utilisateur> {
+    return this.http.get<Utilisateur>('/api/moi');
+  }
+
+  identite(): Observable<IdentiteEtude> {
+    return this.http.get<IdentiteEtude>('/api/identite');
+  }
+
+  enregistrerIdentite(identite: IdentiteEtude): Observable<IdentiteEtude> {
+    return this.http.put<IdentiteEtude>('/api/identite', identite);
+  }
+
+  /* --- Clients --- */
+
+  clients(q?: string): Observable<ClientResume[]> {
+    return this.http.get<ClientResume[]>('/api/clients', { params: q ? { q } : {} });
+  }
+
+  ficheClient(id: string): Observable<FicheClient> {
+    return this.http.get<FicheClient>(`/api/clients/${id}`);
+  }
+
+  creerClient(saisie: SaisieClient): Observable<Client> {
+    return this.http.post<Client>('/api/clients', saisie);
+  }
+
+  modifierClient(id: string, saisie: SaisieClient): Observable<Client> {
+    return this.http.put<Client>(`/api/clients/${id}`, saisie);
+  }
+
+  /* --- Répertoire et archivage --- */
+
+  repertoire(annee?: number): Observable<Repertoire> {
+    return this.http.get<Repertoire>('/api/repertoire', { params: annee ? { annee } : {} });
+  }
+
+  archiver(dossierIds: string[], emplacement?: string | null): Observable<ResultatArchivage[]> {
+    return this.http.post<ResultatArchivage[]>('/api/minutier/archivage', { dossierIds, emplacement });
   }
 }
 

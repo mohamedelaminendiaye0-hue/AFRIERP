@@ -17,7 +17,13 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import sn.afrierp.notarius.bareme.TaxationService;
+import sn.afrierp.notarius.clients.ClientService;
+import sn.afrierp.notarius.domain.Client;
+import sn.afrierp.notarius.identite.IdentiteController;
+import sn.afrierp.notarius.repository.IdentiteEtudeRepository;
+import sn.afrierp.notarius.securite.AuthController;
 import sn.afrierp.notarius.compta.ComptaService;
 import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.CompteCollectif;
@@ -77,6 +83,9 @@ public class DonneesDemo implements ApplicationRunner {
     private final CompteCollectifRepository comptes;
     private final RendezVousRepository rendezVous;
     private final TaxationService taxation;
+    private final ClientService clientService;
+    private final IdentiteEtudeRepository identite;
+    private final PasswordEncoder encodeur;
     private final Clock clock;
 
     private LocalDate aujourdhui;
@@ -85,7 +94,11 @@ public class DonneesDemo implements ApplicationRunner {
     public DonneesDemo(UtilisateurRepository utilisateurs, DossierRepository dossiers,
                        MouvementComptableRepository mouvements, EvenementAuditRepository evenements,
                        CompteCollectifRepository comptes, RendezVousRepository rendezVous, TaxationService taxation,
+                       ClientService clientService, IdentiteEtudeRepository identite, PasswordEncoder encodeur,
                        Clock clock) {
+        this.clientService = clientService;
+        this.identite = identite;
+        this.encodeur = encodeur;
         this.utilisateurs = utilisateurs;
         this.dossiers = dossiers;
         this.mouvements = mouvements;
@@ -113,11 +126,14 @@ public class DonneesDemo implements ApplicationRunner {
         aujourdhui = LocalDate.now(clock);
         chargerUtilisateurs();
         chargerDossiers();
+        inscrireAuRepertoire();
+        rattacherClients();
+        identite.save(IdentiteController.parDefaut());
         chargerEcritures();
         poserVisas();
         chargerJournalVedette();
         chargerRendezVous();
-        LOG.info("Donnees de demonstration chargees : {} dossiers, {} ecritures.", dossiers.count(), mouvements.count());
+        LOG.info("Données de démonstration chargées : {} dossiers, {} écritures.", dossiers.count(), mouvements.count());
     }
 
     /* ------------------------------------------------------------------ *
@@ -126,13 +142,13 @@ public class DonneesDemo implements ApplicationRunner {
 
     private void chargerUtilisateurs() {
         Utilisateur titulaire = new Utilisateur("U-001", "Aminata", "Ndoye", Role.NOTAIRE_TITULAIRE, "AN", LocalDate.of(2009, 3, 2));
-        titulaire.setReferenceNomination("Decret de nomination n° 2009-212 du 2 mars 2009 (fictif)");
+        titulaire.setReferenceNomination("Décret de nomination n° 2009-212 du 2 mars 2009 (fictif)");
         Utilisateur associe = new Utilisateur("U-002", "Ousmane", "Sarr", Role.NOTAIRE_ASSOCIE, "OS", LocalDate.of(2014, 9, 1));
-        associe.setReferenceNomination("Associe de la SCP Ndoye & Associes — decret n° 2014-1107 (fictif)");
+        associe.setReferenceNomination("Associé de la SCP Ndoye & Associés — décret n° 2014-1107 (fictif)");
         users.put("U-001", utilisateurs.save(titulaire));
         users.put("U-002", utilisateurs.save(associe));
         Utilisateur salarie = new Utilisateur("U-010", "Fatou", "Kane", Role.NOTAIRE_SALARIE, "FK", LocalDate.of(2023, 6, 12));
-        salarie.setReferenceNomination("Notaire salarie — agrement n° 2023-045 (fictif)");
+        salarie.setReferenceNomination("Notaire salarié — agrément n° 2023-045 (fictif)");
         salarie.setNotaireResponsable(titulaire);
         users.put("U-010", utilisateurs.save(salarie));
         List.of(
@@ -146,6 +162,11 @@ public class DonneesDemo implements ApplicationRunner {
                 new Utilisateur("U-012", "Seynabou", "Diouf", Role.ARCHIVISTE, "SD", LocalDate.of(2015, 3, 9)),
                 new Utilisateur("U-009", "Ndeye", "Ba", Role.ASSISTANT, "NB", LocalDate.of(2023, 1, 9))
         ).forEach(u -> users.put(u.getId(), utilisateurs.save(u)));
+        Utilisateur admin = new Utilisateur("U-099", "Admin", "Plateforme", Role.SUPER_ADMIN, "SA", LocalDate.of(2026, 1, 5));
+        admin.setEmail("admin@notarius.sn");
+        users.put(admin.getId(), utilisateurs.save(admin));
+        String empreinte = encodeur.encode(AuthController.MOT_DE_PASSE_DEMO);
+        users.values().forEach(u -> u.setMotDePasse(empreinte));
     }
 
     /* ------------------------------------------------------------------ *
@@ -215,8 +236,8 @@ public class DonneesDemo implements ApplicationRunner {
         /* --- Dossier vedette : vente immeuble Mermoz, en attente de provision --- */
         Dossier vedette = dossier(DOSSIER_VEDETTE, "2026-VI-0142", "Vente Immeuble Mermoz — Client Ndiaye",
                 TypeActe.VENTE_IMMOBILIERE, StatutDossier.FUNDING, 25, "U-003", "U-001", 78, 12, 185_000_000, 0);
-        vedette.setBien(bien("Immeuble R+2 a usage d'habitation, 6 appartements", "TF n° 18 742/DG",
-                "Lot 214, cite Mermoz Pyrotechnie", "Dakar — Mermoz/Sacre-Coeur", 420, UsageBien.HABITATION));
+        vedette.setBien(bien("Immeuble R+2 à usage d'habitation, 6 appartements", "TF n° 18 742/DG",
+                "Lot 214, cité Mermoz Pyrotechnie", "Dakar — Mermoz/Sacré-Cœur", 420, UsageBien.HABITATION));
         Intervenant vendeur = new Intervenant(TypePersonne.PHYSIQUE, "M. Abdoulaye Ndiaye", QualiteIntervenant.VENDEUR, "CNI 1 234 1988 00456", true);
         vendeur.setTelephone("+221 77 512 44 90");
         Intervenant acquereur = new Intervenant(TypePersonne.PHYSIQUE, "Mme Khady Gueye", QualiteIntervenant.ACQUEREUR, "CNI 1 234 1991 07731", true);
@@ -241,9 +262,9 @@ public class DonneesDemo implements ApplicationRunner {
                 p.setDateExpiration(dans(45 - i));
             }
             if (p.getStatut() == StatutPiece.MANQUANTE) {
-                p.setCommentaire("Relance effectuee aupres de la CBAO — exigee pour la mise a la signature.");
+                p.setCommentaire("Relance effectuée auprès de la CBAO — exigée pour la mise à la signature.");
             } else if (p.getStatut() == StatutPiece.DEMANDEE) {
-                p.setCommentaire("Demande transmise, delai annonce 10 jours ouvres.");
+                p.setCommentaire("Demande transmise, délai annoncé 10 jours ouvrés.");
             }
             vedette.ajouterPiece(p);
         }
@@ -256,7 +277,7 @@ public class DonneesDemo implements ApplicationRunner {
 
         Dossier d131 = dossier("D-0131", "2026-VI-0131", "Vente terrain Diamniadio — SCI Teranga", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.PENDING_DOCS, 90, "U-005", "U-002", 96, -9, 96_000_000, 4);
-        d131.setBien(bien("Terrain nu viabilise", "TF n° 24 561/R", "Pole urbain de Diamniadio, ilot 12", "Rufisque — Diamniadio", 2400, UsageBien.TERRAIN_NU));
+        d131.setBien(bien("Terrain nu viabilisé", "TF n° 24 561/R", "Pôle urbain de Diamniadio, îlot 12", "Rufisque — Diamniadio", 2400, UsageBien.TERRAIN_NU));
         liste.add(d131);
 
         liste.add(dossier("D-0127", "2026-CS-0127", "Constitution SARL Baobab Logistics", TypeActe.CONSTITUTION_SOCIETE,
@@ -264,7 +285,7 @@ public class DonneesDemo implements ApplicationRunner {
 
         Dossier d125 = dossier("D-0125", "2026-VI-0125", "Vente appartement Point E — Diouf/Mbaye", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.SIGNED, 7, "U-003", "U-001", 103, -8, 78_000_000, 11);
-        d125.setBien(bien("Appartement F4, 3e etage", "TF n° 9 811/DG", "Rue de Fann, residence Espadon", "Dakar — Point E", 128, UsageBien.HABITATION));
+        d125.setBien(bien("Appartement F4, 3e étage", "TF n° 9 811/DG", "Rue de Fann, résidence Espadon", "Dakar — Point E", 128, UsageBien.HABITATION));
         signe(d125, 7, ModeSignature.ELECTRONIQUE_GAINDE);
         d125.setGaindeStatut(StatutGainde.TRANSMIS);
         d125.setGaindeDateMiseAJour(ilYA(7));
@@ -283,15 +304,15 @@ public class DonneesDemo implements ApplicationRunner {
         d116.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(18), "CF-DKR-2026-4471", null));
         liste.add(d116);
 
-        Dossier d112 = dossier("D-0112", "2026-AH-0112", "Affectation hypothecaire — Sy / BOA Senegal", TypeActe.AFFECTATION_HYPOTHECAIRE,
+        Dossier d112 = dossier("D-0112", "2026-AH-0112", "Affectation hypothécaire — Sy / BOA Sénégal", TypeActe.AFFECTATION_HYPOTHECAIRE,
                 StatutDossier.READY_TO_SIGN, 6, "U-006", "U-002", 58, 3, 52_000_000, 11);
         d112.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Pape Sy", QualiteIntervenant.ACQUEREUR, "CNI 1 751 1984 02213", true));
-        d112.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "BOA Senegal", QualiteIntervenant.BANQUE, "NINEA 001 942 210", true));
+        d112.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "BOA Sénégal", QualiteIntervenant.BANQUE, "NINEA 001 942 210", true));
         liste.add(d112);
 
-        Dossier d108 = dossier("D-0108", "2026-VI-0108", "Vente residence Saly — Ndour", TypeActe.VENTE_IMMOBILIERE,
+        Dossier d108 = dossier("D-0108", "2026-VI-0108", "Vente résidence Saly — Ndour", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.DRAFTING, 30, "U-003", "U-002", 88, -4, 265_000_000, 9);
-        d108.setBien(bien("Residence balneaire avec piscine", "TF n° 7 129/MB", "Saly Portudal, zone hoteliere", "Mbour — Saly", 750, UsageBien.HABITATION));
+        d108.setBien(bien("Résidence balnéaire avec piscine", "TF n° 7 129/MB", "Saly Portudal, zone hôtelière", "Mbour — Saly", 750, UsageBien.HABITATION));
         d108.setPurgeConditionsEnCours(true);
         liste.add(d108);
 
@@ -305,7 +326,7 @@ public class DonneesDemo implements ApplicationRunner {
 
         Dossier d091 = dossier("D-0091", "2026-VI-0091", "Vente villa Ouakam — Barry/Kane", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.POST_ACT, 48, "U-006", "U-001", 168, -52, 112_000_000, 11);
-        d091.setBien(bien("Villa basse avec dependance", "TF n° 15 003/DG", "Cite Avion, Ouakam", "Dakar — Ouakam", 380, UsageBien.HABITATION));
+        d091.setBien(bien("Villa basse avec dépendance", "TF n° 15 003/DG", "Cité Avion, Ouakam", "Dakar — Ouakam", 380, UsageBien.HABITATION));
         signe(d091, 50, ModeSignature.PHYSIQUE);
         liste.add(d091);
 
@@ -316,9 +337,13 @@ public class DonneesDemo implements ApplicationRunner {
 
         Dossier d082 = dossier("D-0082", "2026-VI-0082", "Vente parcelle Yoff — Diagne", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.POST_ACT, 90, "U-005", "U-001", 190, -96, 47_000_000, 11);
-        d082.setBien(bien("Parcelle a usage mixte", "TF n° 21 774/DG", "Yoff Layene, lot 88", "Dakar — Yoff", 300, UsageBien.MIXTE));
+        d082.setBien(bien("Parcelle à usage mixte", "TF n° 21 774/DG", "Yoff Layene, lot 88", "Dakar — Yoff", 300, UsageBien.MIXTE));
         signe(d082, 94, ModeSignature.PHYSIQUE);
         d082.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(60), "CF-DKR-2026-2210", ilYA(12)));
+        // Dossier complet : formalités achevées, taxage arrêté, reliquat restitué — la minute attend l'archiviste.
+        d082.getFormalites().add(new Formalite(OrganismeFormalites.DGID, ilYA(92), "ENR-DKR-2026-09114", ilYA(88)));
+        d082.setTaxageDefinitifParId("U-007");
+        d082.setTaxageDefinitifDate(ilYA(9));
         liste.add(d082);
 
         Dossier d076 = dossier("D-0076", "2026-CP-0076", "Cession de parts — Sahel Distribution SA", TypeActe.CESSION_PARTS,
@@ -328,69 +353,143 @@ public class DonneesDemo implements ApplicationRunner {
         d076.getFormalites().add(new Formalite(OrganismeFormalites.GREFFE_RCCM, ilYA(134), "RCCM-SN-DKR-2026-B-0312", ilYA(126)));
         d076.setTaxageDefinitifParId("U-007");
         d076.setTaxageDefinitifDate(ilYA(122));
-        d076.setNumeroRepertoire(ilYA(120).getYear() + "/0001");
         d076.setArchiveParId("U-012");
         d076.setDateArchivage(ilYA(120));
-        d076.setConservationJusquau(ilYA(138).plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+        d076.setEmplacementArchive("Liasse 2026-T2 · rayonnage B");
         d076.setDateCloture(ilYA(120));
         liste.add(d076);
 
-        Dossier d071 = dossier("D-0071", "2026-VI-0071", "Vente duplex Hann Mariste — Cisse", TypeActe.VENTE_IMMOBILIERE,
+        Dossier d071 = dossier("D-0071", "2026-VI-0071", "Vente duplex Hann Mariste — Cissé", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.PENDING_DOCS, 105, "U-004", "U-001", 112, -17, 89_000_000, 5);
         d071.setBien(bien("Duplex F5", "TF n° 19 330/DG", "Hann Mariste 2, villa 118", "Dakar — Hann Bel-Air", 210, UsageBien.HABITATION));
         liste.add(d071);
 
-        liste.add(dossier("D-0065", "2026-VI-0065", "Vente magasin Guediawaye — Ndao", TypeActe.VENTE_IMMOBILIERE,
+        liste.add(dossier("D-0065", "2026-VI-0065", "Vente magasin Guédiawaye — Ndao", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.DRAFTING, 6, "U-003", "U-010", 34, 22, 31_000_000, 9));
 
-        Dossier d059 = dossier("D-0059", "2026-DO-0059", "Donation immobiliere — famille Seck", TypeActe.DONATION,
+        Dossier d059 = dossier("D-0059", "2026-DO-0059", "Donation immobilière — famille Seck", TypeActe.DONATION,
                 StatutDossier.SIGNED, 5, "U-005", "U-001", 61, -5, 41_000_000, 5);
         signe(d059, 5, ModeSignature.PHYSIQUE);
         liste.add(d059);
 
-        Dossier d146 = dossier("D-0146", "2026-VI-0146", "Vente appartement Sacre-Coeur — Mbengue", TypeActe.VENTE_IMMOBILIERE,
+        Dossier d146 = dossier("D-0146", "2026-VI-0146", "Vente appartement Sacré-Cœur — Mbengue", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.DRAFT, 1, null, "U-002", 1, null, 58_000_000, 0); // a assigner par le principal clerc
-        d146.setBien(bien("Appartement F3, 2e etage", "TF n° 22 015/DG", "Sacre-Coeur 3, villa 9120", "Dakar — Sacre-Coeur", 96, UsageBien.HABITATION));
+        d146.setBien(bien("Appartement F3, 2e étage", "TF n° 22 015/DG", "Sacré-Cœur 3, villa 9120", "Dakar — Sacré-Cœur", 96, UsageBien.HABITATION));
         d146.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "Mme Awa Mbengue", QualiteIntervenant.VENDEUR, null, false));
         liste.add(d146);
 
-        liste.add(dossier("D-0144", "2026-DO-0144", "Donation entre epoux — Sow", TypeActe.DONATION,
+        liste.add(dossier("D-0144", "2026-DO-0144", "Donation entre époux — Sow", TypeActe.DONATION,
                 StatutDossier.TAXING, 2, "U-006", "U-001", 30, 18, 35_000_000, 5));
 
         /* --- Autres demarches de l'etude --- */
-        Dossier d150 = dossier("D-0150", "2026-FC-0150", "Cession fonds de commerce — Boulangerie Le Fromager (Medina)",
+        Dossier d150 = dossier("D-0150", "2026-FC-0150", "Cession fonds de commerce — Boulangerie Le Fromager (Médina)",
                 TypeActe.CESSION_FONDS_COMMERCE, StatutDossier.POST_ACT, 20, "U-005", "U-002", 70, -25, 40_000_000, 6);
         d150.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Serigne Mboup", QualiteIntervenant.VENDEUR, "CNI 1 619 1975 01842", true));
-        d150.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "SARL Pain Dore", QualiteIntervenant.ACQUEREUR, "NINEA 007 455 120", true));
+        d150.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "SARL Pain Doré", QualiteIntervenant.ACQUEREUR, "NINEA 007 455 120", true));
         signe(d150, 25, ModeSignature.PHYSIQUE);
         d150.getFormalites().add(new Formalite(OrganismeFormalites.DGID, ilYA(22), "ENR-DKR-2026-20411", ilYA(18)));
         // Avis publie il y a 12 jours : le delai d'opposition de 30 jours court encore.
         d150.getFormalites().add(new Formalite(OrganismeFormalites.PUBLICATION_LEGALE, ilYA(20), "Le Soleil — annonce n° 5102", ilYA(12)));
         liste.add(d150);
 
-        liste.add(dossier("D-0151", "2026-MH-0151", "Mainlevee d'hypotheque — Diallo / CBAO (pret solde)",
+        liste.add(dossier("D-0151", "2026-MH-0151", "Mainlevée d'hypothèque — Diallo / CBAO (prêt soldé)",
                 TypeActe.MAINLEVEE_HYPOTHEQUE, StatutDossier.DRAFTING, 5, "U-004", "U-001", 20, 10, 30_000_000, 3));
 
-        Dossier d152 = dossier("D-0152", "2026-RM-0152", "Changement de regime matrimonial — epoux Ba",
+        Dossier d152 = dossier("D-0152", "2026-RM-0152", "Changement de régime matrimonial — époux Ba",
                 TypeActe.CHANGEMENT_REGIME_MATRIMONIAL, StatutDossier.PENDING_DOCS, 12, "U-003", "U-010", 15, 30, 0, 2);
         d152.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Babacar Ba", QualiteIntervenant.MANDATAIRE, null, false));
         d152.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "Mme Mame Diarra Ba", QualiteIntervenant.MANDATAIRE, null, false));
         liste.add(d152);
 
-        Dossier d153 = dossier("D-0153", "2026-PR-0153", "Procuration pour vente a distance — M. Fall (diaspora)",
+        Dossier d153 = dossier("D-0153", "2026-PR-0153", "Procuration pour vente à distance — M. Fall (diaspora)",
                 TypeActe.PROCURATION, StatutDossier.REVIEW, 1, "U-006", "U-010", 6, 4, 0, 2);
         d153.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Cheikh Fall", QualiteIntervenant.MANDATAIRE, "Passeport A01938274", true));
         liste.add(d153);
 
-        liste.add(dossier("D-0154", "2026-DM-0154", "Depot au rang des minutes — reconnaissance de dette Ndiaye / Sarr",
+        liste.add(dossier("D-0154", "2026-DM-0154", "Dépôt au rang des minutes — reconnaissance de dette Ndiaye / Sarr",
                 TypeActe.DEPOT_RANG_MINUTES, StatutDossier.TAXING, 1, "U-004", "U-002", 9, 7, 0, 2));
 
-        Dossier d155 = dossier("D-0155", "2026-VE-0155", "Adjudication volontaire — villa Fann Residence",
+        Dossier d155 = dossier("D-0155", "2026-VE-0155", "Adjudication volontaire — villa Fann Résidence",
                 TypeActe.VENTE_ENCHERES, StatutDossier.DRAFTING, 8, "U-003", "U-001", 40, 25, 210_000_000, 3);
-        d155.setBien(bien("Villa R+1 avec jardin", "TF n° 6 233/DG", "Fann Residence, rue F x Corniche", "Dakar — Fann", 540, UsageBien.HABITATION));
+        d155.setBien(bien("Villa R+1 avec jardin", "TF n° 6 233/DG", "Fann Résidence, rue F x Corniche", "Dakar — Fann", 540, UsageBien.HABITATION));
         liste.add(d155);
 
+        ajouterParties(liste);
         dossiers.saveAll(liste);
+    }
+
+    /**
+     * Parties des autres dossiers. Plusieurs personnes reviennent d'un dossier a
+     * l'autre (meme identifiant officiel) : leur fiche client retrace tout leur historique.
+     */
+    private void ajouterParties(List<Dossier> liste) {
+        Map<String, Dossier> parId = new HashMap<>();
+        liste.forEach(d -> parId.put(d.getId(), d));
+        String ndiaye = "CNI 1 234 1988 00456";
+        String gueye = "CNI 1 234 1991 07731";
+        String sahel = "NINEA 004 772 318";
+        partie(parId, "D-0076", TypePersonne.PHYSIQUE, "M. Abdoulaye Ndiaye", QualiteIntervenant.CEDANT, ndiaye);
+        partie(parId, "D-0076", TypePersonne.MORALE, "Sahel Distribution SA", QualiteIntervenant.CESSIONNAIRE, sahel);
+        partie(parId, "D-0127", TypePersonne.PHYSIQUE, "M. Abdoulaye Ndiaye", QualiteIntervenant.ASSOCIE, ndiaye);
+        partie(parId, "D-0127", TypePersonne.PHYSIQUE, "Mme Ramatoulaye Diop", QualiteIntervenant.ASSOCIE, "CNI 2 751 1990 04412");
+        partie(parId, "D-0065", TypePersonne.PHYSIQUE, "M. Ibou Ndao", QualiteIntervenant.VENDEUR, "CNI 1 619 1969 00871");
+        partie(parId, "D-0065", TypePersonne.PHYSIQUE, "Mme Khady Gueye", QualiteIntervenant.ACQUEREUR, gueye);
+        partie(parId, "D-0082", TypePersonne.PHYSIQUE, "M. Ousseynou Diagne", QualiteIntervenant.VENDEUR, "CNI 1 751 1972 03390");
+        partie(parId, "D-0082", TypePersonne.PHYSIQUE, "Mme Khady Gueye", QualiteIntervenant.ACQUEREUR, gueye);
+        partie(parId, "D-0116", TypePersonne.MORALE, "SCI Kermel", QualiteIntervenant.VENDEUR, "NINEA 003 118 902");
+        partie(parId, "D-0116", TypePersonne.MORALE, "Sahel Distribution SA", QualiteIntervenant.ACQUEREUR, sahel);
+        partie(parId, "D-0151", TypePersonne.PHYSIQUE, "M. Alioune Diallo", QualiteIntervenant.EMPRUNTEUR, "CNI 1 751 1980 01177");
+        partie(parId, "D-0151", TypePersonne.MORALE, "CBAO Groupe Attijariwafa Bank", QualiteIntervenant.BANQUE, "NINEA 002 118 447");
+        partie(parId, "D-0131", TypePersonne.MORALE, "SCI Teranga", QualiteIntervenant.VENDEUR, "NINEA 005 330 761");
+        partie(parId, "D-0131", TypePersonne.PHYSIQUE, "M. Pape Sy", QualiteIntervenant.ACQUEREUR, "CNI 1 751 1984 02213");
+        partie(parId, "D-0125", TypePersonne.PHYSIQUE, "M. Lamine Diouf", QualiteIntervenant.VENDEUR, "CNI 1 619 1966 02284");
+        partie(parId, "D-0125", TypePersonne.PHYSIQUE, "Mme Aida Mbaye", QualiteIntervenant.ACQUEREUR, "CNI 2 751 1987 06120");
+        partie(parId, "D-0091", TypePersonne.PHYSIQUE, "M. Thierno Barry", QualiteIntervenant.VENDEUR, "CNI 1 619 1970 05531");
+        partie(parId, "D-0091", TypePersonne.PHYSIQUE, "Mme Rokhaya Kane", QualiteIntervenant.ACQUEREUR, "CNI 2 751 1985 00342");
+        partie(parId, "D-0059", TypePersonne.PHYSIQUE, "M. Mamadou Seck", QualiteIntervenant.DONATEUR, "CNI 1 619 1958 00118");
+        partie(parId, "D-0059", TypePersonne.PHYSIQUE, "Mlle Aminata Seck", QualiteIntervenant.DONATAIRE, "CNI 2 751 1996 08823");
+        partie(parId, "D-0119", TypePersonne.PHYSIQUE, "M. Cheikh Fall", QualiteIntervenant.HERITIER, "Passeport A01938274");
+        partie(parId, "D-0119", TypePersonne.PHYSIQUE, "Mme Bineta Fall", QualiteIntervenant.HERITIER, "CNI 2 751 1979 03316");
+        partie(parId, "D-0138", TypePersonne.PHYSIQUE, "M. Ibrahima Camara", QualiteIntervenant.HERITIER, "CNI 1 751 1977 04450");
+        partie(parId, "D-0104", TypePersonne.PHYSIQUE, "M. Babacar Thiam", QualiteIntervenant.DONATEUR, "CNI 1 619 1955 00932");
+        partie(parId, "D-0144", TypePersonne.PHYSIQUE, "M. Daouda Sow", QualiteIntervenant.DONATEUR, "CNI 1 619 1968 01455");
+        partie(parId, "D-0144", TypePersonne.PHYSIQUE, "Mme Ndeye Sow", QualiteIntervenant.DONATAIRE, "CNI 2 751 1974 02208");
+        partie(parId, "D-0087", TypePersonne.PHYSIQUE, "Mme Astou Sylla", QualiteIntervenant.HERITIER, "CNI 2 751 1966 01190");
+        partie(parId, "D-0098", TypePersonne.MORALE, "Sea Plaza SA", QualiteIntervenant.SOCIETE, "NINEA 006 201 554");
+        partie(parId, "D-0071", TypePersonne.PHYSIQUE, "Mme Fatou Cissé", QualiteIntervenant.ACQUEREUR, "CNI 2 751 1983 07714");
+        partie(parId, "D-0108", TypePersonne.PHYSIQUE, "M. Samba Ndour", QualiteIntervenant.VENDEUR, "CNI 1 619 1961 03027");
+        partie(parId, "D-0154", TypePersonne.PHYSIQUE, "M. Moustapha Ndiaye", QualiteIntervenant.MANDANT, "CNI 1 751 1982 05519");
+    }
+
+    private static void partie(Map<String, Dossier> parId, String dossierId, TypePersonne type, String nom,
+                               QualiteIntervenant qualite, String identifiant) {
+        parId.get(dossierId).ajouterIntervenant(new Intervenant(type, nom, qualite, identifiant, true));
+    }
+
+    /** Numeros d'ordre du repertoire des actes : attribues dans l'ordre chronologique des signatures. */
+    private void inscrireAuRepertoire() {
+        Map<Integer, Integer> rangs = new HashMap<>();
+        dossiers.findAll().stream()
+                .filter(d -> d.getDateSignature() != null)
+                .sorted(Comparator.comparing(Dossier::getDateSignature).thenComparing(Dossier::getId))
+                .forEach(d -> {
+                    int annee = d.getDateSignature().getYear();
+                    int rang = rangs.merge(annee, 1, Integer::sum);
+                    d.setNumeroRepertoire("%d/%04d".formatted(annee, rang));
+                    d.setConservationJusquau(d.getDateSignature().plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+                    d.setNotaireSignataireId(d.getNotaire().getId());
+                    d.setNotaireResponsableId(d.getNotaire().notaireEngage().getId());
+                });
+    }
+
+    /** Fiches clients : une par personne, datee de son premier dossier a l'etude. */
+    private void rattacherClients() {
+        Map<Client, LocalDate> premiers = new HashMap<>();
+        dossiers.findAll().stream()
+                .sorted(Comparator.comparing(Dossier::getDateOuverture))
+                .forEach(d -> d.getIntervenants().forEach(i ->
+                        premiers.merge(clientService.rattacher(i), d.getDateOuverture(), (a, b) -> a.isBefore(b) ? a : b)));
+        premiers.forEach(Client::setDateCreation);
     }
 
     /* ------------------------------------------------------------------ *
@@ -411,72 +510,73 @@ public class DonneesDemo implements ApplicationRunner {
 
     private void chargerEcritures() {
         List<Ecriture> ecritures = new ArrayList<>(List.of(
-                c("D-0142", 74, 5_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais — acquereur K. Gueye", "Khady Gueye"),
-                c("D-0142", 41, 18_500_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie 10 % du prix", "Khady Gueye"),
-                c("D-0142", 22, 166_500_000, NatureMouvement.PRIX_VENTE, "Sequestre du solde du prix — deblocage credit CBAO", "CBAO Groupe Attijariwafa Bank"),
-                db("D-0142", 19, 9_250_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement 5 % — Recette des Domaines", "Tresor public — Recette des Domaines"),
-                db("D-0142", 19, 1_850_000, NatureMouvement.PAIEMENT_TRESOR, "Conservation fonciere 1 %", "Conservation fonciere de Dakar"),
-                db("D-0142", 5, 3_100_000, NatureMouvement.PAIEMENT_TIERS, "Mainlevee hypothecaire — solde credit vendeur", "Banque Atlantique Senegal"),
+                c("D-0142", 74, 5_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais — acquéreur K. Gueye", "Khady Gueye"),
+                c("D-0142", 41, 18_500_000, NatureMouvement.DEPOT_GARANTIE, "Dépôt de garantie 10 % du prix", "Khady Gueye"),
+                c("D-0142", 22, 166_500_000, NatureMouvement.PRIX_VENTE, "Séquestre du solde du prix — déblocage crédit CBAO", "CBAO Groupe Attijariwafa Bank"),
+                db("D-0142", 19, 9_250_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement 5 % — Recette des Domaines", "Trésor public — Recette des Domaines"),
+                db("D-0142", 19, 1_850_000, NatureMouvement.PAIEMENT_TRESOR, "Conservation foncière 1 %", "Conservation foncière de Dakar"),
+                db("D-0142", 5, 3_100_000, NatureMouvement.PAIEMENT_TIERS, "Mainlevée hypothécaire — solde crédit vendeur", "Banque Atlantique Sénégal"),
 
-                c("D-0138", 55, 12_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais d'acte", "Heritiers Camara"),
-                c("D-0138", 28, 84_000_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie 20 %", "Acquereur — SCI Yeggo"),
-                db("D-0138", 11, 4_200_000, NatureMouvement.PAIEMENT_TRESOR, "Acompte droits d'enregistrement", "Tresor public"),
+                c("D-0138", 55, 12_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais d'acte", "Héritiers Camara"),
+                c("D-0138", 28, 84_000_000, NatureMouvement.DEPOT_GARANTIE, "Dépôt de garantie 20 %", "Acquéreur — SCI Yeggo"),
+                db("D-0138", 11, 4_200_000, NatureMouvement.PAIEMENT_TRESOR, "Acompte droits d'enregistrement", "Trésor public"),
 
                 c("D-0131", 84, 6_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais — SCI Teranga", "SCI Teranga"),
-                db("D-0131", 30, 480_000, NatureMouvement.PAIEMENT_TIERS, "Frais de bornage et geometre", "Cabinet Geo-Sahel"),
+                db("D-0131", 30, 480_000, NatureMouvement.PAIEMENT_TIERS, "Frais de bornage et géomètre", "Cabinet Géo-Sahel"),
 
-                c("D-0127", 36, 25_000_000, NatureMouvement.PROVISION_CLIENT, "Depot du capital social — SARL Baobab Logistics", "Associes Baobab Logistics"),
+                c("D-0127", 36, 25_000_000, NatureMouvement.PROVISION_CLIENT, "Dépôt du capital social — SARL Baobab Logistics", "Associés Baobab Logistics"),
                 db("D-0127", 14, 250_000, NatureMouvement.PAIEMENT_TRESOR, "Droits fixes RCCM et enregistrement statuts", "Greffe du Tribunal de commerce"),
 
-                c("D-0125", 60, 78_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix de vente", "Acquereur M. Mbaye"),
-                c("D-0125", 60, 7_400_000, NatureMouvement.PROVISION_CLIENT, "Provision frais et droits", "Acquereur M. Mbaye"),
-                db("D-0125", 7, 3_900_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Tresor public"),
+                c("D-0125", 60, 78_000_000, NatureMouvement.PRIX_VENTE, "Séquestre du prix de vente", "Acquéreur M. Mbaye"),
+                c("D-0125", 60, 7_400_000, NatureMouvement.PROVISION_CLIENT, "Provision frais et droits", "Acquéreur M. Mbaye"),
+                db("D-0125", 7, 3_900_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Trésor public"),
                 db("D-0125", 6, 74_000_000, NatureMouvement.VERSEMENT_VENDEUR, "Versement du prix au vendeur", "Mme A. Diouf"),
-                db("D-0125", 3, 2_950_000, NatureMouvement.HONORAIRES_ETUDE, "Prelevement des emoluments — acte signe", "Etude Ndoye & Associes"),
+                db("D-0125", 3, 2_950_000, NatureMouvement.HONORAIRES_ETUDE, "Prélèvement des émoluments — acte signé", "Étude Ndoye & Associés"),
 
-                c("D-0119", 132, 34_000_000, NatureMouvement.PROVISION_CLIENT, "Fonds de succession centralises", "Indivision Fall"),
-                db("D-0119", 118, 1_200_000, NatureMouvement.PAIEMENT_TIERS, "Reglement dettes successorales", "Creancier — Ecobank"),
+                c("D-0119", 132, 34_000_000, NatureMouvement.PROVISION_CLIENT, "Fonds de succession centralisés", "Indivision Fall"),
+                db("D-0119", 118, 1_200_000, NatureMouvement.PAIEMENT_TIERS, "Règlement dettes successorales", "Créancier — Ecobank"),
 
-                c("D-0116", 34, 45_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Acquereur — Fonds Sahel Invest"),
-                c("D-0116", 33, 615_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix — immeuble Plateau", "Acquereur — Fonds Sahel Invest"),
-                db("D-0116", 27, 30_750_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement 5 %", "Tresor public"),
-                db("D-0116", 25, 6_150_000, NatureMouvement.PAIEMENT_TRESOR, "Conservation fonciere", "Conservation fonciere de Dakar"),
+                c("D-0116", 34, 45_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Acquéreur — Fonds Sahel Invest"),
+                c("D-0116", 33, 615_000_000, NatureMouvement.PRIX_VENTE, "Séquestre du prix — immeuble Plateau", "Acquéreur — Fonds Sahel Invest"),
+                db("D-0116", 27, 30_750_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement 5 %", "Trésor public"),
+                db("D-0116", 25, 6_150_000, NatureMouvement.PAIEMENT_TRESOR, "Conservation foncière", "Conservation foncière de Dakar"),
                 db("D-0116", 21, 540_000_000, NatureMouvement.VERSEMENT_VENDEUR, "Versement du prix — SCI Kermel", "SCI Kermel"),
 
-                c("D-0112", 44, 3_200_000, NatureMouvement.PROVISION_CLIENT, "Provision frais d'inscription hypothecaire", "M. Sy"),
+                c("D-0112", 44, 3_200_000, NatureMouvement.PROVISION_CLIENT, "Provision frais d'inscription hypothécaire", "M. Sy"),
 
-                c("D-0108", 71, 26_500_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie 10 %", "Acquereur M. Ndour"),
-                c("D-0108", 40, 4_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais", "Acquereur M. Ndour"),
+                c("D-0108", 71, 26_500_000, NatureMouvement.DEPOT_GARANTIE, "Dépôt de garantie 10 %", "Acquéreur M. Ndour"),
+                c("D-0108", 40, 4_000_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais", "Acquéreur M. Ndour"),
 
                 c("D-0104", 47, 5_600_000, NatureMouvement.PROVISION_CLIENT, "Provision droits de donation", "Famille Thiam"),
 
-                c("D-0098", 58, 3_600_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie — bail commercial", "Preneur — Sea Plaza Retail"),
-                db("D-0098", 10, 900_000, NatureMouvement.HONORAIRES_ETUDE, "Prelevement emoluments — bail signe", "Etude Ndoye & Associes"),
+                c("D-0098", 58, 3_600_000, NatureMouvement.DEPOT_GARANTIE, "Dépôt de garantie — bail commercial", "Preneur — Sea Plaza Retail"),
+                db("D-0098", 10, 900_000, NatureMouvement.HONORAIRES_ETUDE, "Prélèvement émoluments — bail signé", "Étude Ndoye & Associés"),
 
-                c("D-0091", 162, 9_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Acquereur M. Kane"),
-                c("D-0091", 160, 112_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix — villa Ouakam", "Acquereur M. Kane"),
-                db("D-0091", 150, 5_600_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Tresor public"),
+                c("D-0091", 162, 9_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Acquéreur M. Kane"),
+                c("D-0091", 160, 112_000_000, NatureMouvement.PRIX_VENTE, "Séquestre du prix — villa Ouakam", "Acquéreur M. Kane"),
+                db("D-0091", 150, 5_600_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Trésor public"),
                 db("D-0091", 137, 88_000_000, NatureMouvement.VERSEMENT_VENDEUR, "Versement partiel au vendeur", "M. O. Barry"),
 
                 c("D-0087", 190, 58_000_000, NatureMouvement.PROVISION_CLIENT, "Fonds de liquidation successorale", "Indivision Sylla"),
-                db("D-0087", 103, 41_300_000, NatureMouvement.PAIEMENT_TIERS, "Repartition partielle entre heritiers", "Heritiers Sylla"),
+                db("D-0087", 103, 41_300_000, NatureMouvement.PAIEMENT_TIERS, "Répartition partielle entre héritiers", "Héritiers Sylla"),
 
-                c("D-0082", 141, 4_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Acquereur Mme Diagne"),
-                c("D-0082", 140, 47_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix — parcelle Yoff", "Acquereur Mme Diagne"),
-                db("D-0082", 120, 2_350_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Tresor public"),
-                db("D-0082", 96, 38_000_000, NatureMouvement.VERSEMENT_VENDEUR, "Versement au vendeur — solde retenu", "M. I. Diagne"),
+                c("D-0082", 141, 4_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "Mme Khady Gueye"),
+                c("D-0082", 140, 47_000_000, NatureMouvement.PRIX_VENTE, "Séquestre du prix — parcelle Yoff", "Mme Khady Gueye"),
+                db("D-0082", 120, 2_350_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement", "Trésor public"),
+                db("D-0082", 96, 38_000_000, NatureMouvement.VERSEMENT_VENDEUR, "Versement au vendeur — solde retenu", "M. Ousseynou Diagne"),
+                db("D-0082", 8, 11_150_000, NatureMouvement.RESTITUTION_CLIENT, "Restitution du reliquat après taxage définitif", "Mme Khady Gueye"),
 
-                c("D-0071", 105, 8_900_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie 10 %", "Acquereur M. Cisse"),
-                db("D-0071", 83, 600_000, NatureMouvement.PAIEMENT_TIERS, "Frais d'expertise immobiliere", "Cabinet Expertys"),
+                c("D-0071", 105, 8_900_000, NatureMouvement.DEPOT_GARANTIE, "Dépôt de garantie 10 %", "Acquéreur M. Cissé"),
+                db("D-0071", 83, 600_000, NatureMouvement.PAIEMENT_TIERS, "Frais d'expertise immobilière", "Cabinet Expertys"),
 
-                c("D-0150", 41, 3_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "SARL Pain Dore"),
-                c("D-0150", 40, 40_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix du fonds de commerce", "SARL Pain Dore"),
-                db("D-0150", 22, 2_000_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement de la cession", "Tresor public"),
+                c("D-0150", 41, 3_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "SARL Pain Doré"),
+                c("D-0150", 40, 40_000_000, NatureMouvement.PRIX_VENTE, "Séquestre du prix du fonds de commerce", "SARL Pain Doré"),
+                db("D-0150", 22, 2_000_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement de la cession", "Trésor public"),
 
                 c("D-0065", 29, 2_400_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais", "M. Ndao"),
 
                 c("D-0059", 40, 3_300_000, NatureMouvement.PROVISION_CLIENT, "Provision droits de donation", "Famille Seck"),
-                db("D-0059", 4, 1_230_000, NatureMouvement.PAIEMENT_TRESOR, "Droits de donation", "Tresor public")));
+                db("D-0059", 4, 1_230_000, NatureMouvement.PAIEMENT_TRESOR, "Droits de donation", "Trésor public")));
 
         ecritures.sort(Comparator.comparingInt(Ecriture::jours).reversed());
         Map<String, Long> cumuls = new HashMap<>();
@@ -509,8 +609,8 @@ public class DonneesDemo implements ApplicationRunner {
 
         CompteCollectif compte = new CompteCollectif();
         compte.setId(ComptaService.COMPTE_COLLECTIF_ID);
-        compte.setLibelle("Compte de maniement de fonds clients — Etude Ndoye & Associes");
-        compte.setBanque("Societe Generale Senegal");
+        compte.setLibelle("Compte de maniement de fonds clients — Étude Ndoye & Associés");
+        compte.setBanque("Société Générale Sénégal");
         compte.setIban("SN08 SG00 0100 0047 8812 0031 47");
         compte.setSoldeBancaire(total); // invariant I2 satisfait par construction
         compte.setDateDernierReleve(ilYA(1));
@@ -596,18 +696,18 @@ public class DonneesDemo implements ApplicationRunner {
     private void chargerRendezVous() {
         // Signature du credit hypothecaire (dossier pret pour signature) : fixe la date prevue.
         rdv(2, "10:00", 90, TypeRendezVous.SIGNATURE, Salle.SALLE_SIGNATURES, "U-002", "U-006", "D-0112",
-                "M. Pape Sy / BOA Senegal", "+221 77 640 12 33", "Signature du pret hypothecaire", StatutRendezVous.CONFIRME);
+                "M. Pape Sy / BOA Sénégal", "+221 77 640 12 33", "Signature du prêt hypothécaire", StatutRendezVous.CONFIRME);
         dossiers.findById("D-0112").ifPresent(d -> d.setDateSignaturePrevue(jourOuvre(2)));
         rdv(1, "09:30", 60, TypeRendezVous.LECTURE_PROJET, Salle.BUREAU_NOTAIRE, "U-002", "U-004", "D-0138",
-                "Heritiers Camara", "+221 76 220 41 18", "Lecture du projet de vente — villa Almadies", StatutRendezVous.CONFIRME);
+                "Héritiers Camara", "+221 76 220 41 18", "Lecture du projet de vente — villa Almadies", StatutRendezVous.CONFIRME);
         rdv(1, "11:00", 30, TypeRendezVous.REMISE_PIECES, Salle.BUREAU_CLERC, null, "U-005", "D-0131",
-                "SCI Teranga", "+221 33 820 55 10", "Remise de l'etat des droits reels renouvele", StatutRendezVous.PLANIFIE);
+                "SCI Teranga", "+221 33 820 55 10", "Remise de l'état des droits réels renouvelé", StatutRendezVous.PLANIFIE);
         rdv(1, "15:00", 45, TypeRendezVous.CONSULTATION, Salle.BUREAU_NOTAIRE, "U-001", null, null,
                 "Mme Rokhaya Seck", "+221 77 301 88 42", "Projet de constitution de SCI familiale", StatutRendezVous.PLANIFIE);
         rdv(2, "15:30", 60, TypeRendezVous.LECTURE_PROJET, Salle.SALLE_REUNION, "U-001", "U-006", "D-0127",
-                "Associes Baobab Logistics", "+221 78 455 09 61", "Relecture des statuts de la SARL", StatutRendezVous.PLANIFIE);
+                "Associés Baobab Logistics", "+221 78 455 09 61", "Relecture des statuts de la SARL", StatutRendezVous.PLANIFIE);
         rdv(3, "10:30", 30, TypeRendezVous.REMISE_FONDS, Salle.BUREAU_CLERC, null, "U-007", "D-0142",
-                "Mme Khady Gueye", "+221 78 330 12 05", "Complement de provision sur frais", StatutRendezVous.PLANIFIE);
+                "Mme Khady Gueye", "+221 78 330 12 05", "Complément de provision sur frais", StatutRendezVous.PLANIFIE);
         rdv(4, "09:00", 45, TypeRendezVous.CONSULTATION, Salle.BUREAU_NOTAIRE, "U-010", "U-011", null,
                 "M. Alioune Mbaye", "+221 70 112 36 90", "Succession — premier rendez-vous", StatutRendezVous.PLANIFIE);
     }
@@ -630,26 +730,26 @@ public class DonneesDemo implements ApplicationRunner {
     private void chargerJournalVedette() {
         List<Ev> journal = List.of(
                 new Ev(78, "09:12", TypeEvenement.CREATION, "U-009", "Ouverture du dossier — vente immeuble Mermoz", m("reference", "2026-VI-0142")),
-                new Ev(78, "09:20", TypeEvenement.ASSIGNATION, "U-001", "Dossier assigne a Awa Diallo (clerc redacteur)", m("apres", "U-003")),
-                new Ev(77, "11:40", TypeEvenement.CHANGEMENT_STATUT, "U-003", "Passage au statut « Instruction & Pieces »", m("avant", "DRAFT", "apres", "PENDING_DOCS")),
+                new Ev(78, "09:20", TypeEvenement.ASSIGNATION, "U-001", "Dossier assigné à Awa Diallo (clerc rédacteur)", m("apres", "U-003")),
+                new Ev(77, "11:40", TypeEvenement.CHANGEMENT_STATUT, "U-003", "Passage au statut « Instruction & Pièces »", m("avant", "DRAFT", "apres", "PENDING_DOCS")),
                 new Ev(74, "15:05", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Encaissement provision sur frais — 5 000 000 FCFA", m("montant", "5000000")),
-                new Ev(66, "08:55", TypeEvenement.PIECE_VALIDEE, "U-003", "Titre foncier TF n° 18 742/DG valide", null),
-                new Ev(58, "14:22", TypeEvenement.PIECE_VALIDEE, "U-003", "Extrait d'urbanisme recu de la mairie de Mermoz", null),
-                new Ev(50, "10:03", TypeEvenement.CHANGEMENT_STATUT, "U-003", "Passage au statut « Redaction en cours »", m("avant", "PENDING_DOCS", "apres", "DRAFTING")),
-                new Ev(41, "16:47", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Depot de garantie 10 % encaisse — 18 500 000 FCFA", m("montant", "18500000")),
-                new Ev(33, "09:31", TypeEvenement.EDITION_DOCUMENT, "U-003", "Projet d'acte de vente edite (v2) et transmis aux parties", null),
+                new Ev(66, "08:55", TypeEvenement.PIECE_VALIDEE, "U-003", "Titre foncier TF n° 18 742/DG validé", null),
+                new Ev(58, "14:22", TypeEvenement.PIECE_VALIDEE, "U-003", "Extrait d'urbanisme reçu de la mairie de Mermoz", null),
+                new Ev(50, "10:03", TypeEvenement.CHANGEMENT_STATUT, "U-003", "Passage au statut « Rédaction en cours »", m("avant", "PENDING_DOCS", "apres", "DRAFTING")),
+                new Ev(41, "16:47", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Dépôt de garantie 10 % encaissé — 18 500 000 FCFA", m("montant", "18500000")),
+                new Ev(33, "09:31", TypeEvenement.EDITION_DOCUMENT, "U-003", "Projet d'acte de vente édité (v2) et transmis aux parties", null),
                 new Ev(31, "17:02", TypeEvenement.CHANGEMENT_STATUT, "U-003", "Passage au statut « Validation Titulaire »", m("avant", "DRAFTING", "apres", "REVIEW")),
-                new Ev(28, "10:15", TypeEvenement.VALIDATION_NOTAIRE, "U-001", "Projet d'acte valide par le notaire", null),
-                new Ev(28, "10:16", TypeEvenement.CHANGEMENT_STATUT, "U-001", "Passage au statut « Taxage previsionnel »", m("avant", "REVIEW", "apres", "TAXING")),
+                new Ev(28, "10:15", TypeEvenement.VALIDATION_NOTAIRE, "U-001", "Projet d'acte validé par le notaire", null),
+                new Ev(28, "10:16", TypeEvenement.CHANGEMENT_STATUT, "U-001", "Passage au statut « Taxage prévisionnel »", m("avant", "REVIEW", "apres", "TAXING")),
                 new Ev(25, "12:40", TypeEvenement.CHANGEMENT_STATUT, "U-007", "Passage au statut « En attente de provision »", m("avant", "TAXING", "apres", "FUNDING")),
-                new Ev(22, "11:18", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Sequestre du solde du prix — 166 500 000 FCFA (deblocage CBAO)", m("montant", "166500000")),
+                new Ev(22, "11:18", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Séquestre du solde du prix — 166 500 000 FCFA (déblocage CBAO)", m("montant", "166500000")),
                 new Ev(19, "09:02", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Paiement des droits d'enregistrement — 9 250 000 FCFA", null),
-                new Ev(12, "17:26", TypeEvenement.TENTATIVE_BLOQUEE, "U-007", "Virement refuse : solde auxiliaire insuffisant (controle d'etancheite)",
+                new Ev(12, "17:26", TypeEvenement.TENTATIVE_BLOQUEE, "U-007", "Virement refusé : solde auxiliaire insuffisant (contrôle d'étanchéité)",
                         m("montantDemande", "180000000", "soldeDisponible", "178900000", "regle", "SOLDE_INSUFFISANT")),
-                new Ev(8, "16:05", TypeEvenement.TENTATIVE_BLOQUEE, "U-007", "Transition refusee vers « Pret pour signature »",
+                new Ev(8, "16:05", TypeEvenement.TENTATIVE_BLOQUEE, "U-007", "Transition refusée vers « Prêt pour signature »",
                         m("vers", "READY_TO_SIGN", "motifs", "PIECES_MANQUANTES, FONDS_INSUFFISANTS")),
-                new Ev(6, "10:44", TypeEvenement.PIECE_REJETEE, "U-001", "Mainlevee d'hypotheque non conforme — relance CBAO", null),
-                new Ev(5, "15:09", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Reglement mainlevee hypothecaire — 3 100 000 FCFA", null));
+                new Ev(6, "10:44", TypeEvenement.PIECE_REJETEE, "U-001", "Mainlevée d'hypothèque non conforme — relance CBAO", null),
+                new Ev(5, "15:09", TypeEvenement.MOUVEMENT_FONDS, "U-007", "Règlement mainlevée hypothécaire — 3 100 000 FCFA", null));
 
         // Le statut porte par chaque evenement est reconstitue a partir des changements de statut.
         StatutDossier courant = StatutDossier.DRAFT;

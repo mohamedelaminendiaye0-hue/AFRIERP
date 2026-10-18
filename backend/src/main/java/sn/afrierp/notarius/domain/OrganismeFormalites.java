@@ -1,11 +1,11 @@
 package sn.afrierp.notarius.domain;
 
 public enum OrganismeFormalites {
-    DGID("Impots et domaines (DGID)", "Enregistrement, mutation fiscale ou declaration de succession"),
-    CONSERVATION_FONCIERE("Conservation fonciere", "Publication au livre foncier (mutation, inscription, radiation)"),
-    GREFFE_RCCM("Greffe — RCCM", "Inscription au Registre du commerce et du credit mobilier"),
-    NINEA("Repertoire NINEA (ANSD)", "Immatriculation fiscale et statistique de l'entreprise"),
-    PUBLICATION_LEGALE("Journal d'annonces legales", "Publication de l'avis legal / insertion"),
+    DGID("Impôts et domaines (DGID)", "Enregistrement, mutation fiscale ou déclaration de succession"),
+    CONSERVATION_FONCIERE("Conservation foncière", "Publication au livre foncier (mutation, inscription, radiation)"),
+    GREFFE_RCCM("Greffe — RCCM", "Inscription au Registre du commerce et du crédit mobilier"),
+    NINEA("Répertoire NINEA (ANSD)", "Immatriculation fiscale et statistique de l'entreprise"),
+    PUBLICATION_LEGALE("Journal d'annonces légales", "Publication de l'avis légal / insertion"),
     TRIBUNAL("Tribunal de grande instance", "Homologation judiciaire");
 
     private final String libelle;

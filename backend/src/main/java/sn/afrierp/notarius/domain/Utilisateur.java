@@ -1,5 +1,7 @@
 package sn.afrierp.notarius.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -22,7 +24,12 @@ public class Utilisateur {
 
     private String nom;
     private String prenom;
+    @Column(unique = true)
     private String email;
+
+    /** Empreinte BCrypt du mot de passe ; jamais exposee par l'API. */
+    @JsonIgnore
+    private String motDePasse;
 
     @Enumerated(EnumType.STRING)
     private Role role;

@@ -42,6 +42,11 @@ public class Intervenant {
     private String email;
     private String adresse;
 
+    /** Fiche client rattachee : relie les interventions d'une meme personne dans tous ses dossiers. */
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Client client;
+
     /** Controle KYC / LAB-FT (lutte anti-blanchiment) realise. */
     private boolean kycValide;
 

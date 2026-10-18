@@ -1,31 +1,37 @@
 <div class="page">
   <header class="page__entete entete-ligne">
     <div>
-      <h1>Portefeuille de dossiers</h1>
-      <p>Chaque dossier suit un cycle de 10 statuts : aucune etape legale ou fiscale ne peut etre sautee.</p>
+      <h1>Dossiers</h1>
+      <p>Chaque dossier suit les 10 étapes de l'acte authentique ; aucune étape légale ou fiscale ne peut être sautée.</p>
     </div>
-    <button class="bouton bouton--or" type="button" (click)="formulaireOuvert.set(!formulaireOuvert())">
-      {{ formulaireOuvert() ? 'Fermer' : 'Ouvrir un dossier' }}
-    </button>
+    <div class="actions">
+      <button class="bouton bouton--secondaire" type="button" (click)="exporter()"><app-icone nom="telecharger" [taille]="18" />Exporter</button>
+      @if (peutCreer()) {
+        <button class="bouton" [class.bouton--creer]="!formulaireOuvert()" [class.bouton--secondaire]="formulaireOuvert()" type="button"
+                (click)="formulaireOuvert() ? formulaireOuvert.set(false) : ouvrirFormulaire()">
+          <app-icone [nom]="formulaireOuvert() ? 'fermer' : 'plus'" [taille]="18" />{{ formulaireOuvert() ? 'Fermer le formulaire' : 'Nouveau dossier' }}
+        </button>
+      }
+    </div>
   </header>
 
   @if (formulaireOuvert()) {
     <section class="carte">
       <div class="carte__entete">
         <div>
-          <h2>Nouveau dossier</h2>
-          <p>Le dossier est cree en « Creation / Brouillon » avec la checklist standard de son type d'acte.</p>
+          <h2>Ouvrir un dossier</h2>
+          <p>Le dossier démarre à l'étape « Ouverture » avec la liste des pièces de son type d'acte.</p>
         </div>
       </div>
       <form class="carte__corps" (ngSubmit)="creer()">
         <div class="grille grille--3">
           <div class="champ span-2">
-            <label for="intitule">Intitule</label>
-            <input id="intitule" name="intitule" required [(ngModel)]="nouveau.intitule" placeholder="Vente appartement Fann — Client Diop" />
+            <label for="intitule">Intitulé</label>
+            <input id="intitule" name="intitule" required [(ngModel)]="form.intitule" placeholder="Vente appartement Fann — Diop / Sow" />
           </div>
           <div class="champ">
             <label for="type">Type d'acte</label>
-            <select id="type" name="type" [(ngModel)]="nouveau.typeActe">
+            <select id="type" name="type" [(ngModel)]="form.typeActe">
               @for (g of catalogue.groupes(); track g.domaine) {
                 <optgroup [label]="g.libelle">
                   @for (t of g.types; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
@@ -33,80 +39,94 @@
               }
             </select>
           </div>
+
+          <div class="champ">
+            <label for="client">Client</label>
+            <select id="client" name="client" [(ngModel)]="form.clientId">
+              <option value="">Nouveau client (saisie ci-contre)</option>
+              @for (c of clients(); track c.id) { <option [value]="c.id">{{ c.nom }}@if (c.identifiant) { — {{ c.identifiant }} }</option> }
+            </select>
+          </div>
+          @if (!form.clientId) {
+            <div class="champ">
+              <label for="partie">Nom du client</label>
+              <input id="partie" name="partie" [(ngModel)]="form.partie" placeholder="M. Mamadou Diop" />
+            </div>
+            <div class="champ">
+              <label for="ident">CNI, passeport ou NINEA</label>
+              <input id="ident" name="ident" [(ngModel)]="form.identifiant" />
+            </div>
+          }
+          <div class="champ">
+            <label for="qualite">Qualité dans l'acte</label>
+            <select id="qualite" name="qualite" [(ngModel)]="form.qualite">
+              @for (q of qualites; track q[0]) { <option [value]="q[0]">{{ q[1] }}</option> }
+            </select>
+          </div>
+          @if (!form.clientId) {
+            <div class="champ">
+              <label for="ptype">Personne</label>
+              <select id="ptype" name="ptype" [(ngModel)]="form.partieType">
+                <option value="PHYSIQUE">Physique</option>
+                <option value="MORALE">Morale</option>
+              </select>
+            </div>
+          }
+
           @if (typeChoisi()?.assietteLibelle; as assiette) {
             <div class="champ">
               <label for="montant">{{ assiette }} (FCFA)</label>
-              <input id="montant" name="montant" type="number" min="0" step="1000" [(ngModel)]="nouveau.montant" />
-            </div>
-          } @else {
-            <div class="champ"><label>Assiette</label><p class="petit muet">Acte sans assiette : droit fixe et emolument forfaitaire.</p></div>
-          }
-          @if (nouveau.typeActe === 'MAINLEVEE_HYPOTHEQUE') {
-            <div class="champ">
-              <label for="lie">Affectation hypothecaire d'origine</label>
-              <select id="lie" name="lie" [(ngModel)]="nouveau.dossierLieId">
-                <option value="">— hypotheque prise hors de l'etude —</option>
-                @for (h of hypotheques(); track h.id) { <option [value]="h.id">{{ h.reference }} — {{ h.intitule }}</option> }
-              </select>
+              <input id="montant" name="montant" type="number" min="0" step="1000" [(ngModel)]="form.montant" />
             </div>
           }
           @if (typeChoisi()?.plusValue) {
             <div class="champ">
-              <label for="acq">Prix d'acquisition du vendeur (plus-value)</label>
-              <input id="acq" name="acq" type="number" min="0" step="1000" [(ngModel)]="nouveau.prixAcquisition" />
+              <label for="acq">Prix d'acquisition du vendeur</label>
+              <input id="acq" name="acq" type="number" min="0" step="1000" [(ngModel)]="form.prixAcquisition" />
+            </div>
+          }
+          @if (form.typeActe === 'MAINLEVEE_HYPOTHEQUE') {
+            <div class="champ">
+              <label for="lie">Affectation hypothécaire d'origine</label>
+              <select id="lie" name="lie" [(ngModel)]="form.dossierLieId">
+                <option value="">Hypothèque prise hors de l'étude</option>
+                @for (h of hypotheques(); track h.id) { <option [value]="h.id">{{ h.reference }} — {{ h.intitule }}</option> }
+              </select>
             </div>
           }
           <div class="champ">
-            <label for="clerc">Clerc redacteur</label>
-            <select id="clerc" name="clerc" [(ngModel)]="nouveau.clercId">
-              <option value="">A assigner par le principal clerc</option>
+            <label for="clerc">Clerc rédacteur</label>
+            <select id="clerc" name="clerc" [(ngModel)]="form.clercId">
+              <option value="">À assigner par le principal clerc</option>
               @for (u of clercs(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} ({{ charge()[u.id] ?? 0 }} dossiers)</option> }
             </select>
           </div>
           <div class="champ">
             <label for="notaire">Notaire superviseur</label>
-            <select id="notaire" name="notaire" required [(ngModel)]="nouveau.notaireId">
+            <select id="notaire" name="notaire" required [(ngModel)]="form.notaireId">
               <option value="" disabled>Choisir…</option>
               @for (u of notaires(); track u.id) { <option [value]="u.id">{{ u.nomComplet }}</option> }
             </select>
           </div>
           <div class="champ">
-            <label for="partie">Partie principale</label>
-            <input id="partie" name="partie" [(ngModel)]="nouveau.partie" placeholder="M. Mamadou Diop" />
-          </div>
-          <div class="champ">
-            <label for="qualite">Qualite</label>
-            <select id="qualite" name="qualite" [(ngModel)]="nouveau.partieQualite">
-              @for (q of ['VENDEUR', 'ACQUEREUR', 'DONATEUR', 'DONATAIRE', 'HERITIER', 'SOCIETE', 'BANQUE', 'MANDATAIRE']; track q) {
-                <option [value]="q">{{ q }}</option>
-              }
-            </select>
-          </div>
-          <div class="champ">
-            <label for="ptype">Personne</label>
-            <select id="ptype" name="ptype" [(ngModel)]="nouveau.partieType">
-              <option value="PHYSIQUE">Physique</option>
-              <option value="MORALE">Morale</option>
-            </select>
-          </div>
-          <div class="champ">
-            <label for="designation">Bien (designation)</label>
-            <input id="designation" name="designation" [(ngModel)]="nouveau.designation" placeholder="Appartement F4" />
+            <label for="designation">Bien (désignation)</label>
+            <input id="designation" name="designation" [(ngModel)]="form.designation" placeholder="Appartement F4" />
           </div>
           <div class="champ">
             <label for="tf">Titre foncier</label>
-            <input id="tf" name="tf" [(ngModel)]="nouveau.titreFoncier" placeholder="TF n° 12 345/DG" />
+            <input id="tf" name="tf" [(ngModel)]="form.titreFoncier" placeholder="TF n° 12 345/DG" />
           </div>
           <div class="champ">
             <label for="commune">Commune</label>
-            <input id="commune" name="commune" [(ngModel)]="nouveau.commune" placeholder="Dakar — Fann" />
+            <input id="commune" name="commune" [(ngModel)]="form.commune" placeholder="Dakar — Fann" />
           </div>
         </div>
         @if (typeChoisi(); as t) {
           <div class="bandeau bandeau--info">
-            <div><strong>{{ t.libelle }}</strong> — {{ t.enregistrement }} · emolument : {{ t.emolument.toLowerCase() }}
-              @if (t.publiciteFonciere) { · publicite fonciere } @if (t.sequestre !== 'AUCUN') { · sequestre du {{ t.sequestre === 'PRIX' ? 'prix' : 'capital' }} avant signature }
-              @if (t.formalites.length) { <br />Formalites post-acte : {{ t.formalites.join(', ') }} }
+            <div><strong>{{ t.libelle }}</strong> : {{ t.enregistrement }} · émolument {{ t.emolument.toLowerCase() }}
+              @if (t.publiciteFonciere) { · publicité foncière }
+              @if (t.sequestre !== 'AUCUN') { · séquestre du {{ t.sequestre === 'PRIX' ? 'prix' : 'capital' }} avant signature }
+              @if (t.formalites.length) { <br />Formalités après signature : {{ t.formalites.join(', ') }} }
               @if (t.complexe) { <br />Dossier complexe : visa du principal clerc avant soumission au notaire. }</div>
           </div>
         }
@@ -116,77 +136,127 @@
           </div>
         }
         <div class="actions-form">
-          <span class="petit muet">Agit en tant que {{ session.utilisateur()?.nomComplet }} ({{ session.utilisateur()?.roleLibelle }})</span>
-          <button class="bouton" type="submit" [disabled]="!nouveau.intitule || !nouveau.notaireId">Creer le dossier</button>
+          <span></span>
+          <div class="actions">
+            <button class="bouton bouton--fantome" type="button" (click)="formulaireOuvert.set(false)">Annuler</button>
+            <button class="bouton" type="submit" [disabled]="!form.intitule || !form.notaireId">Ouvrir le dossier</button>
+          </div>
         </div>
       </form>
     </section>
   }
 
-  @if (message(); as m) { <div class="bandeau bandeau--bon">{{ m }}</div> }
-  @if (!formulaireOuvert() && erreur(); as e) { <div class="bandeau bandeau--critique">{{ e.message }}</div> }
+  @if (message(); as m) { <div class="bandeau bandeau--bon" role="status">{{ m }}</div> }
+  @if (!formulaireOuvert() && erreur(); as e) { <div class="bandeau bandeau--critique" role="alert">{{ e.blocages.length ? e.blocages[0].message : e.message }}</div> }
+
+  @if (selection().size) {
+    <div class="selection" role="region" aria-label="Actions sur la sélection">
+      <span>{{ selection().size }} dossier{{ selection().size > 1 ? 's' : '' }} sélectionné{{ selection().size > 1 ? 's' : '' }}</span>
+      <span class="selection__espace"></span>
+      @if (encadrement()) {
+        <span class="reassigner">
+          <label class="sr-only" for="reassigner">Confier à</label>
+          <select id="reassigner" [(ngModel)]="clercReassignation">
+            <option value="" disabled>Confier à…</option>
+            @for (u of clercs(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} ({{ charge()[u.id] ?? 0 }})</option> }
+          </select>
+          <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!clercReassignation" (click)="reassigner()">Réassigner</button>
+        </span>
+      }
+      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="exporter()">Exporter</button>
+      @if (peutArchiver()) {
+        <button class="bouton bouton--creer bouton--petit" type="button" (click)="demanderArchivage()"
+                [disabled]="!archivablesSelection()"
+                [title]="archivablesSelection() ? '' : 'Seuls les dossiers en formalités peuvent être archivés'">
+          <app-icone nom="archiver" [taille]="16" />Archiver
+        </button>
+      }
+      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="viderSelection()">Désélectionner</button>
+    </div>
+  }
 
   <section class="carte">
     <div class="filtres">
-      @for (f of filtres; track f.cle) {
-        <button type="button" class="puce" [class.active]="filtreActif() === f.cle" (click)="filtreActif.set(f.cle)">
-          {{ f.libelle }} <span class="chiffres">({{ compte(f) }})</span>
-        </button>
-      }
-      <select class="filtre-domaine" [value]="domaineFiltre()" (change)="domaineFiltre.set($any($event.target).value)" aria-label="Domaine">
+      <div class="segment" role="tablist" aria-label="Vue">
+        @for (v of vues; track v.cle) {
+          <button type="button" role="tab" [class.actif]="vueActive() === v.cle" [attr.aria-selected]="vueActive() === v.cle"
+                  (click)="vueActive.set(v.cle)">{{ v.libelle }} · {{ compte(v.cle) }}</button>
+        }
+      </div>
+    </div>
+    <div class="filtres filtres--second">
+      <select class="filtre-domaine" aria-label="Étape" [ngModel]="etape()" (ngModelChange)="etape.set($event)">
+        <option value="">Toutes les étapes</option>
+        @for (s of ordre; track s) { <option [value]="s">{{ libelleStatut(s) }}</option> }
+      </select>
+      <select class="filtre-domaine" aria-label="Domaine" [ngModel]="domaine()" (ngModelChange)="domaine.set($event)">
         <option value="">Tous les domaines</option>
         @for (g of catalogue.groupes(); track g.domaine) { <option [value]="g.domaine">{{ g.libelle }}</option> }
       </select>
-      <input class="recherche" type="search" placeholder="Rechercher une reference, un client, un clerc…"
-             [value]="recherche()" (input)="recherche.set($any($event.target).value)" />
+      <select class="filtre-domaine" aria-label="Trier par" [ngModel]="tri()" (ngModelChange)="tri.set($event)">
+        <option value="echeance">Tri : échéance</option>
+        <option value="retard">Tri : retard</option>
+        <option value="ouverture">Tri : plus récents</option>
+        <option value="reference">Tri : référence</option>
+      </select>
+      <input class="recherche" type="search" placeholder="Référence, client, clerc, type d'acte…" aria-label="Rechercher un dossier"
+             [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
     </div>
     <div class="table-defilante">
       <table>
         <thead>
           <tr>
-            <th>Reference</th><th>Type d'acte</th><th>Statut</th><th>Clerc / notaire</th>
-            <th class="droite">Dans le statut</th><th class="droite">Pieces</th><th class="droite">Transaction</th><th>Signaux</th>
+            <th style="width: 44px"><input type="checkbox" aria-label="Tout sélectionner" [checked]="toutSelectionne()" (change)="basculerTout()" /></th>
+            <th>Dossier</th><th>Type d'acte</th><th>Étape</th><th class="col-avancement">Avancement</th><th>Échéance</th><th>Clerc · notaire</th>
+            <th class="droite">Montant</th>
           </tr>
         </thead>
         <tbody>
           @for (d of visibles(); track d.id) {
-            <tr class="cliquable" (click)="router.navigate(['/dossiers', d.id])">
-              <td><span class="ref">{{ d.reference }}</span><br /><span class="tres-petit muet">{{ d.intitule }}</span></td>
-              <td class="petit muet">{{ d.typeActeLibelle }}</td>
+            <tr class="cliquable" tabindex="0" [class.selectionnee]="selection().has(d.id)"
+                (click)="ouvrir(d)" (keydown.enter)="ouvrir(d)" (keydown.space)="$event.preventDefault(); basculer(d.id)">
+              <td (click)="$event.stopPropagation()">
+                <input type="checkbox" [attr.aria-label]="'Sélectionner ' + d.reference" [checked]="selection().has(d.id)" (change)="basculer(d.id)" />
+              </td>
+              <td class="col-dossier"><a class="ref" [routerLink]="['/dossiers', d.id]" (click)="$event.stopPropagation()">{{ d.id }}</a>
+                <span class="sous">{{ d.intitule }}</span></td>
+              <td class="col-type">{{ d.typeActeLibelle }}</td>
               <td><app-badge-statut [statut]="d.statut" /></td>
-              <td class="petit">
-                @if (d.clercNom) { {{ d.clercNom }} }
-                @else if (session.utilisateur()?.encadrement) {
-                  <span class="affectation" (click)="$event.stopPropagation()">
-                    <select [(ngModel)]="affectations[d.id]" aria-label="Clerc a affecter">
-                      <option value="" disabled selected>Affecter a…</option>
-                      @for (u of clercs(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} ({{ charge()[u.id] ?? 0 }})</option> }
-                    </select>
-                    <button class="bouton bouton--petit" type="button" [disabled]="!affectations[d.id]" (click)="affecter(d, $event)">OK</button>
-                  </span>
-                } @else { <span class="badge badge--petit badge--vigilance">A assigner</span> }
-                <br /><span class="tres-petit muet">{{ d.notaireNom }}</span>
+              <td class="col-avancement">
+                <span class="progression" [attr.aria-label]="'Étape ' + rang(d.statut) + ' sur 10'">
+                  @for (s of ordre; track s; let i = $index) { <i [class.fait]="i < rang(d.statut)"></i> }
+                </span>
               </td>
-              <td class="droite chiffres petit">
-                @if (d.statut !== 'CLOSED') {
-                  {{ d.joursDansStatut }} j
-                  @if (d.delaiCibleJours !== null) { <span class="tres-petit muet">/ {{ d.delaiCibleJours }}</span> }
-                  @if (d.retardStatutJours > 0) { <br /><span class="badge badge--petit badge--serieux">+{{ d.retardStatutJours }} j</span> }
-                } @else { — }
+              <td class="chiffres">
+                @if (d.statut === 'CLOSED') { <span class="muet">Archivé</span> }
+                @else if (d.retardStatutJours > 0) { <span class="retard">+{{ d.retardStatutJours }} j de retard</span> }
+                @else if (d.dateSignaturePrevue) { {{ d.dateSignaturePrevue | dateFr }}<span class="sous">signature prévue</span> }
+                @else { <span class="muet">{{ d.joursDansStatut }} j à cette étape</span> }
               </td>
-              <td class="droite chiffres petit">{{ d.tauxCompletudePieces | pct }}</td>
-              <td class="droite chiffres petit">{{ d.montantTransaction | xof: true }}</td>
               <td>
-                @if (d.alerteCdc) { <span class="badge badge--petit badge--serieux">CDC</span> }
-                @if (d.purgeConditionsEnCours) { <span class="badge badge--petit badge--vigilance">Purge</span> }
-                @if (d.modeSignature === 'ELECTRONIQUE_GAINDE') { <span class="badge badge--petit badge--or">GAINDE {{ d.gaindeStatut?.toLowerCase() }}</span> }
+                @if (d.clercNom) { {{ d.clercNom }} } @else { <span class="badge badge--vigilance">À assigner</span> }
+                <span class="sous">{{ d.notaireNom }}</span>
               </td>
+              <td class="droite chiffres">{{ d.montantTransaction ? (d.montantTransaction | xof: true) : '—' }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="8" class="vide">Aucun dossier sur ce filtre.</td></tr>
+            <tr><td colspan="8" class="vide">Aucun dossier ne correspond à ces critères.</td></tr>
           }
         </tbody>
       </table>
     </div>
   </section>
 </div>
+
+@if (archivage(); as ids) {
+  <app-confirmation
+    [titre]="'Archiver ' + ids.length + ' dossier' + (ids.length > 1 ? 's' : '') + ' ?'"
+    message="Chaque minute est rangée et son dossier clôturé. Les dossiers dont les formalités ne sont pas achevées seront refusés, avec le motif."
+    [recap]="[['Dossiers', ids.join(', ')]]"
+    avertissement="La clôture d'un dossier ne peut pas être annulée."
+    libelleAction="Archiver"
+    icone="archiver"
+    [occupe]="occupe()"
+    (confirmer)="archiver()"
+    (annuler)="archivage.set(null)" />
+}

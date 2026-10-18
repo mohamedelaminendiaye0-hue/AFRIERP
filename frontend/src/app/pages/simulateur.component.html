@@ -1,12 +1,12 @@
 <div class="page">
   <header class="page__entete sans-impression">
-    <h1>Calculateur d'emoluments et de frais d'acte</h1>
-    <p>Decomposition droits / conservation fonciere / emoluments / debours / TVA — bareme parametrable.</p>
+    <h1>Calculateur d'émoluments et de frais d'acte</h1>
+    <p>Décomposition droits / conservation foncière / émoluments / débours / TVA — barème paramétrable.</p>
   </header>
 
   <div class="grille grille--3">
     <section class="carte sans-impression">
-      <div class="carte__entete"><div><h2>Parametres</h2></div></div>
+      <div class="carte__entete"><div><h2>Paramètres</h2></div></div>
       <div class="carte__corps">
         <div class="champ">
           <label for="type">Type d'acte</label>
@@ -24,7 +24,7 @@
             <input id="assiette" type="number" min="0" step="100000" [(ngModel)]="assiette" (ngModelChange)="recalculer()" />
           </div>
         } @else {
-          <p class="petit muet">Acte sans assiette : droit fixe et emolument forfaitaire.</p>
+          <p class="petit muet">Acte sans assiette : droit fixe et émolument forfaitaire.</p>
         }
         <div class="champ">
           <label for="hon">Honoraires libres (FCFA)</label>
@@ -39,12 +39,12 @@
         @if (typeChoisi(); as t) {
           <dl class="parametres">
             <div><dt>Enregistrement</dt><dd>{{ t.enregistrement }}</dd></div>
-            <div><dt>Emolument</dt><dd>{{ t.emolument }}</dd></div>
-            <div><dt>Publicite fonciere</dt><dd>{{ t.publiciteFonciere ? 'Oui' : 'Non' }}</dd></div>
-            <div><dt>Sequestre</dt><dd>{{ t.sequestre === 'AUCUN' ? 'Frais seuls' : t.sequestre === 'PRIX' ? 'Frais + prix' : 'Frais + capital' }}</dd></div>
+            <div><dt>Émolument</dt><dd>{{ t.emolument }}</dd></div>
+            <div><dt>Publicité foncière</dt><dd>{{ t.publiciteFonciere ? 'Oui' : 'Non' }}</dd></div>
+            <div><dt>Séquestre</dt><dd>{{ t.sequestre === 'AUCUN' ? 'Frais seuls' : t.sequestre === 'PRIX' ? 'Frais + prix' : 'Frais + capital' }}</dd></div>
           </dl>
         }
-        <div class="bandeau bandeau--info">Les taux livres sont des parametres de demonstration, a valider juridiquement avant exploitation.</div>
+        <div class="bandeau bandeau--info">Les taux livrés sont des paramètres de démonstration, à valider juridiquement avant exploitation.</div>
       </div>
     </section>
 
@@ -52,10 +52,10 @@
       <section class="carte span-2">
         <div class="carte__entete">
           <div>
-            <h2>Decompte pro-forma — {{ libelleType(d.typeActe) }}</h2>
-            <p>Assiette {{ d.assiette | xof }} · bareme {{ d.versionBareme }}</p>
+            <h2>Décompte pro-forma — {{ libelleType(d.typeActe) }}</h2>
+            <p>Assiette {{ d.assiette | xof }} · barème {{ d.versionBareme }}</p>
           </div>
-          <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()">Imprimer</button>
+          <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()">Imprimer le décompte</button>
         </div>
         <div class="table-defilante">
           <table>
@@ -63,7 +63,7 @@
             <tbody>
               @for (l of d.lignes; track l.code) {
                 <tr>
-                  <td class="petit">{{ l.libelle }} @if (l.acquisEtude) { <span class="badge badge--petit badge--or">etude</span> }
+                  <td class="petit">{{ l.libelle }} @if (l.acquisEtude) { <span class="badge badge--petit badge--or">étude</span> }
                     <br /><span class="tres-petit muet">{{ l.reference }}</span></td>
                   <td class="droite chiffres petit">{{ l.base ? (l.base | xof) : '—' }}</td>
                   <td class="droite chiffres petit">{{ taux(l.taux) }}</td>
@@ -72,11 +72,11 @@
               }
             </tbody>
             <tfoot>
-              <tr><td class="petit">Droits et taxes reverses</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.droitsEtTaxes | xof }}</td></tr>
-              <tr><td class="petit">Emoluments + honoraires (produit de l'etude)</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.produitEtude | xof }}</td></tr>
-              <tr><td class="petit">Debours</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.debours | xof }}</td></tr>
+              <tr><td class="petit">Droits et taxes reversés</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.droitsEtTaxes | xof }}</td></tr>
+              <tr><td class="petit">Emoluments + honoraires (produit de l'étude)</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.produitEtude | xof }}</td></tr>
+              <tr><td class="petit">Débours</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.debours | xof }}</td></tr>
               <tr><td class="petit">TVA</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.tva | xof }}</td></tr>
-              <tr><td><strong>Total a provisionner</strong></td><td></td><td></td><td class="droite chiffres"><strong>{{ d.totaux.totalGeneral | xof }}</strong></td></tr>
+              <tr><td><strong>Total à provisionner</strong></td><td></td><td></td><td class="droite chiffres"><strong>{{ d.totaux.totalGeneral | xof }}</strong></td></tr>
               @if (d.totaux.retenueVendeur > 0) {
                 <tr><td class="petit">Retenue sur le prix revenant au vendeur (plus-value) — hors provision</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.retenueVendeur | xof }}</td></tr>
               }

@@ -121,11 +121,13 @@ public class Dossier {
     private Long fraisDefinitifs;
 
     /* --- Minute archivee (archiviste) --- */
-    /** Numero d'inscription au repertoire des minutes (ex : "2026/0001"). */
+    /** Numero d'ordre au repertoire des actes, attribue a la signature (ex : "2026/0001"). */
     @Column(unique = true)
     private String numeroRepertoire;
     private String archiveParId;
     private LocalDate dateArchivage;
+    /** Emplacement physique de la minute (liasse, rayonnage, coffre). */
+    private String emplacementArchive;
     /** Fin de la duree legale minimale de conservation (75 ans). */
     private LocalDate conservationJusquau;
 
