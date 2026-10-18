@@ -1,9 +1,14 @@
 # Plateforme Notarius : PostgreSQL + API Spring Boot + frontend Angular (nginx).
 #   docker compose up --build
 #   -> application : http://localhost:4200   API : http://localhost:8080/api
+# Nom de projet fixe : quel que soit le dossier du clone, une mise à jour remplace
+# les mêmes conteneurs et images au lieu d'en créer de nouveaux à côté.
+name: notarius
+
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: notarius-postgres
     environment:
       POSTGRES_DB: notarius
       POSTGRES_USER: notarius
@@ -17,6 +22,8 @@ services:
       retries: 10
 
   backend:
+    image: notarius-backend:latest
+    container_name: notarius-backend
     build:
       context: ./backend
     environment:
@@ -36,6 +43,8 @@ services:
       - "8080:8080"
 
   frontend:
+    image: notarius-frontend:latest
+    container_name: notarius-frontend
     build:
       context: ./frontend
     depends_on:

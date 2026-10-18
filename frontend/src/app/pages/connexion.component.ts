@@ -6,6 +6,7 @@ import { accueilDe } from '../core/gardes';
 import { IdentiteService } from '../core/identite.service';
 import { CompteDemo } from '../core/models';
 import { SessionService } from '../core/session.service';
+import { VERSION } from '../core/version';
 
 @Component({
   selector: 'app-connexion',
@@ -28,6 +29,7 @@ export class ConnexionComponent implements OnInit {
   protected readonly erreur = signal<string | null>(null);
   protected readonly comptes = signal<CompteDemo[]>([]);
   protected readonly expiree = signal(false);
+  protected readonly version = VERSION;
 
   ngOnInit(): void {
     if (this.session.connecte()) {

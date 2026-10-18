@@ -118,6 +118,7 @@
   cursor: pointer;
 }
 .profil__item:hover, .profil__item:focus-visible { background: var(--remplissage); }
+.profil__version { margin: 6px 10px 4px; font-size: 12.5px; color: var(--texte-2); }
 
 /* --- Barre d'outils --- */
 .contenu { min-width: 0; display: flex; flex-direction: column; }

@@ -5,6 +5,7 @@ import { ApiService } from '../core/api.service';
 import { IdentiteService } from '../core/identite.service';
 import { NotificationRetard, Role } from '../core/models';
 import { SessionService } from '../core/session.service';
+import { VERSION } from '../core/version';
 import { BadgeNiveauComponent, libelleStatut } from '../shared/badges';
 import { IconeComponent, NomIcone } from '../shared/icone.component';
 
@@ -86,6 +87,7 @@ export class ShellComponent implements OnInit {
   protected readonly profilOuvert = signal(false);
   protected readonly menuMobile = signal(false);
   protected readonly libelleStatut = libelleStatut;
+  protected readonly version = VERSION;
 
   protected readonly sections = computed(() => {
     const role = this.session.utilisateur()?.role;

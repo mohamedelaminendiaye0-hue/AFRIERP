@@ -20,8 +20,23 @@ Seul Docker est nécessaire : Maven et Node tournent dans les images.
 docker compose up --build
 ```
 
-- Application : http://localhost:4200
+- Application : http://localhost:4200 — la page de connexion affiche la version en service (0.3.0)
 - API : http://localhost:8080/api
+
+### Mettre à jour
+
+Une seule commande récupère le code, arrête les anciens conteneurs (même lancés depuis un autre dossier),
+reconstruit les images sans cache et redémarre :
+
+```powershell
+.\mettre-a-jour.ps1                    # Windows (ajouter -ConserverDonnees pour garder la base)
+```
+```bash
+./mettre-a-jour.sh                     # Linux / macOS (CONSERVER_DONNEES=1 pour garder la base)
+```
+
+Le projet Docker porte un nom fixe (`notarius`) : quel que soit le dossier du clone, les images
+`notarius-backend` et `notarius-frontend` sont remplacées au lieu d'être dupliquées.
 
 Après une mise à jour du modèle, repartir d'une base vierge avec `docker compose down -v` (POC : le schéma
 est généré par Hibernate ; des migrations Flyway sont prévues avant la production).
