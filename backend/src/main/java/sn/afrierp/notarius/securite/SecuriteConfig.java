@@ -23,7 +23,11 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import sn.afrierp.notarius.repository.UtilisateurRepository;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -39,11 +43,13 @@ public class SecuriteConfig {
     private final SecretKey cle;
     private final String[] originesAutorisees;
     private final Clock clock;
+    private final UtilisateurRepository utilisateurs;
 
     public SecuriteConfig(@Value("${notarius.jwt.secret}") String secret,
                           @Value("${notarius.cors.origines:http://localhost:4200}") String[] originesAutorisees,
-                          Clock clock) {
+                          Clock clock, UtilisateurRepository utilisateurs) {
         this.clock = clock;
+        this.utilisateurs = utilisateurs;
         byte[] octets = secret.getBytes(StandardCharsets.UTF_8);
         if (octets.length < 32) {
             throw new IllegalStateException("notarius.jwt.secret doit contenir au moins 32 caractères.");
@@ -59,12 +65,24 @@ public class SecuriteConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/auth/connexion").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/comptes-demo", "/api/identite").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/comptes-demo", "/api/auth/politique", "/api/identite").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .oauth2ResourceServer(o -> o.jwt(j -> j.decoder(jwtDecoder())));
+                .oauth2ResourceServer(o -> o.jwt(j -> j.decoder(jwtDecoder()).jwtAuthenticationConverter(roles())))
+                .addFilterAfter(new MotDePasseAChangerFiltre(), BearerTokenAuthenticationFilter.class);
         return http.build();
+    }
+
+    /** Le profil porté par le jeton devient l'autorité ROLE_xxx (règles d'accès par URL). */
+    private static JwtAuthenticationConverter roles() {
+        JwtGrantedAuthoritiesConverter autorites = new JwtGrantedAuthoritiesConverter();
+        autorites.setAuthoritiesClaimName("role");
+        autorites.setAuthorityPrefix("ROLE_");
+        JwtAuthenticationConverter convertisseur = new JwtAuthenticationConverter();
+        convertisseur.setJwtGrantedAuthoritiesConverter(autorites);
+        return convertisseur;
     }
 
     @Bean
@@ -73,7 +91,8 @@ public class SecuriteConfig {
         // Expiration jugee sur l'horloge de l'application (figee en test).
         JwtTimestampValidator expiration = new JwtTimestampValidator();
         expiration.setClock(clock);
-        decodeur.setJwtValidator(new DelegatingOAuth2TokenValidator<>(expiration, new JwtIssuerValidator("notarius")));
+        decodeur.setJwtValidator(new DelegatingOAuth2TokenValidator<>(expiration, new JwtIssuerValidator("notarius"),
+                new SessionValideValidator(utilisateurs)));
         return decodeur;
     }
 

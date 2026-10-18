@@ -1,0 +1,17 @@
+.disposition { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.disposition.avec-panneau { grid-template-columns: minmax(0, 1fr) 420px; }
+.compte { display: flex; align-items: center; gap: 10px; }
+.avatar--eteint { background: var(--remplissage); color: #6b7485; }
+.panneau { position: sticky; top: 88px; max-height: calc(100vh - 110px); overflow-y: auto; }
+.etat { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 12px 20px 0; }
+.acces { padding: 16px 20px 20px; border-top: 1px solid var(--ligne-2); display: flex; flex-direction: column; gap: 10px; }
+.acces__grille { display: flex; flex-wrap: wrap; gap: 8px; }
+.danger { color: var(--critique); }
+.danger:hover:not(:disabled) { background: var(--critique-fond); }
+.lien-journal { font-size: 14.5px; }
+td { white-space: nowrap; }
+@media (max-width: 1200px) {
+  .disposition.avec-panneau { grid-template-columns: minmax(0, 1fr); }
+  .panneau { position: static; max-height: none; order: -1; }
+}
+@media (max-width: 1560px) { .avec-panneau .col-connexion, .avec-panneau .col-dossiers { display: none; } }

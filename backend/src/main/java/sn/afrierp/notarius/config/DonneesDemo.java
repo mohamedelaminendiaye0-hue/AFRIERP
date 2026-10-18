@@ -21,6 +21,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import sn.afrierp.notarius.bareme.TaxationService;
 import sn.afrierp.notarius.clients.ClientService;
 import sn.afrierp.notarius.domain.Client;
+import sn.afrierp.notarius.domain.EvenementAdmin;
+import sn.afrierp.notarius.domain.ParametresSecurite;
+import sn.afrierp.notarius.domain.TypeEvenementAdmin;
+import sn.afrierp.notarius.repository.EvenementAdminRepository;
+import sn.afrierp.notarius.repository.ParametresSecuriteRepository;
 import sn.afrierp.notarius.identite.IdentiteController;
 import sn.afrierp.notarius.repository.IdentiteEtudeRepository;
 import sn.afrierp.notarius.securite.AuthController;
@@ -86,6 +91,8 @@ public class DonneesDemo implements ApplicationRunner {
     private final ClientService clientService;
     private final IdentiteEtudeRepository identite;
     private final PasswordEncoder encodeur;
+    private final ParametresSecuriteRepository parametresSecurite;
+    private final EvenementAdminRepository evenementsAdmin;
     private final Clock clock;
 
     private LocalDate aujourdhui;
@@ -95,7 +102,10 @@ public class DonneesDemo implements ApplicationRunner {
                        MouvementComptableRepository mouvements, EvenementAuditRepository evenements,
                        CompteCollectifRepository comptes, RendezVousRepository rendezVous, TaxationService taxation,
                        ClientService clientService, IdentiteEtudeRepository identite, PasswordEncoder encodeur,
+                       ParametresSecuriteRepository parametresSecurite, EvenementAdminRepository evenementsAdmin,
                        Clock clock) {
+        this.parametresSecurite = parametresSecurite;
+        this.evenementsAdmin = evenementsAdmin;
         this.clientService = clientService;
         this.identite = identite;
         this.encodeur = encodeur;
@@ -129,10 +139,12 @@ public class DonneesDemo implements ApplicationRunner {
         inscrireAuRepertoire();
         rattacherClients();
         identite.save(IdentiteController.parDefaut());
+        parametresSecurite.save(new ParametresSecurite());
         chargerEcritures();
         poserVisas();
         chargerJournalVedette();
         chargerRendezVous();
+        chargerJournalAdministration();
         LOG.info("Données de démonstration chargées : {} dossiers, {} écritures.", dossiers.count(), mouvements.count());
     }
 
@@ -166,7 +178,22 @@ public class DonneesDemo implements ApplicationRunner {
         admin.setEmail("admin@notarius.sn");
         users.put(admin.getId(), utilisateurs.save(admin));
         String empreinte = encodeur.encode(AuthController.MOT_DE_PASSE_DEMO);
-        users.values().forEach(u -> u.setMotDePasse(empreinte));
+        users.values().forEach(u -> {
+            u.setMotDePasse(empreinte);
+            u.setDerniereConnexion(aujourdhui.minusDays(1 + u.getId().hashCode() % 3 + 3).atTime(8, 40));
+        });
+        // Nouvelle clerc : compte créé par l'administrateur, mot de passe provisoire jamais utilisé.
+        Utilisateur nouvelle = new Utilisateur("U-013", "Aïssatou", "Mbaye", Role.CLERC, "AM", aujourdhui.minusDays(2));
+        nouvelle.setMotDePasse(encodeur.encode("Provisoire-2026"));
+        nouvelle.setDoitChangerMotDePasse(true);
+        users.put(nouvelle.getId(), utilisateurs.save(nouvelle));
+        // Ancien clerc : compte désactivé, conservé pour la traçabilité des dossiers qu'il a rédigés.
+        Utilisateur ancien = new Utilisateur("U-014", "Pape", "Diagne", Role.CLERC, "PD", LocalDate.of(2018, 9, 3));
+        ancien.setMotDePasse(empreinte);
+        ancien.setActif(false);
+        ancien.setDesactiveLe(aujourdhui.minusDays(40));
+        ancien.setDerniereConnexion(aujourdhui.minusDays(41).atTime(17, 5));
+        users.put(ancien.getId(), utilisateurs.save(ancien));
     }
 
     /* ------------------------------------------------------------------ *
@@ -480,6 +507,29 @@ public class DonneesDemo implements ApplicationRunner {
                     d.setNotaireSignataireId(d.getNotaire().getId());
                     d.setNotaireResponsableId(d.getNotaire().notaireEngage().getId());
                 });
+    }
+
+    /** Historique du journal d'administration (connexions, comptes, réglages). */
+    private void chargerJournalAdministration() {
+        Utilisateur admin = users.get("U-099");
+        record Ligne(int jours, int heure, TypeEvenementAdmin type, Utilisateur acteur, Utilisateur cible, String detail) {
+        }
+        List<Ligne> lignes = List.of(
+                new Ligne(45, 9, TypeEvenementAdmin.IDENTITE_MODIFIEE, admin, null, "Étude Ndoye & Associés · #1E3A5F / #C9A227 · Source Sans 3"),
+                new Ligne(40, 10, TypeEvenementAdmin.COMPTE_DESACTIVE, admin, users.get("U-014"), "Départ de l'étude · sessions en cours fermées"),
+                new Ligne(12, 8, TypeEvenementAdmin.PARAMETRES_MODIFIES, admin, null, "8 car. · session 12 h · 5 essais · verrou 15 min → 10 car. · session 10 h · 5 essais · verrou 15 min · provisoire"),
+                new Ligne(6, 7, TypeEvenementAdmin.CONNEXION_ECHOUEE, null, users.get("U-005"), "Mot de passe erroné (1/5)"),
+                new Ligne(6, 7, TypeEvenementAdmin.CONNEXION_ECHOUEE, null, users.get("U-005"), "Mot de passe erroné (2/5)"),
+                new Ligne(6, 8, TypeEvenementAdmin.CONNEXION_REUSSIE, users.get("U-005"), users.get("U-005"), null),
+                new Ligne(3, 9, TypeEvenementAdmin.MOT_DE_PASSE_REINITIALISE, admin, users.get("U-008"), "Mot de passe provisoire remis · sessions fermées"),
+                new Ligne(3, 10, TypeEvenementAdmin.MOT_DE_PASSE_CHANGE, users.get("U-008"), users.get("U-008"), "Autres sessions fermées"),
+                new Ligne(2, 11, TypeEvenementAdmin.COMPTE_CREE, admin, users.get("U-013"), "Clerc rédacteur · " + users.get("U-013").getEmail()),
+                new Ligne(1, 8, TypeEvenementAdmin.CONNEXION_REUSSIE, users.get("U-001"), users.get("U-001"), null),
+                new Ligne(1, 8, TypeEvenementAdmin.CONNEXION_REUSSIE, users.get("U-011"), users.get("U-011"), null),
+                new Ligne(1, 9, TypeEvenementAdmin.CONNEXION_REUSSIE, users.get("U-007"), users.get("U-007"), null));
+        lignes.forEach(l -> evenementsAdmin.save(new EvenementAdmin(aujourdhui.minusDays(l.jours()).atTime(l.heure(), 12),
+                l.type(), l.acteur() == null ? null : l.acteur().getId(), l.acteur() == null ? null : l.acteur().nomComplet(),
+                l.cible() == null ? null : l.cible().getId(), l.cible() == null ? null : l.cible().nomComplet(), l.detail(), "10.0.0.24")));
     }
 
     /** Fiches clients : une par personne, datee de son premier dossier a l'etude. */

@@ -12,9 +12,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const requete = jeton && req.url.startsWith('/api/') ? req.clone({ setHeaders: { Authorization: `Bearer ${jeton}` } }) : req;
   return next(requete).pipe(
     catchError((e: unknown) => {
-      if (e instanceof HttpErrorResponse && e.status === 401 && !req.url.startsWith('/api/auth/')) {
+      // Session expirée ou fermée : un seul renvoi vers la connexion, en gardant la page d'origine.
+      if (e instanceof HttpErrorResponse && e.status === 401 && !req.url.startsWith('/api/auth/') && session.jeton() === jeton && jeton) {
         session.fermer();
-        router.navigate(['/connexion'], { queryParams: { retour: router.url, expiree: 1 } });
+        const url = router.url.split('?')[0];
+        if (!url.startsWith('/connexion')) {
+          router.navigate(['/connexion'], { queryParams: { retour: router.url, expiree: 1 } });
+        }
+      }
+      if (e instanceof HttpErrorResponse && e.status === 403 && e.error?.blocages?.[0]?.code === 'MOT_DE_PASSE_A_CHANGER') {
+        router.navigate(['/mot-de-passe']);
       }
       return throwError(() => e);
     }),

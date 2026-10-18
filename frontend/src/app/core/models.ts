@@ -468,6 +468,7 @@ export interface Session {
   jeton: string;
   expiration: string;
   utilisateur: Utilisateur;
+  doitChangerMotDePasse: boolean;
 }
 
 export interface CompteDemo {
@@ -588,4 +589,89 @@ export interface ResultatArchivage {
   archive: boolean;
   numeroRepertoire: string | null;
   blocages: Blocage[];
+}
+
+/* ------------------------------------------------------------------ *
+ *  Administration de la plateforme (super administrateur)
+ * ------------------------------------------------------------------ */
+
+export interface Compte {
+  id: string;
+  prenom: string;
+  nom: string;
+  nomComplet: string;
+  email: string;
+  role: Role;
+  roleLibelle: string;
+  initiales: string;
+  actif: boolean;
+  verrouille: boolean;
+  verrouilleJusqua: string | null;
+  doitChangerMotDePasse: boolean;
+  derniereConnexion: string | null;
+  dateEntree: string | null;
+  desactiveLe: string | null;
+  referenceNomination: string | null;
+  notaireResponsableId: string | null;
+  notaireResponsableNom: string | null;
+  dossiersActifs: number;
+}
+
+export interface CompteEtMotDePasse {
+  compte: Compte;
+  motDePasseProvisoire: string;
+}
+
+export interface SaisieCompte {
+  prenom: string;
+  nom: string;
+  email: string;
+  role: Role;
+  dateEntree?: string | null;
+  referenceNomination?: string | null;
+  notaireResponsableId?: string | null;
+}
+
+export type TypeEvenementAdmin =
+  | 'CONNEXION_REUSSIE' | 'CONNEXION_ECHOUEE' | 'COMPTE_VERROUILLE' | 'COMPTE_DEVERROUILLE' | 'COMPTE_CREE'
+  | 'COMPTE_MODIFIE' | 'COMPTE_DESACTIVE' | 'COMPTE_REACTIVE' | 'MOT_DE_PASSE_REINITIALISE' | 'MOT_DE_PASSE_CHANGE'
+  | 'SESSIONS_REVOQUEES' | 'IDENTITE_MODIFIEE' | 'PARAMETRES_MODIFIES';
+
+export interface EvenementAdmin {
+  id: number;
+  horodatage: string;
+  type: TypeEvenementAdmin;
+  typeLibelle: string;
+  sensible: boolean;
+  acteurId: string | null;
+  acteurNom: string | null;
+  cibleId: string | null;
+  cibleNom: string | null;
+  detail: string | null;
+  adresseIp: string | null;
+}
+
+export interface ParametresSecurite {
+  longueurMinimale: number;
+  dureeSessionHeures: number;
+  tentativesAvantVerrouillage: number;
+  dureeVerrouillageMinutes: number;
+  changementObligatoire: boolean;
+  miseAJourLe?: string | null;
+  miseAJourPar?: string | null;
+}
+
+export interface TableauAdmin {
+  comptesActifs: number;
+  comptesDesactives: number;
+  comptesVerrouilles: number;
+  motsDePasseProvisoires: number;
+  jamaisConnectes: number;
+  connexions24h: number;
+  echecs24h: number;
+  parRole: { role: Role; libelle: string; actifs: number }[];
+  derniersEvenements: EvenementAdmin[];
+  aSurveiller: Compte[];
+  politique: ParametresSecurite;
+  systeme: { version: string; base: string; donneesDemo: boolean; demarreLe: string; dossiers: number; dureeFonctionnement: string };
 }

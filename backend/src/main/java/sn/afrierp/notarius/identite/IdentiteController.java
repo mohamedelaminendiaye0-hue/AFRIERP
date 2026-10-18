@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import sn.afrierp.notarius.admin.JournalAdmin;
 import sn.afrierp.notarius.common.RegleMetierException;
+import sn.afrierp.notarius.domain.TypeEvenementAdmin;
 import sn.afrierp.notarius.domain.IdentiteEtude;
 import sn.afrierp.notarius.domain.Role;
 import sn.afrierp.notarius.domain.Utilisateur;
@@ -30,10 +32,12 @@ public class IdentiteController {
     private static final String COULEUR = "^#[0-9a-fA-F]{6}$";
 
     private final IdentiteEtudeRepository depot;
+    private final JournalAdmin journal;
     private final Clock clock;
 
-    public IdentiteController(IdentiteEtudeRepository depot, Clock clock) {
+    public IdentiteController(IdentiteEtudeRepository depot, JournalAdmin journal, Clock clock) {
         this.depot = depot;
+        this.journal = journal;
         this.clock = clock;
     }
 
@@ -84,7 +88,11 @@ public class IdentiteController {
         i.setMentionPiedDePage(vide(s.mentionPiedDePage()));
         i.setMiseAJourLe(LocalDateTime.now(clock));
         i.setMiseAJourPar(moi.nomComplet());
-        return depot.save(i);
+        IdentiteEtude enregistree = depot.save(i);
+        journal.tracer(TypeEvenementAdmin.IDENTITE_MODIFIEE, moi, null, null,
+                "%s · %s / %s · %s%s".formatted(i.getNom(), i.getCouleurPrincipale(), i.getCouleurAccent(), i.getPolice(),
+                        i.getLogo() != null ? " · logo" : ""));
+        return enregistree;
     }
 
     public static IdentiteEtude parDefaut() {

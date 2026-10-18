@@ -13,6 +13,7 @@ interface Lien {
   libelle: string;
   icone: NomIcone;
   roles?: Role[];
+  exact?: boolean;
 }
 
 interface ActionPrincipale {
@@ -44,7 +45,7 @@ const SECTIONS: { titre: string; liens: Lien[] }[] = [
       { lien: '/minutier', libelle: 'Minutier et archives', icone: 'minutier',
         roles: [...NOTAIRES, 'PRINCIPAL_CLERC', 'FORMALISTE', 'ARCHIVISTE'] },
       { lien: '/comptabilite', libelle: 'Fonds clients', icone: 'fonds', roles: [...NOTAIRES, 'COMPTABLE_TAXATEUR'] },
-      { lien: '/equipe', libelle: 'Équipe', icone: 'equipe' },
+      { lien: '/equipe', libelle: 'Équipe', icone: 'equipe', roles: MEMBRES },
     ],
   },
   {
@@ -57,7 +58,13 @@ const SECTIONS: { titre: string; liens: Lien[] }[] = [
   },
   {
     titre: 'Administration',
-    liens: [{ lien: '/administration/identite', libelle: "Identité de l'étude", icone: 'identite', roles: ['SUPER_ADMIN'] }],
+    liens: [
+      { lien: '/administration', libelle: 'Vue d’ensemble', icone: 'accueil', roles: ['SUPER_ADMIN'], exact: true },
+      { lien: '/administration/comptes', libelle: 'Comptes utilisateurs', icone: 'equipe', roles: ['SUPER_ADMIN'] },
+      { lien: '/administration/securite', libelle: 'Politique de sécurité', icone: 'cadenas', roles: ['SUPER_ADMIN'] },
+      { lien: '/administration/journal', libelle: "Journal d'administration", icone: 'journal', roles: ['SUPER_ADMIN'] },
+      { lien: '/administration/identite', libelle: "Identité de l'étude", icone: 'identite', roles: ['SUPER_ADMIN'] },
+    ],
   },
 ];
 
@@ -96,7 +103,7 @@ export class ShellComponent implements OnInit {
       case 'FORMALISTE':
         return { libelle: 'Formalités à suivre', icone: 'repertoire', lien: '/dossiers', params: { statut: 'POST_ACT' } };
       case 'SUPER_ADMIN':
-        return null;
+        return { libelle: 'Nouveau compte', icone: 'plus', lien: '/administration/comptes', params: { nouveau: '1' } };
       default:
         return { libelle: 'Nouveau dossier', icone: 'plus', lien: '/dossiers', params: { nouveau: '1' } };
     }

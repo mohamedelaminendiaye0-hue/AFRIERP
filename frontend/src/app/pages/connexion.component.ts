@@ -31,7 +31,7 @@ export class ConnexionComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.session.connecte()) {
-      this.router.navigateByUrl(accueilDe(this.session.utilisateur()?.role));
+      this.router.navigateByUrl(this.session.doitChangerMotDePasse() ? '/mot-de-passe' : accueilDe(this.session.utilisateur()?.role));
       return;
     }
     this.expiree.set(this.route.snapshot.queryParamMap.has('expiree'));
@@ -54,6 +54,10 @@ export class ConnexionComponent implements OnInit {
     this.api.connexion(this.email.trim(), this.motDePasse).subscribe({
       next: (s) => {
         this.session.ouvrir(s);
+        if (s.doitChangerMotDePasse) {
+          this.router.navigate(['/mot-de-passe']);
+          return;
+        }
         const retour = this.route.snapshot.queryParamMap.get('retour');
         this.router.navigateByUrl(retour && retour !== '/' && !retour.startsWith('/connexion') ? retour : accueilDe(s.utilisateur.role));
       },

@@ -1,0 +1,164 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <p class="surtitre">Administration de la plateforme</p>
+      <h1>Comptes utilisateurs</h1>
+      <p>Les comptes ne sont jamais supprimés : un compte désactivé reste attaché aux actes et dossiers déjà traités.</p>
+    </div>
+    <div class="actions">
+      <button class="bouton bouton--secondaire" type="button" (click)="exporter()"><app-icone nom="telecharger" [taille]="18" />Exporter</button>
+      <button class="bouton bouton--creer" type="button" (click)="ouvrirCreation()"><app-icone nom="plus" [taille]="18" />Nouveau compte</button>
+    </div>
+  </header>
+
+  @if (message(); as m) { <div class="bandeau bandeau--bon" role="status">{{ m }}</div> }
+
+  <div class="disposition" [class.avec-panneau]="selection()">
+    <section class="carte">
+      <div class="filtres">
+        <div class="segment" role="tablist" aria-label="État des comptes">
+          @for (v of vues; track v.cle) {
+            <button type="button" role="tab" [class.actif]="vue() === v.cle" [attr.aria-selected]="vue() === v.cle"
+                    (click)="vue.set(v.cle)">{{ v.libelle }} · {{ compteDe(v.cle) }}</button>
+          }
+        </div>
+      </div>
+      <div class="filtres">
+        <select class="filtre-domaine" aria-label="Profil" [ngModel]="profil()" (ngModelChange)="profil.set($event)">
+          <option value="">Tous les profils</option>
+          @for (p of profils; track p.role) { <option [value]="p.role">{{ p.libelle }}</option> }
+        </select>
+        <input class="recherche" type="search" placeholder="Nom, e-mail, identifiant…" aria-label="Rechercher un compte"
+               [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
+      </div>
+      <div class="table-defilante">
+        <table>
+          <thead><tr><th>Compte</th><th>Profil</th><th class="col-connexion">Dernière connexion</th><th>État</th><th class="droite col-dossiers">Dossiers</th></tr></thead>
+          <tbody>
+            @for (c of visibles(); track c.id) {
+              <tr class="cliquable" tabindex="0" [class.selectionnee]="selection() === c.id" (click)="ouvrir(c.id)" (keydown.enter)="ouvrir(c.id)">
+                <td>
+                  <span class="compte">
+                    <span class="avatar" [class.avatar--eteint]="!c.actif">{{ c.initiales }}</span>
+                    <span><strong>{{ c.nomComplet }}</strong>@if (c.id === session.id()) { <span class="muet"> (vous)</span> }<span class="sous">{{ c.email }}</span></span>
+                  </span>
+                </td>
+                <td>{{ c.roleLibelle }}</td>
+                <td class="chiffres col-connexion">{{ c.derniereConnexion ? (c.derniereConnexion | dateFr: true) : 'Jamais' }}</td>
+                <td>
+                  @if (!c.actif) { <span class="badge badge--neutre-clair">Désactivé</span> }
+                  @else if (c.verrouille) { <span class="badge badge--critique">Verrouillé</span> }
+                  @else if (c.doitChangerMotDePasse) { <span class="badge badge--vigilance" title="Mot de passe provisoire à changer">Provisoire</span> }
+                  @else { <span class="badge badge--bon">Actif</span> }
+                </td>
+                <td class="droite chiffres col-dossiers">{{ c.dossiersActifs || '—' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="vide">Aucun compte ne correspond à ces critères.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    @if (selection()) {
+      <aside class="carte panneau" aria-label="Détail du compte">
+        <div class="carte__entete">
+          <div>
+            <h2>{{ selection() === 'nouveau' ? 'Nouveau compte' : courant()?.nomComplet }}</h2>
+            @if (courant(); as c) { <p>{{ c.id }} · entré le {{ c.dateEntree | dateFr }}@if (c.desactiveLe) { · désactivé le {{ c.desactiveLe | dateFr }} }</p> }
+            @else { <p>Un mot de passe provisoire sera généré et affiché une seule fois.</p> }
+          </div>
+          <button class="bouton bouton--fantome bouton--petit" type="button" aria-label="Fermer le panneau" (click)="fermer()"><app-icone nom="fermer" [taille]="18" /></button>
+        </div>
+
+        @if (courant(); as c) {
+          <div class="etat">
+            @if (!c.actif) { <span class="badge badge--neutre-clair">Désactivé</span> }
+            @else if (c.verrouille) { <span class="badge badge--critique">Verrouillé jusqu'à {{ c.verrouilleJusqua | dateFr: true }}</span> }
+            @else if (c.doitChangerMotDePasse) { <span class="badge badge--vigilance">Mot de passe provisoire à changer</span> }
+            @else { <span class="badge badge--bon">Actif</span> }
+            <span class="muet petit">Dernière connexion : {{ c.derniereConnexion ? (c.derniereConnexion | dateFr: true) : 'jamais' }}</span>
+            @if (c.dossiersActifs) { <span class="muet petit">{{ c.dossiersActifs }} dossier(s) en cours</span> }
+          </div>
+        }
+
+        <form class="carte__corps" (ngSubmit)="enregistrer()">
+          <div class="ligne-champs">
+            <div class="champ"><label for="cp-prenom">Prénom</label><input id="cp-prenom" name="prenom" [(ngModel)]="form.prenom" required /></div>
+            <div class="champ"><label for="cp-nom">Nom</label><input id="cp-nom" name="nom" [(ngModel)]="form.nom" required /></div>
+          </div>
+          <div class="champ"><label for="cp-email">Adresse e-mail (identifiant de connexion)</label>
+            <input id="cp-email" name="email" type="email" [(ngModel)]="form.email" required /></div>
+          <div class="champ">
+            <label for="cp-role">Profil</label>
+            <select id="cp-role" name="role" [ngModel]="form.role" (ngModelChange)="changerRole($event)">
+              @for (p of profils; track p.role) { <option [value]="p.role">{{ p.libelle }}</option> }
+            </select>
+            <p class="champ__aide">{{ aideProfil() }}@if (courant() && courant()!.role !== form.role) { Le changement de profil ferme les sessions ouvertes. }</p>
+          </div>
+          @if (form.role === 'NOTAIRE_SALARIE') {
+            <div class="champ">
+              <label for="cp-resp">Notaire responsable</label>
+              <select id="cp-resp" name="resp" [(ngModel)]="form.notaireResponsableId">
+                <option value="" disabled>Choisir…</option>
+                @for (n of notairesEnTitre(); track n.id) { <option [value]="n.id">{{ n.nomComplet }} ({{ n.roleLibelle }})</option> }
+              </select>
+            </div>
+          }
+          @if (form.role === 'NOTAIRE_TITULAIRE' || form.role === 'NOTAIRE_ASSOCIE' || form.role === 'NOTAIRE_SALARIE') {
+            <div class="champ"><label for="cp-nomination">Décret de nomination ou agrément</label>
+              <input id="cp-nomination" name="nomination" [(ngModel)]="form.referenceNomination" placeholder="Décret n° 2026-…" /></div>
+          }
+          <div class="champ"><label for="cp-entree">Date d'entrée à l'étude</label>
+            <input id="cp-entree" name="entree" type="date" [(ngModel)]="form.dateEntree" /></div>
+
+          @if (erreur(); as e) {
+            <div class="bandeau bandeau--critique" role="alert"><ul>@for (m of e; track $index) { <li>{{ m }}</li> }</ul></div>
+          }
+          <div class="actions-form">
+            <span></span>
+            <button class="bouton" type="submit">{{ selection() === 'nouveau' ? 'Créer le compte' : 'Enregistrer les modifications' }}</button>
+          </div>
+        </form>
+
+        @if (courant(); as c) {
+          <div class="acces">
+            <h3>Accès et sécurité</h3>
+            @if (c.id === session.id()) {
+              <p class="muet petit">Votre propre compte : changez votre mot de passe depuis le menu de votre profil.</p>
+              <a class="bouton bouton--secondaire bouton--petit" routerLink="/mot-de-passe">Changer mon mot de passe</a>
+            } @else if (c.actif) {
+              <div class="acces__grille">
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="demander('reinitialisation', c)">
+                  <app-icone nom="cle" [taille]="16" />Réinitialiser le mot de passe</button>
+                @if (c.verrouille) {
+                  <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="demander('deverrouillage', c)">
+                    <app-icone nom="cadenas" [taille]="16" />Déverrouiller</button>
+                }
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="demander('revocation', c)">
+                  <app-icone nom="sortie" [taille]="16" />Fermer ses sessions</button>
+                <button class="bouton bouton--fantome bouton--petit danger" type="button" (click)="demander('desactivation', c)">
+                  Désactiver le compte</button>
+              </div>
+            } @else {
+              <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="demander('reactivation', c)">Réactiver le compte</button>
+            }
+            <a class="lien-journal" routerLink="/administration/journal" [queryParams]="{ q: c.nomComplet }">Historique de ce compte →</a>
+          </div>
+        }
+      </aside>
+    }
+  </div>
+</div>
+
+@if (demande(); as d) {
+  <app-confirmation [titre]="d.titre" [message]="d.message" [libelleAction]="d.libelle" [icone]="d.icone" [danger]="d.danger"
+                    [recap]="[['Compte', d.compte.nomComplet + ' · ' + d.compte.email], ['Profil', d.compte.roleLibelle]]"
+                    [occupe]="occupe()" (confirmer)="executer()" (annuler)="demande.set(null)" />
+}
+
+@if (remis(); as r) {
+  <app-mot-de-passe-remis [titre]="r.titre" [nom]="r.resultat.compte.nomComplet" [email]="r.resultat.compte.email"
+                          [motDePasse]="r.resultat.motDePasseProvisoire" (fermer)="remis.set(null)" />
+}

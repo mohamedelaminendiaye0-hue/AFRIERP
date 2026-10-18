@@ -22,7 +22,7 @@
       @for (section of sections(); track section.titre) {
         <p class="nav__section">{{ section.titre }}</p>
         @for (item of section.liens; track item.lien) {
-          <a class="nav__lien" [routerLink]="item.lien" routerLinkActive="actif" #rla="routerLinkActive"
+          <a class="nav__lien" [routerLink]="item.lien" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: !!item.exact }" #rla="routerLinkActive"
              [attr.aria-current]="rla.isActive ? 'page' : null">
             <app-icone [nom]="item.icone" [taille]="19" />
             <span>{{ item.libelle }}</span>
@@ -47,6 +47,9 @@
       @if (profilOuvert()) {
         <div class="profil__menu" role="menu">
           <p class="profil__email">{{ session.utilisateur()?.email }}</p>
+          <a role="menuitem" class="profil__item" routerLink="/mot-de-passe">
+            <app-icone nom="cadenas" [taille]="18" />Changer mon mot de passe
+          </a>
           <button type="button" role="menuitem" class="profil__item" (click)="deconnexion()">
             <app-icone nom="sortie" [taille]="18" />Se déconnecter
           </button>

@@ -213,6 +213,27 @@ que les menus et boutons de son métier ; l'API revérifie chaque droit côté s
 | n.ba@etude-ndoye.sn | Ndeye Ba | Secrétariat / accueil |
 | admin@notarius.sn | Admin Plateforme | **Super administrateur** (marque blanche) |
 
+### Espace super administrateur
+
+Le super administrateur (`admin@notarius.sn`) administre la plateforme **sans accès aux dossiers ni aux actes**
+(l'API `/api/admin/**` lui est réservée).
+
+- **Vue d'ensemble** : comptes actifs, verrouillés, à mot de passe provisoire, connexions et échecs sur 24 h,
+  comptes à surveiller, activité récente, politique en vigueur, état de la plateforme.
+- **Comptes utilisateurs** : création (mot de passe provisoire affiché une seule fois), modification du profil et
+  des coordonnées, réinitialisation du mot de passe, déverrouillage, fermeture des sessions, désactivation et
+  réactivation, export. Les comptes ne sont jamais supprimés (traçabilité des actes). Règles de continuité :
+  un seul notaire titulaire actif, au moins un super administrateur, pas de désactivation ni de changement de
+  profil tant que des dossiers en cours sont confiés au compte, notaire salarié rattaché à un notaire en titre.
+- **Politique de sécurité** : longueur minimale des mots de passe (lettres et chiffres exigés), durée de session,
+  nombre d'échecs avant verrouillage et durée du verrouillage, mot de passe provisoire à la création.
+- **Journal d'administration** (append-only) : connexions, échecs, verrouillages, actions sur les comptes,
+  modifications de la politique et de l'identité, avec adresse IP ; filtres et export.
+- **Sessions révocables** : chaque jeton porte la version du compte ; désactivation, réinitialisation,
+  changement de profil ou fermeture des sessions invalident aussitôt les jetons ouverts.
+- **Première connexion** : un compte à mot de passe provisoire n'accède qu'à l'écran « Choisissez votre mot de
+  passe » ; chaque utilisateur peut ensuite changer le sien depuis le menu de son profil.
+
 **Marque blanche** : le super administrateur (hors de l'étude, sans accès aux dossiers) règle dans
 *Administration › Identité de l'étude* le nom, le monogramme ou le **logo** (PNG, JPEG ou SVG, 300 Ko),
 la couleur principale, la couleur d'accent, la police et les mentions des documents. L'identité est
@@ -244,6 +265,9 @@ appliquée à toute l'interface, à la page de connexion et au titre des onglets
 | `POST` | `/api/dossiers/{id}/visa-principal-clerc`, `/taxage-definitif`, `/gainde`, `/formalites`, `/formalites/{organisme}/achevement`, `/intervenants`, `/intervenants/{iid}/kyc`, `/purge/levee` | Actions de suivi |
 | `GET/POST` | `/api/rendez-vous`, `/verification`, `/{id}/report`, `/{id}/statut`, `/aujourdhui`, `/referentiels` | Agenda et prise de rendez-vous |
 | `POST` | `/api/auth/connexion` | `{ email, motDePasse }` → `{ jeton, expiration, utilisateur }` (public) |
+| `GET/POST/PUT` | `/api/admin/tableau`, `/api/admin/comptes[/{id}[/desactivation\|reactivation\|reinitialisation\|deverrouillage\|revocation]]` | Administration des comptes (super administrateur) |
+| `GET/PUT` | `/api/admin/parametres`, `GET /api/admin/journal?type=&q=` | Politique de sécurité, journal d'administration |
+| `POST` | `/api/auth/mot-de-passe` | Changement de son propre mot de passe (`{ actuel, nouveau }`) |
 | `GET/PUT` | `/api/identite` | Marque blanche (lecture publique, écriture super administrateur) |
 | `GET/POST/PUT` | `/api/clients`, `/api/clients/{id}` | Fichier clients, fiche et historique des dossiers |
 | `GET` | `/api/repertoire?annee=` | Répertoire des actes et récapitulatif du visa trimestriel |
@@ -255,7 +279,7 @@ appliquée à toute l'interface, à la page de connexion et au titre des onglets
 
 ## Pistes pour la suite
 
-- Gestion des comptes par le super administrateur (création, désactivation, réinitialisation de mot de passe).
+- Double authentification (TOTP) pour les notaires et le super administrateur.
 - Multi-études (plusieurs marques blanches sur une même instance).
 - Migrations de schéma versionnées (Flyway) avant la mise en production.
 - Intégration GAINDE 2000 et télé-déclaration DGID quand les API seront disponibles.

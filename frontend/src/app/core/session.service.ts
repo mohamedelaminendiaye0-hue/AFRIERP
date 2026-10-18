@@ -17,6 +17,7 @@ export class SessionService {
   readonly utilisateur = computed(() => this.courante()?.utilisateur);
   readonly id = computed(() => this.courante()?.utilisateur.id ?? '');
   readonly jeton = computed(() => this.courante()?.jeton ?? null);
+  readonly doitChangerMotDePasse = computed(() => !!this.courante()?.doitChangerMotDePasse);
   readonly connecte = computed(() => {
     const s = this.courante();
     return !!s && new Date(s.expiration).getTime() > Date.now();

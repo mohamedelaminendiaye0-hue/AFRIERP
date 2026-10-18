@@ -27,6 +27,13 @@ export const ICONES = {
   crayon: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
   coche: 'M5 12.5 10 17l9-10',
   fonds2: 'M4 7h16v10H4zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  cadenas: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3M12 15v2',
+  journal: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+  cle: 'M14.5 9.5a4 4 0 1 1-3.2 3.9L4 20.7V17h2.5v-2.5H9l2.3-2.3',
+  bouclier: 'M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z',
+  copier: 'M9 9h10v11H9zM5 15V4h10',
+  oeil: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  serveur: 'M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01',
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

@@ -1,0 +1,126 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <p class="surtitre">Administration de la plateforme</p>
+      <h1>Vue d'ensemble</h1>
+      <p>Comptes de l'étude, sécurité des accès et activité récente. Le super administrateur n'a pas accès aux dossiers ni aux actes.</p>
+    </div>
+    <div class="actions">
+      <a class="bouton bouton--secondaire" routerLink="/administration/journal"><app-icone nom="journal" [taille]="18" />Journal</a>
+      <a class="bouton bouton--creer" routerLink="/administration/comptes" [queryParams]="{ nouveau: 1 }"><app-icone nom="plus" [taille]="18" />Nouveau compte</a>
+    </div>
+  </header>
+
+  @if (tableau(); as t) {
+    <nav class="grille grille--4" aria-label="Raccourcis">
+      <a class="carte kpi raccourci" routerLink="/administration/comptes">
+        <span class="kpi__libelle">Comptes actifs</span>
+        <span class="kpi__valeur">{{ t.comptesActifs }}</span>
+        <span class="kpi__contexte">{{ t.comptesDesactives }} désactivé(s), conservé(s) pour la traçabilité</span>
+        <span class="raccourci__aller">Gérer les comptes</span>
+      </a>
+      <a class="carte kpi raccourci" [class.raccourci--alerte]="t.comptesVerrouilles" routerLink="/administration/comptes" [queryParams]="{ filtre: 'verrouilles' }">
+        <span class="kpi__libelle">Comptes verrouillés</span>
+        <span class="kpi__valeur">{{ t.comptesVerrouilles }}</span>
+        <span class="kpi__contexte">Après {{ t.politique.tentativesAvantVerrouillage }} échecs de connexion consécutifs</span>
+        <span class="raccourci__aller">Voir les comptes</span>
+      </a>
+      <a class="carte kpi raccourci" [class.raccourci--accent]="t.motsDePasseProvisoires" routerLink="/administration/comptes" [queryParams]="{ filtre: 'provisoires' }">
+        <span class="kpi__libelle">Mots de passe provisoires</span>
+        <span class="kpi__valeur">{{ t.motsDePasseProvisoires }}</span>
+        <span class="kpi__contexte">{{ t.jamaisConnectes }} compte(s) jamais connecté(s)</span>
+        <span class="raccourci__aller">Suivre les accès</span>
+      </a>
+      <a class="carte kpi raccourci" [class.raccourci--alerte]="t.echecs24h >= 3" routerLink="/administration/journal" [queryParams]="{ type: 'CONNEXION_ECHOUEE' }">
+        <span class="kpi__libelle">Connexions sur 24 h</span>
+        <span class="kpi__valeur">{{ t.connexions24h }}</span>
+        <span class="kpi__contexte">{{ t.echecs24h }} échec(s) ou verrouillage(s)</span>
+        <span class="raccourci__aller">Voir les tentatives</span>
+      </a>
+    </nav>
+
+    <div class="grille grille--3">
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <h2>Activité récente</h2>
+          <a routerLink="/administration/journal">Tout le journal →</a>
+        </div>
+        <ul class="flux">
+          @for (e of t.derniersEvenements; track e.id) {
+            <li class="flux__ligne">
+              <span class="flux__heure chiffres">{{ e.horodatage | dateFr: true }}</span>
+              <span class="badge" [class.badge--critique]="e.sensible" [class.badge--neutre-clair]="!e.sensible">{{ e.typeLibelle }}</span>
+              <span class="flux__texte">
+                <strong>{{ e.cibleNom ?? e.acteurNom ?? 'Plateforme' }}</strong>
+                @if (e.acteurNom && e.acteurNom !== e.cibleNom) { <span class="muet"> par {{ e.acteurNom }}</span> }
+                @if (e.detail) { <span class="sous">{{ e.detail }}</span> }
+              </span>
+            </li>
+          } @empty {
+            <li class="vide">Aucune activité.</li>
+          }
+        </ul>
+      </section>
+
+      <section class="carte">
+        <div class="carte__entete"><h2>Comptes à surveiller</h2></div>
+        <ul class="liste">
+          @for (c of t.aSurveiller; track c.id) {
+            <li>
+              <span class="avatar">{{ c.initiales }}</span>
+              <span class="liste__texte">
+                <a routerLink="/administration/comptes" [queryParams]="{ compte: c.id }">{{ c.nomComplet }}</a>
+                <span class="sous">{{ c.roleLibelle }}</span>
+              </span>
+              @if (c.verrouille) { <span class="badge badge--critique">Verrouillé</span> }
+              @else if (c.doitChangerMotDePasse) { <span class="badge badge--vigilance">Provisoire</span> }
+              @else { <span class="badge badge--neutre-clair">Jamais connecté</span> }
+            </li>
+          } @empty {
+            <li class="vide">Tous les comptes sont en ordre.</li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <div class="grille grille--3">
+      <section class="carte">
+        <div class="carte__entete"><h2>Comptes par profil</h2><a routerLink="/administration/comptes">Détail →</a></div>
+        <ul class="carte__corps charges">
+          @for (r of t.parRole; track r.role) {
+            <li>
+              <div class="charges__ligne"><span class="charges__nom">{{ r.libelle }}</span><strong class="chiffres">{{ r.actifs }}</strong></div>
+              <div class="barre"><span [style.width.%]="(r.actifs / maxRole()) * 100"></span></div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="carte">
+        <div class="carte__entete"><h2>Politique de sécurité</h2><a routerLink="/administration/securite">Modifier →</a></div>
+        <div class="carte__corps">
+          <div class="cle-valeur"><span>Mot de passe</span><span>{{ t.politique.longueurMinimale }} caractères min.</span></div>
+          <div class="cle-valeur"><span>Durée de session</span><span>{{ t.politique.dureeSessionHeures }} h</span></div>
+          <div class="cle-valeur"><span>Verrouillage</span><span>{{ t.politique.tentativesAvantVerrouillage }} échecs · {{ t.politique.dureeVerrouillageMinutes }} min</span></div>
+          <div class="cle-valeur"><span>Mot de passe provisoire</span><span>{{ t.politique.changementObligatoire ? 'À changer' : 'Facultatif' }}</span></div>
+        </div>
+      </section>
+
+      <section class="carte">
+        <div class="carte__entete"><h2>Plateforme</h2><a routerLink="/administration/identite">Identité →</a></div>
+        <div class="carte__corps">
+          <div class="identite-mini">
+            @if (identite().logo; as logo) { <img [src]="logo" alt="" /> }
+            @else { <span class="sceau-mini">{{ identite().monogramme || identite().nom.charAt(0) }}</span> }
+            <span><strong>{{ identite().nom }}</strong><span class="sous">{{ identite().sousTitre }}</span></span>
+          </div>
+          <div class="cle-valeur"><span>Version</span><span>{{ t.systeme.version }}</span></div>
+          <div class="cle-valeur"><span>Base de données</span><span>{{ t.systeme.base }}</span></div>
+          <div class="cle-valeur"><span>En service depuis</span><span>{{ t.systeme.dureeFonctionnement }}</span></div>
+          <div class="cle-valeur"><span>Dossiers</span><span>{{ t.systeme.dossiers }}</span></div>
+          @if (t.systeme.donneesDemo) { <p class="badge badge--or">Données de démonstration actives</p> }
+        </div>
+      </section>
+    </div>
+  }
+</div>

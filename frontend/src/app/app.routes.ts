@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
-import { accueilDe, connecteGarde, membreEtudeGarde, roleGarde } from './core/gardes';
+import { accueilDe, connecteGarde, membreEtudeGarde, roleGarde, sessionGarde } from './core/gardes';
 import { SessionService } from './core/session.service';
 
 export const routes: Routes = [
@@ -10,6 +10,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/connexion.component').then((m) => m.ConnexionComponent),
   },
   {
+    path: 'mot-de-passe',
+    title: 'Mot de passe',
+    canActivate: [sessionGarde],
+    loadComponent: () => import('./pages/mot-de-passe.component').then((m) => m.MotDePasseComponent),
+  },
+  {
     path: '',
     canActivate: [connecteGarde],
     loadComponent: () => import('./layout/shell.component').then((m) => m.ShellComponent),
@@ -17,10 +23,36 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: () => accueilDe(inject(SessionService).utilisateur()?.role) },
       { path: 'dashboard', redirectTo: 'tableau-de-bord' },
       {
-        path: 'administration/identite',
-        title: "Identité de l'étude",
-        canActivate: [roleGarde('SUPER_ADMIN')],
-        loadComponent: () => import('./pages/identite.component').then((m) => m.IdentiteComponent),
+        path: 'administration',
+        canActivateChild: [roleGarde('SUPER_ADMIN')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Administration',
+            loadComponent: () => import('./pages/admin/admin-tableau.component').then((m) => m.AdminTableauComponent),
+          },
+          {
+            path: 'comptes',
+            title: 'Comptes utilisateurs',
+            loadComponent: () => import('./pages/admin/admin-comptes.component').then((m) => m.AdminComptesComponent),
+          },
+          {
+            path: 'securite',
+            title: 'Politique de sécurité',
+            loadComponent: () => import('./pages/admin/admin-securite.component').then((m) => m.AdminSecuriteComponent),
+          },
+          {
+            path: 'journal',
+            title: "Journal d'administration",
+            loadComponent: () => import('./pages/admin/admin-journal.component').then((m) => m.AdminJournalComponent),
+          },
+          {
+            path: 'identite',
+            title: "Identité de l'étude",
+            loadComponent: () => import('./pages/identite.component').then((m) => m.IdentiteComponent),
+          },
+        ],
       },
       {
         path: 'equipe',

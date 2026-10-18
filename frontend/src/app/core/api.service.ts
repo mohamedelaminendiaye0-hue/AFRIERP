@@ -6,6 +6,13 @@ import {
   Blocage,
   Client,
   ClientResume,
+  Compte,
+  CompteEtMotDePasse,
+  EvenementAdmin,
+  ParametresSecurite,
+  SaisieCompte,
+  TableauAdmin,
+  TypeEvenementAdmin,
   CompteDemo,
   FicheClient,
   IdentiteEtude,
@@ -278,6 +285,61 @@ export class ApiService {
 
   archiver(dossierIds: string[], emplacement?: string | null): Observable<ResultatArchivage[]> {
     return this.http.post<ResultatArchivage[]>('/api/minutier/archivage', { dossierIds, emplacement });
+  }
+
+  /* --- Mot de passe --- */
+
+  changerMotDePasse(actuel: string, nouveau: string): Observable<Session> {
+    return this.http.post<Session>('/api/auth/mot-de-passe', { actuel, nouveau });
+  }
+
+  politiqueMotDePasse(): Observable<{ longueurMinimale: number }> {
+    return this.http.get<{ longueurMinimale: number }>('/api/auth/politique');
+  }
+
+  /* --- Administration de la plateforme --- */
+
+  tableauAdmin(): Observable<TableauAdmin> {
+    return this.http.get<TableauAdmin>('/api/admin/tableau');
+  }
+
+  comptes(): Observable<Compte[]> {
+    return this.http.get<Compte[]>('/api/admin/comptes');
+  }
+
+  creerCompte(saisie: SaisieCompte): Observable<CompteEtMotDePasse> {
+    return this.http.post<CompteEtMotDePasse>('/api/admin/comptes', saisie);
+  }
+
+  modifierCompte(id: string, saisie: SaisieCompte): Observable<Compte> {
+    return this.http.put<Compte>(`/api/admin/comptes/${id}`, saisie);
+  }
+
+  actionCompte(id: string, action: 'desactivation' | 'reactivation' | 'deverrouillage' | 'revocation'): Observable<Compte> {
+    return this.http.post<Compte>(`/api/admin/comptes/${id}/${action}`, {});
+  }
+
+  reinitialiserCompte(id: string): Observable<CompteEtMotDePasse> {
+    return this.http.post<CompteEtMotDePasse>(`/api/admin/comptes/${id}/reinitialisation`, {});
+  }
+
+  parametresSecurite(): Observable<ParametresSecurite> {
+    return this.http.get<ParametresSecurite>('/api/admin/parametres');
+  }
+
+  enregistrerParametresSecurite(p: ParametresSecurite): Observable<ParametresSecurite> {
+    return this.http.put<ParametresSecurite>('/api/admin/parametres', p);
+  }
+
+  journalAdmin(type?: TypeEvenementAdmin | '', q?: string): Observable<EvenementAdmin[]> {
+    const params: Record<string, string> = {};
+    if (type) params['type'] = type;
+    if (q) params['q'] = q;
+    return this.http.get<EvenementAdmin[]>('/api/admin/journal', { params });
+  }
+
+  typesEvenementAdmin(): Observable<{ code: TypeEvenementAdmin; libelle: string }[]> {
+    return this.http.get<{ code: TypeEvenementAdmin; libelle: string }[]>('/api/admin/journal/types');
   }
 }
 

@@ -9,19 +9,27 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
+import sn.afrierp.notarius.admin.PolitiqueSecurite;
 import sn.afrierp.notarius.domain.Utilisateur;
 
-/** Emet le jeton de session (JWT signe HS256) remis au navigateur apres connexion. */
+/**
+ * Émet le jeton de session (JWT signé HS256) remis au navigateur après connexion.
+ * Revendications : {@code role} (droits), {@code ver} (version du compte, pour
+ * révoquer les sessions) et {@code chg} (mot de passe provisoire à changer).
+ */
 @Service
 public class JetonService {
 
-    public static final Duration DUREE = Duration.ofHours(10);
+    public static final String VERSION = "ver";
+    public static final String A_CHANGER = "chg";
 
     private final JwtEncoder encodeur;
+    private final PolitiqueSecurite politique;
     private final Clock clock;
 
-    public JetonService(JwtEncoder encodeur, Clock clock) {
+    public JetonService(JwtEncoder encodeur, PolitiqueSecurite politique, Clock clock) {
         this.encodeur = encodeur;
+        this.politique = politique;
         this.clock = clock;
     }
 
@@ -30,13 +38,15 @@ public class JetonService {
 
     public Jeton emettre(Utilisateur u) {
         Instant maintenant = Instant.now(clock);
-        Instant expiration = maintenant.plus(DUREE);
+        Instant expiration = maintenant.plus(Duration.ofHours(politique.parametres().getDureeSessionHeures()));
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("notarius")
                 .subject(u.getId())
                 .issuedAt(maintenant)
                 .expiresAt(expiration)
                 .claim("role", u.getRole().name())
+                .claim(VERSION, u.getVersionJeton())
+                .claim(A_CHANGER, u.isDoitChangerMotDePasse())
                 .build();
         String valeur = encodeur.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
                 .getTokenValue();
