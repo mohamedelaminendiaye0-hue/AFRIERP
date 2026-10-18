@@ -1,0 +1,372 @@
+@if (dossier(); as d) {
+  <div class="page">
+    <!-- En-tete -->
+    <header>
+      <a routerLink="/dossiers" class="retour">← Portefeuille de dossiers</a>
+      <div class="entete-dossier">
+        <div>
+          <div class="titre-ligne">
+            <h1>{{ d.resume.intitule }}</h1>
+            <app-badge-statut [statut]="d.resume.statut" />
+            @if (d.resume.alerteCdc) { <span class="badge badge--serieux">Alerte CDC</span> }
+          </div>
+          <p class="muet petit chiffres">
+            {{ d.resume.reference }} · {{ d.resume.typeActeLibelle }} · ouvert le {{ d.resume.dateOuverture | dateFr }}
+            · clerc {{ d.resume.clercNom }} · notaire {{ d.resume.notaireNom }}
+          </p>
+        </div>
+        <div class="encarts">
+          <div class="encart"><span>Transaction</span><strong>{{ d.resume.montantTransaction | xof: true }}</strong></div>
+          <div class="encart encart--or"><span>Fonds detenus</span><strong>{{ d.resume.soldeFonds | xof: true }}</strong></div>
+          <div class="encart">
+            <span>Dans le statut</span>
+            <strong>{{ d.resume.statut === 'CLOSED' ? '—' : d.resume.joursDansStatut + ' j' }}
+              @if (d.resume.retardStatutJours > 0) { <span class="badge badge--petit badge--serieux">+{{ d.resume.retardStatutJours }} j</span> }
+            </strong>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Fil d'Ariane -->
+    <section class="carte">
+      <div class="carte__entete">
+        <div>
+          <h2>Cycle de vie du dossier</h2>
+          <p>{{ d.resume.statutLibelle }}
+            @if (d.resume.delaiCibleJours !== null) { — delai cible {{ d.resume.delaiCibleJours }} jours }
+          </p>
+        </div>
+      </div>
+      <div class="carte__corps"><app-stepper [statut]="d.resume.statut" /></div>
+    </section>
+
+    @if (erreur(); as e) {
+      <div class="bandeau bandeau--critique" role="alert">
+        <div><strong>Operation refusee.</strong>
+          @if (e.blocages.length) { <ul>@for (b of e.blocages; track $index) { <li>{{ b.message }}</li> }</ul> } @else { {{ e.message }} }
+          <span class="tres-petit muet">La tentative est tracee au journal d'audit.</span>
+        </div>
+      </div>
+    }
+    @if (succes(); as s) { <div class="bandeau bandeau--bon">{{ s }}</div> }
+
+    <div class="grille grille--3">
+      <!-- Actions du workflow -->
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Prochaine etape</h2>
+            <p>Verdict du moteur de workflow pour {{ session.utilisateur()?.nomComplet }} ({{ session.utilisateur()?.roleLibelle }})</p>
+          </div>
+        </div>
+        <div class="carte__corps actions">
+          @for (a of avancees(); track a.transition.vers) {
+            <div class="action" [class.action--bloquee]="!a.autorisee">
+              <div class="action__tete">
+                <div>
+                  <p class="action__titre">{{ a.transition.action }}</p>
+                  <p class="tres-petit muet">Vers <app-badge-statut [statut]="a.transition.vers" />
+                    · reserve a : {{ a.transition.roles.join(', ').toLowerCase() }}{{ a.transition.notaireDuDossier ? ' (notaire du dossier)' : '' }}</p>
+                </div>
+                <div class="action__commande">
+                  @if (a.transition.vers === 'SIGNED') {
+                    <select [(ngModel)]="modeSignature" aria-label="Mode de signature">
+                      <option value="PHYSIQUE">Signature physique</option>
+                      <option value="ELECTRONIQUE_GAINDE">Electronique — GAINDE 2000</option>
+                    </select>
+                  }
+                  <button class="bouton" type="button" [disabled]="!actionPossible(a)" (click)="transition(a)">{{ a.transition.action }}</button>
+                </div>
+              </div>
+              @if (a.blocages.length) {
+                <ul class="blocages">
+                  @for (b of a.blocages; track $index) { <li><span class="code">{{ b.code }}</span> {{ b.message }}</li> }
+                </ul>
+              } @else {
+                <p class="tres-petit ok">✓ Toutes les conditions sont reunies.</p>
+              }
+            </div>
+          } @empty {
+            <p class="vide">Dossier cloture et archive : plus aucune transition possible.</p>
+          }
+
+          @for (a of retours(); track a.transition.vers) {
+            <div class="action action--retour">
+              <div class="action__tete">
+                <div>
+                  <p class="action__titre">{{ a.transition.action }}</p>
+                  <p class="tres-petit muet">Retour en arriere — motif obligatoire, trace au journal.</p>
+                </div>
+                <div class="action__commande">
+                  <input [(ngModel)]="motifs[a.transition.vers]" placeholder="Motif du retour" [attr.aria-label]="'Motif : ' + a.transition.action" />
+                  <button class="bouton bouton--secondaire" type="button" [disabled]="!actionPossible(a)" (click)="transition(a)">Confirmer</button>
+                </div>
+              </div>
+              @if (!a.autorisee) {
+                <ul class="blocages">@for (b of a.blocages; track $index) { <li>{{ b.message }}</li> }</ul>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Suivi & assignation -->
+      <section class="carte">
+        <div class="carte__entete"><div><h2>Suivi du dossier</h2><p>Assignation, signature, GAINDE, formalites</p></div></div>
+        <div class="carte__corps suivi">
+          @if (d.resume.statut !== 'CLOSED') {
+            <div>
+              <label for="clerc">Clerc redacteur (reassignation par un notaire)</label>
+              <div class="ligne-champs">
+                <select id="clerc" [(ngModel)]="clercChoisi">
+                  <option value="" disabled selected>{{ d.resume.clercNom }}</option>
+                  @for (c of clercs(); track c.id) { @if (c.id !== d.resume.clercId) { <option [value]="c.id">{{ c.nomComplet }}</option> } }
+                </select>
+                <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!clercChoisi" (click)="assigner()">Reassigner</button>
+              </div>
+            </div>
+          }
+
+          @if (d.resume.purgeConditionsEnCours) {
+            <div class="bandeau bandeau--vigilance">
+              <div>Purge des droits de preemption / conditions suspensives en cours : bloque la mise a la signature.
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="leverPurge()">Marquer la purge achevee</button></div>
+            </div>
+          }
+
+          @if (d.resume.statut === 'READY_TO_SIGN') {
+            <div>
+              <label for="rdv">Rendez-vous de signature @if (d.resume.dateSignaturePrevue) { (actuel : {{ d.resume.dateSignaturePrevue | dateFr }}) }</label>
+              <div class="ligne-champs">
+                <input id="rdv" type="date" [(ngModel)]="dateRdv" />
+                <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!dateRdv" (click)="planifier()">Planifier</button>
+              </div>
+            </div>
+          } @else if (d.resume.dateSignaturePrevue && !d.resume.dateSignature) {
+            <p class="petit">Signature prevue le <strong>{{ d.resume.dateSignaturePrevue | dateFr }}</strong>
+              @if (d.resume.retardSignatureJours > 0) { <span class="badge badge--petit badge--critique">+{{ d.resume.retardSignatureJours }} j</span> }</p>
+          }
+
+          @if (d.signature; as s) {
+            <div class="bloc">
+              <p class="petit"><strong>{{ s.modeLibelle }}</strong> — le {{ s.date | dateFr }}</p>
+              @if (s.mode === 'ELECTRONIQUE_GAINDE') {
+                <p class="petit">Statut GAINDE 2000 :
+                  <span class="badge badge--petit" [class.badge--bon]="s.gaindeStatut === 'VALIDE'" [class.badge--vigilance]="s.gaindeStatut === 'TRANSMIS'"
+                        [class.badge--critique]="s.gaindeStatut === 'REJETE'">{{ s.gaindeStatutLibelle }}</span>
+                  @if (s.gaindeReference) { <span class="tres-petit muet"> · ref. {{ s.gaindeReference }}</span> }
+                </p>
+                <p class="tres-petit muet">Pas d'integration directe : statut renseigne manuellement.</p>
+                @if (d.resume.statut !== 'CLOSED') {
+                  <div class="ligne-champs">
+                    <select [(ngModel)]="statutGainde" aria-label="Statut GAINDE">
+                      <option value="TRANSMIS">Transmis</option>
+                      <option value="VALIDE">Valide</option>
+                      <option value="REJETE">Rejete</option>
+                    </select>
+                    <input [(ngModel)]="referenceGainde" placeholder="Reference GAINDE" aria-label="Reference GAINDE" />
+                    <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="majGainde()">Mettre a jour</button>
+                  </div>
+                }
+              }
+            </div>
+          }
+
+          @if (d.formalites; as f) {
+            <p class="petit">Formalites deposees le <strong>{{ f.dateDepot | dateFr }}</strong> —
+              {{ f.organisme === 'CONSERVATION_FONCIERE' ? 'Conservation fonciere (DGID)' : 'Greffe (RCCM)' }}
+              @if (f.reference) { <span class="tres-petit muet"> · ref. {{ f.reference }}</span> }</p>
+          }
+          @if (d.resume.statut === 'POST_ACT') {
+            <div>
+              <label for="organisme">Depot des formalites (formaliste)</label>
+              <div class="ligne-champs">
+                <select id="organisme" [(ngModel)]="organisme">
+                  <option value="CONSERVATION_FONCIERE">Conservation fonciere (DGID)</option>
+                  <option value="GREFFE_RCCM">Greffe (RCCM)</option>
+                </select>
+                <input [(ngModel)]="referenceFormalites" placeholder="Reference du depot" aria-label="Reference du depot" />
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="deposerFormalites()">Enregistrer</button>
+              </div>
+            </div>
+          }
+
+          <div class="visas">
+            <p class="tres-petit muet">Visas</p>
+            <p class="petit">Validation notaire :
+              @if (d.validationNotaire; as v) { <strong>{{ v.parNom }}</strong> le {{ v.date | dateFr }} } @else { <span class="muet">—</span> }</p>
+            <p class="petit">Taxage fige :
+              @if (d.fraisPrevisionnels !== null) { <strong>{{ d.fraisPrevisionnels | xof }}</strong> <span class="tres-petit muet">(bareme {{ d.versionBareme }})</span> } @else { <span class="muet">—</span> }</p>
+            <p class="petit">Certification des fonds :
+              @if (d.certificationFonds; as v) { <strong>{{ v.parNom }}</strong> le {{ v.date | dateFr }} ({{ d.montantCertifie | xof: true }}) } @else { <span class="muet">—</span> }</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grille grille--3">
+      <!-- Checklist intelligente -->
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Checklist des pieces (GED)</h2>
+            <p>Chaque piece obligatoire est exigee a partir d'une etape ; une piece perimee compte comme manquante</p>
+          </div>
+        </div>
+        <div class="carte__corps">
+          @if (piecesBloquantes().length) {
+            <div class="bandeau bandeau--vigilance">
+              <div><strong>{{ piecesBloquantes().length }} piece(s) obligatoire(s) a obtenir ou renouveler</strong> — elles bloquent l'etape indiquee.</div>
+            </div>
+          } @else {
+            <div class="bandeau bandeau--bon">Toutes les pieces obligatoires sont obtenues et valides.</div>
+          }
+          <ul class="pieces">
+            @for (p of d.pieces; track p.id) {
+              <li>
+                <div class="pieces__info">
+                  <p>{{ p.libelle }}
+                    @if (p.obligatoire) { <span class="etiquette">obligatoire · {{ p.exigibleALibelle.toLowerCase() }}</span> }
+                    <app-badge-piece [statut]="p.statut" />
+                    @if (p.perimee) { <span class="badge badge--petit badge--critique">Perimee</span> }
+                  </p>
+                  <p class="tres-petit muet">
+                    {{ p.categorie.toLowerCase().replace('_', ' ') }} · a la charge de {{ p.responsable }}
+                    @if (p.dateReception) { · recue le {{ p.dateReception | dateFr }} }
+                    @if (p.validiteJours) { · valable {{ p.validiteJours }} j des l'emission @if (p.dateEmission) { ({{ p.dateEmission | dateFr }}) } }
+                    @if (p.dateExpiration) { · expire le {{ p.dateExpiration | dateFr }} }
+                  </p>
+                  @if (p.commentaire) { <p class="commentaire">{{ p.commentaire }}</p> }
+                </div>
+                @if (d.resume.statut !== 'CLOSED') {
+                  <div class="pieces__commande">
+                    @if (p.perimee) { <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="renouvelerPiece(p)">Renouvelee</button> }
+                    <select [ngModel]="p.statut" (ngModelChange)="changerPiece(p, $event)" [attr.aria-label]="'Statut : ' + p.libelle">
+                      @for (s of statutsPiece; track s) { <option [value]="s">{{ s.toLowerCase() }}</option> }
+                    </select>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </section>
+
+      <div class="colonne">
+        <!-- Passerelle comptable -->
+        <section class="carte">
+          <div class="carte__entete"><div><h2>Passerelle comptable</h2><p>Fonds sur le sequestre face aux frais{{ d.couverture.prix > 0 ? ' + prix' : '' }}</p></div></div>
+          <div class="carte__corps">
+            <div class="couverture">
+              <div><span class="tres-petit muet">Frais previsionnels</span><span class="chiffres">{{ d.couverture.frais | xof }}</span></div>
+              @if (d.couverture.prix > 0) { <div><span class="tres-petit muet">Prix a sequestrer</span><span class="chiffres">{{ d.couverture.prix | xof }}</span></div> }
+              <div><span class="tres-petit muet">Besoin total</span><strong class="chiffres">{{ d.couverture.besoin | xof }}</strong></div>
+              <div><span class="tres-petit muet">Encaisse</span><span class="chiffres">{{ d.couverture.encaisse | xof }}</span></div>
+            </div>
+            <div class="barre" [class.barre--bon]="d.couverture.couvert"><span [style.width.%]="tauxCouverture() * 100"></span></div>
+            @if (d.couverture.couvert) {
+              <p class="petit ok">✓ Fonds suffisants — certification possible.</p>
+            } @else {
+              <p class="petit manque">Manque <strong>{{ d.couverture.manquant | xof }}</strong> ({{ tauxCouverture() | pct }} couvert)</p>
+            }
+          </div>
+        </section>
+
+        <!-- Parties -->
+        <section class="carte">
+          <div class="carte__entete"><div><h2>Parties a l'acte</h2><p>Controle KYC / LAB-FT exige avant la signature</p></div></div>
+          <div class="carte__corps">
+            <ul class="parties">
+              @for (i of d.intervenants; track i.id) {
+                <li>
+                  <div>
+                    <p class="petit"><strong>{{ i.nom }}</strong></p>
+                    <p class="tres-petit muet">{{ i.qualite }} @if (i.identifiant) { · {{ i.identifiant }} }</p>
+                  </div>
+                  @if (i.kycValide) { <span class="badge badge--petit badge--bon">KYC valide</span> }
+                  @else { <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="validerKyc(i.id)">Valider le KYC</button> }
+                </li>
+              } @empty {
+                <li class="petit muet">Aucune partie renseignee.</li>
+              }
+            </ul>
+            @if (d.resume.statut !== 'CLOSED' && !d.signature) {
+              <form class="ajout-partie" (ngSubmit)="ajouterPartie()">
+                <input name="nom" [(ngModel)]="nouvellePartie.nom" placeholder="Nom de la partie" aria-label="Nom de la partie" required />
+                <div class="ligne-champs">
+                  <select name="qualite" [(ngModel)]="nouvellePartie.qualite" aria-label="Qualite">
+                    @for (q of ['VENDEUR', 'ACQUEREUR', 'DONATEUR', 'DONATAIRE', 'HERITIER', 'SOCIETE', 'BANQUE', 'MANDATAIRE']; track q) { <option [value]="q">{{ q }}</option> }
+                  </select>
+                  <select name="type" [(ngModel)]="nouvellePartie.type" aria-label="Personne">
+                    <option value="PHYSIQUE">Physique</option><option value="MORALE">Morale</option>
+                  </select>
+                  <button class="bouton bouton--secondaire bouton--petit" type="submit" [disabled]="!nouvellePartie.nom.trim()">Ajouter</button>
+                </div>
+              </form>
+            }
+          </div>
+        </section>
+
+        @if (d.bien; as b) {
+          <section class="carte">
+            <div class="carte__entete"><div><h2>Bien objet de l'acte</h2></div></div>
+            <div class="carte__corps petit">
+              <p>{{ b.designation }}</p>
+              <p class="chiffres muet">{{ b.titreFoncier }}</p>
+              <p class="muet">{{ b.adresse }} — {{ b.commune }} @if (b.superficieM2) { · {{ b.superficieM2 }} m² }</p>
+            </div>
+          </section>
+        }
+      </div>
+    </div>
+
+    <div class="grille grille--2">
+      <!-- Releve -->
+      <section class="carte">
+        <div class="carte__entete"><div><h2>Sous-compte client</h2><p>Releve du compte auxiliaire rattache au dossier</p></div></div>
+        @if (d.releve.length) {
+          <div class="table-defilante">
+            <table>
+              <thead><tr><th>Date</th><th>Libelle</th><th class="droite">Mouvement</th><th class="droite">Solde</th></tr></thead>
+              <tbody>
+                @for (l of d.releve; track l.id) {
+                  <tr>
+                    <td class="chiffres petit">{{ l.dateOperation | dateFr }}</td>
+                    <td class="petit">{{ l.libelle }}<br /><span class="tres-petit muet">{{ l.numeroPiece }} · {{ l.contrepartie }}</span></td>
+                    <td class="droite chiffres petit" [class.credit]="l.sens === 'CREDIT'">{{ l.sens === 'CREDIT' ? '+' : '−' }} {{ l.montant | xof }}</td>
+                    <td class="droite chiffres petit">{{ l.soldeCumule | xof }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="vide">Aucun maniement de fonds sur ce dossier.</p>
+        }
+      </section>
+
+      <!-- Journal d'audit -->
+      <section class="carte">
+        <div class="carte__entete"><div><h2>Journal d'audit</h2><p>Qui a fait quoi, quand, et depuis quel statut — non modifiable</p></div></div>
+        <ol class="journal carte__corps">
+          @for (e of d.journal; track e.id) {
+            <li [class.journal--bloque]="e.type === 'TENTATIVE_BLOQUEE'">
+              <p class="petit"><span class="journal__type">{{ libelleEvenement[e.type] ?? e.type }}</span> {{ e.libelle }}</p>
+              <p class="tres-petit muet chiffres">{{ e.horodatage | dateFr: true }} · {{ e.auteurNom }} · depuis « {{ e.statutLibelle }} »</p>
+              @if (entreesDetail(e.detail).length) {
+                <p class="journal__detail">
+                  @for (kv of entreesDetail(e.detail); track kv[0]) { <span><span class="muet">{{ kv[0] }} :</span> {{ kv[1] }}</span> }
+                </p>
+              }
+            </li>
+          } @empty {
+            <li class="vide">Aucun evenement.</li>
+          }
+        </ol>
+      </section>
+    </div>
+  </div>
+} @else if (erreur()) {
+  <div class="bandeau bandeau--critique">{{ erreur()?.message }}</div>
+}

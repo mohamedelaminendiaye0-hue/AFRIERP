@@ -1,0 +1,45 @@
+# Plateforme Notarius : PostgreSQL + API Spring Boot + frontend Angular (nginx).
+#   docker compose up --build
+#   -> application : http://localhost:4200   API : http://localhost:8080/api
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notarius
+      POSTGRES_USER: notarius
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-notarius}
+    volumes:
+      - donnees-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notarius -d notarius"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_URL: jdbc:postgresql://postgres:5432/notarius
+      DB_USER: notarius
+      DB_PASSWORD: ${DB_PASSWORD:-notarius}
+      # Fuseau de l'etude : les delais et dates d'audit sont calcules a l'heure de Dakar.
+      TZ: Africa/Dakar
+      NOTARIUS_DONNEES_DEMO: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
+volumes:
+  donnees-postgres:

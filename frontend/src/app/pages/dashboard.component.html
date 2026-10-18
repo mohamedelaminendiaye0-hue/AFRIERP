@@ -1,0 +1,210 @@
+<div class="page">
+  <header class="page__entete">
+    <h1>Tableau de bord de l'etude</h1>
+    <p>Productivite, avancement du cycle de vie des dossiers et conformite du maniement de fonds.</p>
+  </header>
+
+  @if (erreur()) {
+    <div class="bandeau bandeau--critique">L'API est injoignable. Verifiez que le backend Spring Boot est demarre.</div>
+  }
+
+  @if (tableau(); as t) {
+    <!-- KPI de tete -->
+    <div class="grille grille--4">
+      <div class="carte kpi">
+        <div class="kpi__libelle">Dossiers actifs</div>
+        <div class="kpi__valeur">{{ t.kpi.dossiersActifs }}</div>
+        <div class="kpi__contexte">{{ t.kpi.dossiersSignesCeMois }} signe(s) ce mois · {{ t.kpi.tauxRetardGlobal | pct }} en retard</div>
+      </div>
+      <div class="carte kpi">
+        <div class="kpi__libelle">Encours fonds clients</div>
+        <div class="kpi__valeur">{{ t.kpi.encoursFondsClients | xof: true }}</div>
+        <div class="kpi__contexte">
+          Rapprochement
+          @if (t.controle.conforme) { <span class="badge badge--petit badge--bon">conforme</span> }
+          @else { <span class="badge badge--petit badge--critique">ecart {{ t.controle.ecart | xof }}</span> }
+        </div>
+      </div>
+      <div class="carte kpi kpi--accent">
+        <div class="kpi__libelle">Emoluments a percevoir</div>
+        <div class="kpi__valeur">{{ t.kpi.emolumentsAPercevoir | xof: true }}</div>
+        <div class="kpi__contexte">Emoluments + honoraires des dossiers non encore preleves.</div>
+      </div>
+      <div class="carte kpi">
+        <div class="kpi__libelle">Delai moyen ouverture → signature</div>
+        <div class="kpi__valeur">{{ t.kpi.delaiMoyenJours }} <span class="petit muet">jours</span></div>
+        <div class="kpi__contexte">Objectif interne : {{ t.kpi.objectifDelaiJours }} jours</div>
+      </div>
+    </div>
+
+    <!-- Pipeline + notifications -->
+    <div class="grille grille--3">
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Cycle de vie du portefeuille</h2>
+            <p>Dossiers par statut — en orange, ceux qui depassent le delai cible du statut</p>
+          </div>
+        </div>
+        <div class="carte__corps">
+          <ul class="pipeline">
+            @for (e of t.pipeline; track e.statut) {
+              <li>
+                <div class="pipeline__libelle">
+                  <span>{{ e.libelle }}</span>
+                  <span class="tres-petit muet">{{ e.acteur }}</span>
+                </div>
+                <div class="pipeline__barre">
+                  <span class="pipeline__plein" [style.width.%]="(e.dossiers / maxPipeline()) * 100"></span>
+                </div>
+                <span class="chiffres pipeline__nombre">{{ e.dossiers }}</span>
+                <span class="pipeline__retard">
+                  @if (e.enRetard > 0) { <span class="badge badge--petit badge--serieux">{{ e.enRetard }} en retard</span> }
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+      </section>
+
+      <section class="carte">
+        <div class="carte__entete">
+          <div>
+            <h2>Retards sur delais cibles</h2>
+            <p>Notifies au clerc assigne et au notaire superviseur</p>
+          </div>
+        </div>
+        <ul class="liste-notifs">
+          @for (n of t.notifications.slice(0, 7); track n.dossierId) {
+            <li>
+              <a [routerLink]="['/dossiers', n.dossierId]">
+                <span>
+                  <span class="ref">{{ n.reference }}</span>
+                  <span class="tres-petit muet"> · {{ libelleStatut(n.statut) }}</span><br />
+                  <span class="tres-petit">{{ n.joursDansStatut }} j / cible {{ n.delaiCibleJours }} j</span>
+                </span>
+                <app-badge-niveau [niveau]="n.niveau" />
+              </a>
+            </li>
+          } @empty {
+            <li class="vide">Aucun retard.</li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <!-- Conformite + charge -->
+    <div class="grille grille--3">
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Conformite du maniement de fonds</h2>
+            <p>Controle d'etancheite (I1, I2) et regle d'immobilisation CDC (I3)</p>
+          </div>
+          <a class="bouton bouton--secondaire bouton--petit" routerLink="/comptabilite">Ouvrir la comptabilite</a>
+        </div>
+        <div class="carte__corps">
+          <div class="grille grille--3 controle">
+            <div><div class="kpi__libelle">Solde bancaire</div><div class="chiffres">{{ t.controle.soldeBancaire | xof }}</div></div>
+            <div><div class="kpi__libelle">Somme des sous-comptes</div><div class="chiffres">{{ t.controle.sommeAuxiliaires | xof }}</div></div>
+            <div><div class="kpi__libelle">Ecart</div><div class="chiffres">{{ t.controle.ecart | xof }}</div></div>
+          </div>
+          <table>
+            <tbody>
+              @for (a of t.alertes.slice(0, 5); track a.id) {
+                <tr class="cliquable" (click)="router.navigate(['/dossiers', a.dossierId])">
+                  <td><app-badge-niveau [niveau]="a.niveau" /></td>
+                  <td><span class="ref">{{ a.reference }}</span><br /><span class="tres-petit muet">{{ a.message }}</span></td>
+                  <td class="droite chiffres">{{ a.montantConcerne | xof: true }}</td>
+                </tr>
+              } @empty {
+                <tr><td class="vide">Aucune alerte de conformite.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="carte">
+        <div class="carte__entete">
+          <div>
+            <h2>Charge par clerc</h2>
+            <p>Dossiers actifs et taux de retard (seuil {{ t.tauxRetardMaximum | pct }})</p>
+          </div>
+        </div>
+        <ul class="carte__corps charges">
+          @for (c of t.charges; track c.userId) {
+            <li>
+              <div class="charges__ligne">
+                <span class="avatar">{{ c.initiales }}</span>
+                <span class="charges__nom">{{ c.nom }}</span>
+                <span class="chiffres"><strong>{{ c.dossiersActifs }}</strong> <span class="tres-petit muet">dossiers</span></span>
+                <span class="badge badge--petit" [class.badge--serieux]="c.tauxRetard > t.tauxRetardMaximum"
+                      [class.badge--bon]="c.tauxRetard <= t.tauxRetardMaximum">{{ c.tauxRetard | pct }} retard</span>
+              </div>
+              <div class="barre"><span [style.width.%]="(c.dossiersActifs / maxCharge()) * 100"></span></div>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <!-- CA + risques -->
+    <div class="grille grille--3">
+      <section class="carte">
+        <div class="carte__entete">
+          <div>
+            <h2>CA previsionnel par type d'acte</h2>
+            <p>Produit de l'etude sur les dossiers en cours</p>
+          </div>
+        </div>
+        <ul class="carte__corps charges">
+          @for (c of t.caParType; track c.typeActe) {
+            <li>
+              <div class="charges__ligne">
+                <span class="charges__nom">{{ c.libelle }} <span class="tres-petit muet">({{ c.dossiers }})</span></span>
+                <span class="chiffres">{{ c.caPrevisionnel | xof: true }}</span>
+              </div>
+              <div class="barre barre--or"><span [style.width.%]="(c.caPrevisionnel / maxCa()) * 100"></span></div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Dossiers a risque</h2>
+            <p>Instruction bloquee, purge, alerte CDC, retard de signature ou de delai cible</p>
+          </div>
+        </div>
+        <div class="table-defilante">
+          <table>
+            <thead>
+              <tr><th>Dossier</th><th>Statut</th><th>Clerc</th><th class="droite">Delai</th><th>Signaux</th></tr>
+            </thead>
+            <tbody>
+              @for (d of t.risques.slice(0, 8); track d.id) {
+                <tr class="cliquable" (click)="router.navigate(['/dossiers', d.id])">
+                  <td><span class="ref">{{ d.reference }}</span><br /><span class="tres-petit muet">{{ d.intitule }}</span></td>
+                  <td><app-badge-statut [statut]="d.statut" /></td>
+                  <td class="petit">{{ d.clercNom }}</td>
+                  <td class="droite chiffres petit">
+                    @if (d.retardStatutJours > 0) { <span class="badge badge--petit badge--serieux">+{{ d.retardStatutJours }} j</span> }
+                    @else { <span class="muet">dans les temps</span> }
+                  </td>
+                  <td>
+                    @if (d.alerteCdc) { <span class="badge badge--petit badge--serieux">Alerte CDC</span> }
+                    @if (d.purgeConditionsEnCours) { <span class="badge badge--petit badge--vigilance">Purge</span> }
+                    @if (d.retardSignatureJours > 0) { <span class="badge badge--petit badge--critique">Signature +{{ d.retardSignatureJours }} j</span> }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+</div>
+

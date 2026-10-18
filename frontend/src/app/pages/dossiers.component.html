@@ -1,0 +1,142 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <h1>Portefeuille de dossiers</h1>
+      <p>Chaque dossier suit un cycle de 10 statuts : aucune etape legale ou fiscale ne peut etre sautee.</p>
+    </div>
+    <button class="bouton bouton--or" type="button" (click)="formulaireOuvert.set(!formulaireOuvert())">
+      {{ formulaireOuvert() ? 'Fermer' : 'Ouvrir un dossier' }}
+    </button>
+  </header>
+
+  @if (formulaireOuvert()) {
+    <section class="carte">
+      <div class="carte__entete">
+        <div>
+          <h2>Nouveau dossier</h2>
+          <p>Le dossier est cree en « Creation / Brouillon » avec la checklist standard de son type d'acte.</p>
+        </div>
+      </div>
+      <form class="carte__corps" (ngSubmit)="creer()">
+        <div class="grille grille--3">
+          <div class="champ span-2">
+            <label for="intitule">Intitule</label>
+            <input id="intitule" name="intitule" required [(ngModel)]="nouveau.intitule" placeholder="Vente appartement Fann — Client Diop" />
+          </div>
+          <div class="champ">
+            <label for="type">Type d'acte</label>
+            <select id="type" name="type" [(ngModel)]="nouveau.typeActe">
+              @for (t of typesActe; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="montant">Prix / valeur (FCFA)</label>
+            <input id="montant" name="montant" type="number" min="0" step="1000" [(ngModel)]="nouveau.montant" />
+          </div>
+          <div class="champ">
+            <label for="clerc">Clerc redacteur</label>
+            <select id="clerc" name="clerc" required [(ngModel)]="nouveau.clercId">
+              <option value="" disabled>Choisir…</option>
+              @for (u of clercs(); track u.id) { <option [value]="u.id">{{ u.nomComplet }}</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="notaire">Notaire superviseur</label>
+            <select id="notaire" name="notaire" required [(ngModel)]="nouveau.notaireId">
+              <option value="" disabled>Choisir…</option>
+              @for (u of notaires(); track u.id) { <option [value]="u.id">{{ u.nomComplet }}</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="partie">Partie principale</label>
+            <input id="partie" name="partie" [(ngModel)]="nouveau.partie" placeholder="M. Mamadou Diop" />
+          </div>
+          <div class="champ">
+            <label for="qualite">Qualite</label>
+            <select id="qualite" name="qualite" [(ngModel)]="nouveau.partieQualite">
+              @for (q of ['VENDEUR', 'ACQUEREUR', 'DONATEUR', 'DONATAIRE', 'HERITIER', 'SOCIETE', 'BANQUE', 'MANDATAIRE']; track q) {
+                <option [value]="q">{{ q }}</option>
+              }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="ptype">Personne</label>
+            <select id="ptype" name="ptype" [(ngModel)]="nouveau.partieType">
+              <option value="PHYSIQUE">Physique</option>
+              <option value="MORALE">Morale</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="designation">Bien (designation)</label>
+            <input id="designation" name="designation" [(ngModel)]="nouveau.designation" placeholder="Appartement F4" />
+          </div>
+          <div class="champ">
+            <label for="tf">Titre foncier</label>
+            <input id="tf" name="tf" [(ngModel)]="nouveau.titreFoncier" placeholder="TF n° 12 345/DG" />
+          </div>
+          <div class="champ">
+            <label for="commune">Commune</label>
+            <input id="commune" name="commune" [(ngModel)]="nouveau.commune" placeholder="Dakar — Fann" />
+          </div>
+        </div>
+        @if (erreur(); as e) {
+          <div class="bandeau bandeau--critique">
+            <div>{{ e.message }} @if (e.blocages.length) { <ul>@for (b of e.blocages; track $index) { <li>{{ b.message }}</li> }</ul> }</div>
+          </div>
+        }
+        <div class="actions-form">
+          <span class="petit muet">Agit en tant que {{ session.utilisateur()?.nomComplet }} ({{ session.utilisateur()?.roleLibelle }})</span>
+          <button class="bouton" type="submit" [disabled]="!nouveau.intitule || !nouveau.clercId || !nouveau.notaireId">Creer le dossier</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="carte">
+    <div class="filtres">
+      @for (f of filtres; track f.cle) {
+        <button type="button" class="puce" [class.active]="filtreActif() === f.cle" (click)="filtreActif.set(f.cle)">
+          {{ f.libelle }} <span class="chiffres">({{ compte(f) }})</span>
+        </button>
+      }
+      <input class="recherche" type="search" placeholder="Rechercher une reference, un client, un clerc…"
+             [value]="recherche()" (input)="recherche.set($any($event.target).value)" />
+    </div>
+    <div class="table-defilante">
+      <table>
+        <thead>
+          <tr>
+            <th>Reference</th><th>Type d'acte</th><th>Statut</th><th>Clerc / notaire</th>
+            <th class="droite">Dans le statut</th><th class="droite">Pieces</th><th class="droite">Transaction</th><th>Signaux</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of visibles(); track d.id) {
+            <tr class="cliquable" (click)="router.navigate(['/dossiers', d.id])">
+              <td><span class="ref">{{ d.reference }}</span><br /><span class="tres-petit muet">{{ d.intitule }}</span></td>
+              <td class="petit muet">{{ d.typeActeLibelle }}</td>
+              <td><app-badge-statut [statut]="d.statut" /></td>
+              <td class="petit">{{ d.clercNom }}<br /><span class="tres-petit muet">{{ d.notaireNom }}</span></td>
+              <td class="droite chiffres petit">
+                @if (d.statut !== 'CLOSED') {
+                  {{ d.joursDansStatut }} j
+                  @if (d.delaiCibleJours !== null) { <span class="tres-petit muet">/ {{ d.delaiCibleJours }}</span> }
+                  @if (d.retardStatutJours > 0) { <br /><span class="badge badge--petit badge--serieux">+{{ d.retardStatutJours }} j</span> }
+                } @else { — }
+              </td>
+              <td class="droite chiffres petit">{{ d.tauxCompletudePieces | pct }}</td>
+              <td class="droite chiffres petit">{{ d.montantTransaction | xof: true }}</td>
+              <td>
+                @if (d.alerteCdc) { <span class="badge badge--petit badge--serieux">CDC</span> }
+                @if (d.purgeConditionsEnCours) { <span class="badge badge--petit badge--vigilance">Purge</span> }
+                @if (d.modeSignature === 'ELECTRONIQUE_GAINDE') { <span class="badge badge--petit badge--or">GAINDE {{ d.gaindeStatut?.toLowerCase() }}</span> }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="vide">Aucun dossier sur ce filtre.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

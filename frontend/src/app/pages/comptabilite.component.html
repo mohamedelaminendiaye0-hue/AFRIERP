@@ -1,0 +1,124 @@
+<div class="page">
+  <header class="page__entete sans-impression">
+    <h1>Fonds clients &amp; Caisse des Depots et Consignations</h1>
+    <p>Rapprochement du compte collectif, interdiction du solde debiteur et regle d'immobilisation des fonds.</p>
+  </header>
+
+  @if (controle(); as c) {
+    <div class="grille grille--4 sans-impression">
+      <div class="carte kpi"><div class="kpi__libelle">Solde bancaire collectif</div><div class="kpi__valeur">{{ c.soldeBancaire | xof: true }}</div><div class="kpi__contexte">Releve bancaire (source de verite)</div></div>
+      <div class="carte kpi"><div class="kpi__libelle">Somme des sous-comptes</div><div class="kpi__valeur">{{ c.sommeAuxiliaires | xof: true }}</div><div class="kpi__contexte">{{ sousComptes().length }} sous-comptes auxiliaires</div></div>
+      <div class="carte kpi"><div class="kpi__libelle">Ecart (I2)</div><div class="kpi__valeur">{{ c.ecart | xof }}</div>
+        <div class="kpi__contexte">@if (c.conforme) { <span class="badge badge--petit badge--bon">Rapprochement conforme</span> } @else { <span class="badge badge--petit badge--critique">Ecart a analyser</span> }</div></div>
+      <div class="carte kpi"><div class="kpi__libelle">Sous-comptes debiteurs (I1)</div><div class="kpi__valeur">{{ c.sousComptesDebiteurs.length }}</div><div class="kpi__contexte">Controle au {{ c.dateControle | dateFr }}</div></div>
+    </div>
+  }
+
+  <div class="grille grille--2 sans-impression">
+    <!-- Alertes CDC -->
+    <section class="carte">
+      <div class="carte__entete"><div><h2>Regle d'immobilisation CDC (I3)</h2><p>Transfert obligatoire au-dela de 90 jours sans mouvement, pre-alerte des 75 jours</p></div></div>
+      <div class="table-defilante">
+        <table>
+          <tbody>
+            @for (a of alertes(); track a.id) {
+              <tr>
+                <td><app-badge-niveau [niveau]="a.niveau" /></td>
+                <td><a class="ref" [routerLink]="['/dossiers', a.dossierId]">{{ a.reference }}</a><br /><span class="tres-petit muet">{{ a.message }}</span></td>
+                <td class="droite chiffres petit">{{ a.montantConcerne | xof }}</td>
+                <td class="droite">
+                  @if (a.actionSuggeree === 'TRANSFERT_CDC') {
+                    <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="genererOrdre(a)">Ordre CDC</button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td class="vide">Aucun fonds immobilise.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ordre de virement -->
+    <section class="carte">
+      <div class="carte__entete"><div><h2>Ordre de virement controle</h2><p>Le bouton reste desactive tant que le moteur refuse l'operation</p></div></div>
+      <div class="carte__corps">
+        <div class="champ">
+          <label for="sc">Sous-compte a debiter</label>
+          <select id="sc" [ngModel]="dossierId" (ngModelChange)="choisirSousCompte($event)">
+            @for (s of sousComptes(); track s.dossierId) { <option [value]="s.dossierId">{{ s.reference }} — {{ s.libelle }} ({{ s.solde | xof: true }})</option> }
+          </select>
+        </div>
+        <div class="ligne-champs champ">
+          <div>
+            <label for="nature">Nature</label>
+            <select id="nature" [(ngModel)]="nature" (ngModelChange)="verifier()">
+              @for (n of natures; track n.code) { <option [value]="n.code">{{ n.libelle }}</option> }
+            </select>
+          </div>
+          <div>
+            <label for="montant">Montant (FCFA)</label>
+            <input id="montant" type="number" min="0" step="1000" [(ngModel)]="montant" (ngModelChange)="verifier()" />
+          </div>
+        </div>
+        <div class="champ">
+          <label for="benef">Beneficiaire</label>
+          <input id="benef" [(ngModel)]="beneficiaire" placeholder="Tresor public, vendeur, CDC…" />
+        </div>
+
+        @if (verdict(); as v) {
+          <div class="barre" [class.barre--bon]="v.autorise"><span [style.width.%]="ratio() * 100"></span></div>
+          <p class="tres-petit muet chiffres">Disponible {{ v.soldeDisponible | xof }} · demande {{ v.montantRequis | xof }}
+            @if (v.manquant > 0) { · <strong>manque {{ v.manquant | xof }}</strong> }</p>
+          <div class="bandeau" [class.bandeau--bon]="v.autorise" [class.bandeau--critique]="!v.autorise">{{ v.message }}</div>
+        }
+        @if (erreur(); as e) { <div class="bandeau bandeau--critique">{{ e.message }}</div> }
+        @if (confirmation(); as m) { <div class="bandeau bandeau--bon">{{ m }}</div> }
+
+        <div class="actions-form">
+          <span class="tres-petit muet">Agit : {{ session.utilisateur()?.nomComplet }} ({{ session.utilisateur()?.roleLibelle }})</span>
+          <button class="bouton" type="button" [disabled]="!verdict()?.autorise" (click)="emettre()">Emettre l'ordre de virement</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  @if (ordre(); as o) {
+    <section class="carte ordre">
+      <div class="carte__entete">
+        <div><h2>Ordre de virement — {{ o.reference }}</h2><p>{{ o.beneficiaire }}</p></div>
+        <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()">Imprimer</button>
+      </div>
+      <div class="carte__corps petit">
+        <p><strong>Objet :</strong> {{ o.objet }}</p>
+        <p><strong>Montant :</strong> <span class="chiffres">{{ o.montant | xof }}</span></p>
+        <p><strong>Date d'emission :</strong> {{ o.dateEmission | dateFr }} · fonds immobilises depuis {{ o.ancienneteJours }} jours</p>
+        <p><strong>Fondement :</strong> {{ o.fondementReglementaire }}</p>
+        <p class="tres-petit muet">{{ o.mentionConformite }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="carte sans-impression">
+    <div class="carte__entete"><div><h2>Releve du sous-compte {{ dossierId }}</h2><p>Mouvement par mouvement, solde progressif</p></div></div>
+    <div class="table-defilante">
+      <table>
+        <thead><tr><th>Date</th><th>Piece</th><th>Libelle</th><th>Contrepartie</th><th class="droite">Debit</th><th class="droite">Credit</th><th class="droite">Solde</th></tr></thead>
+        <tbody>
+          @for (l of releve(); track l.id) {
+            <tr>
+              <td class="chiffres petit">{{ l.dateOperation | dateFr }}</td>
+              <td class="chiffres tres-petit muet">{{ l.numeroPiece }}</td>
+              <td class="petit">{{ l.libelle }}</td>
+              <td class="petit muet">{{ l.contrepartie }}</td>
+              <td class="droite chiffres petit">@if (l.sens === 'DEBIT') { {{ l.montant | xof }} }</td>
+              <td class="droite chiffres petit">@if (l.sens === 'CREDIT') { {{ l.montant | xof }} }</td>
+              <td class="droite chiffres petit">{{ l.soldeCumule | xof }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

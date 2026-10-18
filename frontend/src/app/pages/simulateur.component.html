@@ -1,0 +1,64 @@
+<div class="page">
+  <header class="page__entete sans-impression">
+    <h1>Calculateur d'emoluments et de frais d'acte</h1>
+    <p>Decomposition droits / conservation fonciere / emoluments / debours / TVA — bareme parametrable.</p>
+  </header>
+
+  <div class="grille grille--3">
+    <section class="carte sans-impression">
+      <div class="carte__entete"><div><h2>Parametres</h2></div></div>
+      <div class="carte__corps">
+        <div class="champ">
+          <label for="type">Type d'acte</label>
+          <select id="type" [(ngModel)]="typeActe" (ngModelChange)="recalculer()">
+            @for (t of types; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+          </select>
+        </div>
+        <div class="champ">
+          <label for="assiette">Prix / valeur declaree (FCFA)</label>
+          <input id="assiette" type="number" min="0" step="100000" [(ngModel)]="assiette" (ngModelChange)="recalculer()" />
+        </div>
+        <div class="champ">
+          <label for="hon">Honoraires libres (FCFA)</label>
+          <input id="hon" type="number" min="0" step="10000" [(ngModel)]="honoraire" (ngModelChange)="recalculer()" />
+        </div>
+        <div class="bandeau bandeau--info">Les taux livres sont des parametres de demonstration, a valider juridiquement avant exploitation.</div>
+      </div>
+    </section>
+
+    @if (decompte(); as d) {
+      <section class="carte span-2">
+        <div class="carte__entete">
+          <div>
+            <h2>Decompte pro-forma — {{ libelleType(d.typeActe) }}</h2>
+            <p>Assiette {{ d.assiette | xof }} · bareme {{ d.versionBareme }}</p>
+          </div>
+          <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()">Imprimer</button>
+        </div>
+        <div class="table-defilante">
+          <table>
+            <thead><tr><th>Ligne</th><th class="droite">Base</th><th class="droite">Taux</th><th class="droite">Montant</th></tr></thead>
+            <tbody>
+              @for (l of d.lignes; track l.code) {
+                <tr>
+                  <td class="petit">{{ l.libelle }} @if (l.acquisEtude) { <span class="badge badge--petit badge--or">etude</span> }
+                    <br /><span class="tres-petit muet">{{ l.reference }}</span></td>
+                  <td class="droite chiffres petit">{{ l.base ? (l.base | xof) : '—' }}</td>
+                  <td class="droite chiffres petit">{{ taux(l.taux) }}</td>
+                  <td class="droite chiffres petit">{{ l.montant | xof }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr><td class="petit">Droits et taxes reverses</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.droitsEtTaxes | xof }}</td></tr>
+              <tr><td class="petit">Emoluments + honoraires (produit de l'etude)</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.produitEtude | xof }}</td></tr>
+              <tr><td class="petit">Debours</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.debours | xof }}</td></tr>
+              <tr><td class="petit">TVA</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.tva | xof }}</td></tr>
+              <tr><td><strong>Total a provisionner</strong></td><td></td><td></td><td class="droite chiffres"><strong>{{ d.totaux.totalGeneral | xof }}</strong></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    }
+  </div>
+</div>

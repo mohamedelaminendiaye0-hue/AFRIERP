@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: notarius
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: jdbc:h2:mem:notarius;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8080
+
+notarius:
+  # Charge le jeu de donnees de demonstration si la base est vide.
+  donnees-demo: true
+  cors:
+    origines: http://localhost:4200
+
+---
+# Profil PostgreSQL (docker-compose) : SPRING_PROFILES_ACTIVE=postgres
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/notarius}
+    username: ${DB_USER:notarius}
+    password: ${DB_PASSWORD:notarius}
