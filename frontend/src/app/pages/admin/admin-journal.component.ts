@@ -4,12 +4,13 @@ import { ApiService } from '../../core/api.service';
 import { EvenementAdmin, TypeEvenementAdmin } from '../../core/models';
 import { DateFrPipe } from '../../shared/format.pipes';
 import { IconeComponent } from '../../shared/icone.component';
+import { Pagination, PaginationComponent } from '../../shared/pagination';
 
 /** Journal d'administration : connexions, comptes et réglages ; lecture seule. */
 @Component({
   selector: 'app-admin-journal',
   standalone: true,
-  imports: [FormsModule, DateFrPipe, IconeComponent],
+  imports: [FormsModule, DateFrPipe, IconeComponent, PaginationComponent],
   template: `
     <div class="page">
       <header class="page__entete entete-ligne">
@@ -30,13 +31,12 @@ import { IconeComponent } from '../../shared/icone.component';
             <input class="recherche" type="search" placeholder="Personne, détail, adresse IP…" aria-label="Rechercher dans le journal"
                    [ngModel]="q()" (ngModelChange)="q.set($event)" name="q" />
           </form>
-          <span class="muet petit">{{ lignes().length }} événement(s)</span>
         </div>
         <div class="table-defilante">
           <table>
             <thead><tr><th>Date</th><th>Événement</th><th>Compte concerné</th><th>Par</th><th>Détail</th><th>Adresse IP</th></tr></thead>
             <tbody>
-              @for (e of lignes(); track e.id) {
+              @for (e of pagination.elements(); track e.id) {
                 <tr>
                   <td class="chiffres">{{ e.horodatage | dateFr: true }}</td>
                   <td><span class="badge" [class.badge--critique]="e.sensible" [class.badge--neutre-clair]="!e.sensible">{{ e.typeLibelle }}</span></td>
@@ -51,6 +51,8 @@ import { IconeComponent } from '../../shared/icone.component';
             </tbody>
           </table>
         </div>
+        <app-pagination [total]="pagination.total()" [page]="pagination.courante()" [taille]="pagination.taille()" libelle="événements"
+                      (pageChange)="pagination.aller($event)" (tailleChange)="pagination.changerTaille($event)" />
       </section>
     </div>
   `,
@@ -72,6 +74,7 @@ export class AdminJournalComponent implements OnInit {
   protected readonly lignes = signal<EvenementAdmin[]>([]);
   protected readonly type = signal<TypeEvenementAdmin | ''>('');
   protected readonly q = signal('');
+  protected readonly pagination = new Pagination(this.lignes);
 
   ngOnInit(): void {
     if (this.typeInitial()) this.type.set(this.typeInitial() as TypeEvenementAdmin);

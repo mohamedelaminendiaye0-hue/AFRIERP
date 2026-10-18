@@ -1,6 +1,7 @@
 <div class="page">
   <header class="page__entete sans-impression">
-    <h1>Calculateur d'émoluments et de frais d'acte</h1>
+    <p class="surtitre">Taxation des actes</p>
+    <h1>Calculateur de frais</h1>
     <p>Décomposition droits / conservation foncière / émoluments / débours / TVA — barème paramétrable.</p>
   </header>
 
@@ -55,7 +56,7 @@
             <h2>Décompte pro-forma — {{ libelleType(d.typeActe) }}</h2>
             <p>Assiette {{ d.assiette | xof }} · barème {{ d.versionBareme }}</p>
           </div>
-          <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()">Imprimer le décompte</button>
+          <button class="bouton bouton--secondaire bouton--petit sans-impression" type="button" (click)="imprimer()"><app-icone nom="imprimer" [taille]="16" />Imprimer le décompte</button>
         </div>
         <div class="table-defilante">
           <table>

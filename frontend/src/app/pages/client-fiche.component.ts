@@ -7,6 +7,7 @@ import { SessionService } from '../core/session.service';
 import { BadgeStatutComponent } from '../shared/badges';
 import { DateFrPipe, XofPipe } from '../shared/format.pipes';
 import { IconeComponent } from '../shared/icone.component';
+import { Pagination, PaginationComponent } from '../shared/pagination';
 
 type Filtre = 'tous' | 'en-cours' | 'clotures';
 
@@ -14,7 +15,7 @@ type Filtre = 'tous' | 'en-cours' | 'clotures';
 @Component({
   selector: 'app-client-fiche',
   standalone: true,
-  imports: [FormsModule, RouterLink, BadgeStatutComponent, DateFrPipe, XofPipe, IconeComponent],
+  imports: [FormsModule, RouterLink, BadgeStatutComponent, DateFrPipe, XofPipe, IconeComponent, PaginationComponent],
   templateUrl: './client-fiche.component.html',
   styleUrl: './client-fiche.component.scss',
 })
@@ -44,6 +45,7 @@ export class ClientFicheComponent implements OnInit {
         return ds;
     }
   });
+  protected readonly pagination = new Pagination(this.dossiers, 10);
   protected readonly initiales = computed(() =>
     (this.fiche()?.client.nom ?? '')
       .replace(/^(M\.|Mme|Mlle)\s+/, '')

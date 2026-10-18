@@ -7,9 +7,9 @@ import { CatalogueService } from '../core/catalogue.service';
 import { ClientResume, DomaineActe, DossierResume, ErreurApi, StatutDossier, TypeActe } from '../core/models';
 import { SessionService } from '../core/session.service';
 import { BadgeStatutComponent, libelleStatut } from '../shared/badges';
-import { ConfirmationComponent } from '../shared/confirmation.component';
 import { DateFrPipe, XofPipe } from '../shared/format.pipes';
 import { IconeComponent } from '../shared/icone.component';
+import { Pagination, PaginationComponent } from '../shared/pagination';
 
 type Vue = 'en-cours' | 'miens' | 'retard' | 'a-assigner' | 'archives' | 'tous';
 type Tri = 'echeance' | 'ouverture' | 'reference' | 'retard';
@@ -25,7 +25,7 @@ const QUALITES: [string, string][] = [
 @Component({
   selector: 'app-dossiers',
   standalone: true,
-  imports: [FormsModule, RouterLink, BadgeStatutComponent, XofPipe, DateFrPipe, IconeComponent, ConfirmationComponent],
+  imports: [FormsModule, RouterLink, BadgeStatutComponent, XofPipe, DateFrPipe, IconeComponent, PaginationComponent],
   templateUrl: './dossiers.component.html',
   styleUrl: './dossiers.component.scss',
 })
@@ -57,8 +57,6 @@ export class DossiersComponent implements OnInit {
   protected readonly formulaireOuvert = signal(false);
   protected readonly erreur = signal<ErreurApi | null>(null);
   protected readonly message = signal<string | null>(null);
-  protected readonly archivage = signal<string[] | null>(null);
-  protected readonly occupe = signal(false);
   protected clercReassignation = '';
   protected form = this.formulaireVide();
 
@@ -66,7 +64,6 @@ export class DossiersComponent implements OnInit {
   protected readonly peutCreer = computed(() =>
     this.session.a('ASSISTANT', 'CLERC', 'PRINCIPAL_CLERC', 'NOTAIRE_TITULAIRE', 'NOTAIRE_ASSOCIE', 'NOTAIRE_SALARIE'),
   );
-  protected readonly peutArchiver = computed(() => this.session.a('ARCHIVISTE', 'NOTAIRE_TITULAIRE', 'NOTAIRE_ASSOCIE'));
 
   protected readonly vues: { cle: Vue; libelle: string; predicat: (d: DossierResume) => boolean }[] = [
     { cle: 'en-cours', libelle: 'En cours', predicat: (d) => d.statut !== 'CLOSED' },
@@ -95,8 +92,8 @@ export class DossiersComponent implements OnInit {
     return [...liste].sort(comparateurs[this.tri()]);
   });
 
+  protected readonly pagination = new Pagination(this.visibles);
   protected readonly selectionnes = computed(() => this.dossiers().filter((d) => this.selection().has(d.id)));
-  protected readonly archivablesSelection = computed(() => this.selectionnes().filter((d) => d.statut === 'POST_ACT').length);
   protected readonly toutSelectionne = computed(() => this.visibles().length > 0 && this.visibles().every((d) => this.selection().has(d.id)));
   protected readonly clercs = computed(() =>
     this.session.utilisateurs().filter((u) => (u.role === 'CLERC' || u.role === 'PRINCIPAL_CLERC') && u.actif),
@@ -160,30 +157,6 @@ export class DossiersComponent implements OnInit {
     forkJoin(ids.map((id) => this.api.assigner(id, { clercId: this.clercReassignation }))).subscribe({
       next: () => this.terminer(`${ids.length} dossier(s) confié(s) à ${nom}.`),
       error: (e) => this.erreur.set(lireErreur(e)),
-    });
-  }
-
-  protected demanderArchivage(): void {
-    this.archivage.set(this.selectionnes().filter((d) => d.statut === 'POST_ACT').map((d) => d.id));
-  }
-
-  protected archiver(): void {
-    const ids = this.archivage();
-    if (!ids?.length) return;
-    this.occupe.set(true);
-    this.api.archiver(ids, null).subscribe({
-      next: (r) => {
-        this.occupe.set(false);
-        this.archivage.set(null);
-        const refus = r.filter((x) => !x.archive);
-        this.terminer(`${r.length - refus.length} dossier(s) archivé(s).` +
-          (refus.length ? ` Non archivés : ${refus.map((x) => `${x.dossierId} (${x.blocages[0]?.message})`).join(' ; ')}` : ''));
-      },
-      error: (e) => {
-        this.occupe.set(false);
-        this.archivage.set(null);
-        this.erreur.set(lireErreur(e));
-      },
     });
   }
 

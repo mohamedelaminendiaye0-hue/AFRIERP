@@ -6,12 +6,13 @@ import { ClientResume, SaisieClient } from '../core/models';
 import { SessionService } from '../core/session.service';
 import { DateFrPipe } from '../shared/format.pipes';
 import { IconeComponent } from '../shared/icone.component';
+import { Pagination, PaginationComponent } from '../shared/pagination';
 
 /** Fichier clients : chaque personne, avec le nombre de ses dossiers à l'étude. */
 @Component({
   selector: 'app-clients',
   standalone: true,
-  imports: [FormsModule, RouterLink, DateFrPipe, IconeComponent],
+  imports: [FormsModule, RouterLink, DateFrPipe, IconeComponent, PaginationComponent],
   templateUrl: './clients.component.html',
 })
 export class ClientsComponent implements OnInit {
@@ -35,6 +36,8 @@ export class ClientsComponent implements OnInit {
         (!q || normaliser([c.nom, c.identifiant ?? '', c.telephone ?? '', c.email ?? ''].join(' ')).includes(q)),
     );
   });
+
+  protected readonly pagination = new Pagination(this.visibles);
 
   ngOnInit(): void {
     this.api.clients().subscribe((c) => this.clients.set(c));

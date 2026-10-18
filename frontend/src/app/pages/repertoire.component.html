@@ -1,17 +1,45 @@
 <div class="page">
   <header class="page__entete entete-ligne">
     <div>
-      <p class="surtitre">Registre légal · ordre chronologique</p>
+      <p class="surtitre">Registre légal et archives des minutes</p>
       <h1>Répertoire des actes</h1>
-      <p>Chaque acte signé reçoit un numéro d'ordre définitif. Les inscriptions ne peuvent être ni modifiées ni supprimées.</p>
+      <p>Chaque acte signé reçoit un numéro d'ordre définitif, ses preuves et, une fois les formalités achevées, son archivage.</p>
     </div>
     <div class="actions sans-impression">
-      <button class="bouton bouton--secondaire" type="button" (click)="exporter()"><app-icone nom="telecharger" [taille]="18" />Exporter (Excel)</button>
-      <button class="bouton" type="button" (click)="imprimer()"><app-icone nom="imprimer" [taille]="18" />Imprimer pour le visa</button>
+      <button class="bouton bouton--secondaire" type="button" (click)="exporter()"><app-icone nom="telecharger" [taille]="18" />Exporter</button>
+      <button class="bouton bouton--secondaire" type="button" (click)="imprimer()"><app-icone nom="imprimer" [taille]="18" />Imprimer pour le visa</button>
+      @if (peutArchiver()) {
+        <button class="bouton bouton--creer" type="button" [disabled]="!archivablesSelectionnes().length" (click)="demanderSelection()">
+          <app-icone nom="archiver" [taille]="18" />Archiver@if (archivablesSelectionnes().length) { ({{ archivablesSelectionnes().length }}) }
+        </button>
+      }
     </div>
   </header>
 
   <p class="entete-impression">{{ identite().nom }} — Répertoire des actes {{ repertoire()?.annee }}</p>
+
+  <nav class="grille grille--4 sans-impression" aria-label="Raccourcis">
+    <button type="button" class="carte kpi raccourci" (click)="changerOnglet('TOUS')">
+      <span class="kpi__libelle">Actes inscrits en {{ repertoire()?.annee }}</span>
+      <span class="kpi__valeur">{{ compte('TOUS') }}</span>
+      <span class="raccourci__aller">Tout le répertoire</span>
+    </button>
+    <button type="button" class="carte kpi raccourci" [class.raccourci--accent]="compte('A_ARCHIVER')" (click)="changerOnglet('A_ARCHIVER')">
+      <span class="kpi__libelle">À archiver</span>
+      <span class="kpi__valeur">{{ compte('A_ARCHIVER') }}</span>
+      <span class="raccourci__aller">Voir les actes</span>
+    </button>
+    <button type="button" class="carte kpi raccourci" (click)="changerOnglet('ARCHIVEE')">
+      <span class="kpi__libelle">Archivés</span>
+      <span class="kpi__valeur">{{ compte('ARCHIVEE') }}</span>
+      <span class="raccourci__aller">Consulter les archives</span>
+    </button>
+    <div class="carte kpi" [class.raccourci--alerte]="sansPreuve()">
+      <span class="kpi__libelle">Actes sans preuve jointe</span>
+      <span class="kpi__valeur">{{ sansPreuve() }}</span>
+      <span class="kpi__contexte">Minute numérisée à verser</span>
+    </div>
+  </nav>
 
   @if (trimestreCourant(); as t) {
     <section class="carte visa">
@@ -23,61 +51,217 @@
     </section>
   }
 
-  <section class="carte">
-    <div class="filtres sans-impression">
-      @if (repertoire(); as r) {
-        <div class="segment" role="tablist" aria-label="Année">
-          @for (a of r.annees; track a) {
-            <button type="button" role="tab" [class.actif]="a === r.annee" [attr.aria-selected]="a === r.annee" (click)="charger(a)">{{ a }}</button>
+  @if (resultats(); as r) {
+    <div class="bandeau" [class.bandeau--bon]="!refus().length" [class.bandeau--vigilance]="refus().length" role="status">
+      <div>
+        <strong>{{ r.length - refus().length }} acte(s) archivé(s).</strong>
+        @if (refus().length) {
+          <ul>@for (x of refus(); track x.dossierId) { <li>n° {{ numero(x.dossierId) }} : {{ x.blocages.length ? x.blocages[0].message : '' }}</li> }</ul>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="disposition" [class.avec-panneau]="ouvert()">
+    <section class="carte">
+      <div class="filtres sans-impression">
+        <div class="segment" role="tablist" aria-label="État d'archivage">
+          @for (o of onglets; track o.cle) {
+            <button type="button" role="tab" [class.actif]="onglet() === o.cle" [attr.aria-selected]="onglet() === o.cle"
+                    (click)="changerOnglet(o.cle)">{{ o.libelle }} · {{ compte(o.cle) }}</button>
           }
         </div>
-      }
-      <select class="filtre-domaine" aria-label="Mois" [ngModel]="mois()" (ngModelChange)="mois.set($event)">
-        <option value="">Tous les mois</option>
-        @for (m of moisDisponibles(); track m) { <option [value]="m">{{ libelleMois(m) }}</option> }
-      </select>
-      <select class="filtre-domaine" aria-label="Nature de l'acte" [ngModel]="nature()" (ngModelChange)="nature.set($event)">
-        <option value="">Toutes les natures</option>
-        @for (n of natures(); track n) { <option [value]="n">{{ n }}</option> }
-      </select>
-      <input class="recherche" type="search" placeholder="Partie, n° d'ordre, dossier…" aria-label="Rechercher dans le répertoire"
-             [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
-    </div>
-    <div class="table-defilante">
-      <table class="registre">
-        <thead>
-          <tr><th>N° d'ordre</th><th>Date</th><th>Nature de l'acte</th><th>Parties</th><th>Enregistrement</th><th class="droite">Droits perçus</th><th>Notaire</th></tr>
-        </thead>
-        <tbody>
-          @for (l of lignes(); track l.numero) {
+      </div>
+      <div class="filtres sans-impression">
+        @if (repertoire(); as r) {
+          <select class="filtre-domaine" aria-label="Année" [ngModel]="r.annee" (ngModelChange)="charger(+$event)">
+            @for (a of r.annees; track a) { <option [ngValue]="a">{{ a }}</option> }
+          </select>
+        }
+        <select class="filtre-domaine" aria-label="Mois" [ngModel]="mois()" (ngModelChange)="mois.set($event)">
+          <option value="">Tous les mois</option>
+          @for (m of moisDisponibles(); track m) { <option [value]="m">{{ libelleMois(m) }}</option> }
+        </select>
+        <select class="filtre-domaine" aria-label="Nature de l'acte" [ngModel]="nature()" (ngModelChange)="nature.set($event)">
+          <option value="">Toutes les natures</option>
+          @for (n of natures(); track n) { <option [value]="n">{{ n }}</option> }
+        </select>
+        <input class="recherche" type="search" placeholder="Partie, n° d'ordre, emplacement…" aria-label="Rechercher dans le répertoire"
+               [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
+      </div>
+      <div class="table-defilante">
+        <table class="registre">
+          <thead>
             <tr>
-              <td><a class="ref" [routerLink]="['/dossiers', l.dossierId]">{{ l.numero }}</a></td>
-              <td class="chiffres">{{ l.date | dateFr }}</td>
-              <td>{{ l.nature }}<span class="sous">{{ l.forme }} · {{ l.dossierId }}</span></td>
-              <td class="parties">
-                @for (p of l.parties; track $index) {
-                  <span class="partie">
-                    @if (p.clientId) { <a [routerLink]="['/clients', p.clientId]">{{ p.nom }}</a> } @else { {{ p.nom }} }&nbsp;<span class="muet">({{ p.qualite | lowercase }})</span>
-                  </span>
-                } @empty { <span class="muet">Parties non saisies</span> }
-              </td>
-              <td>
-                @if (l.enregistrement?.dateAchevement) {
-                  {{ l.enregistrement?.reference }}<span class="sous">enregistré le {{ l.enregistrement?.dateAchevement | dateFr }}</span>
-                } @else if (l.enregistrement) {
-                  <span class="badge badge--neutre">Déposé</span><span class="sous">le {{ l.enregistrement.dateDepot | dateFr }}</span>
-                } @else {
-                  <span class="badge badge--vigilance">À enregistrer</span>
-                }
-              </td>
-              <td class="droite chiffres">{{ l.droitsEnregistrement === null ? '—' : (l.droitsEnregistrement | xof) }}</td>
-              <td>{{ l.notaire ?? '—' }}</td>
+              @if (peutArchiver()) {
+                <th class="col-case sans-impression"><input type="checkbox" aria-label="Sélectionner les actes à archiver de la page"
+                                                             [checked]="toutSelectionne()" (change)="basculerTout()" /></th>
+              }
+              <th>N° d'ordre</th><th>Acte</th><th class="col-parties">Parties</th><th class="col-enr">Enregistrement</th>
+              <th>Archivage</th><th class="droite">Preuves</th>
             </tr>
-          } @empty {
-            <tr><td colspan="7" class="vide">Aucun acte ne correspond à ces critères.</td></tr>
+          </thead>
+          <tbody>
+            @for (l of pagination.elements(); track l.numero) {
+              <tr class="cliquable" tabindex="0" [class.selectionnee]="ouvert() === l.dossierId" (click)="ouvrir(l.dossierId)" (keydown.enter)="ouvrir(l.dossierId)">
+                @if (peutArchiver()) {
+                  <td class="col-case sans-impression" (click)="$event.stopPropagation()">
+                    @if (l.etat === 'A_ARCHIVER') {
+                      <input type="checkbox" [attr.aria-label]="'Sélectionner l’acte n° ' + l.numero" [checked]="selection().has(l.dossierId)" (change)="basculer(l.dossierId)" />
+                    }
+                  </td>
+                }
+                <td><span class="ref">{{ l.numero }}</span><span class="sous chiffres">{{ l.date | dateFr }}</span></td>
+                <td class="col-acte">{{ l.nature }}<span class="sous">{{ l.forme }} · {{ l.intitule }}</span></td>
+                <td class="col-parties">
+                  @for (p of l.parties; track $index) {
+                    <span class="partie">{{ p.nom }}&nbsp;<span class="muet">({{ p.qualite | lowercase }})</span></span>
+                  } @empty { <span class="muet">—</span> }
+                </td>
+                <td class="col-enr">
+                  @if (l.enregistrement?.dateAchevement) {
+                    <span class="badge badge--bon">Enregistré</span><span class="sous chiffres">{{ l.enregistrement?.dateAchevement | dateFr }}</span>
+                  } @else if (l.enregistrement) {
+                    <span class="badge badge--neutre">Déposé</span>
+                  } @else {
+                    <span class="badge badge--vigilance">À enregistrer</span>
+                  }
+                </td>
+                <td>
+                  @switch (l.etat) {
+                    @case ('ARCHIVEE') { <span class="badge badge--or">Archivé</span><span class="sous">{{ l.emplacement ?? '—' }}</span> }
+                    @case ('A_ARCHIVER') { <span class="badge badge--vigilance">À archiver</span> }
+                    @default { <span class="badge badge--neutre-clair">Formalités en cours</span> }
+                  }
+                </td>
+                <td class="droite">
+                  <span class="trombone" [class.trombone--vide]="!l.nbPreuves" [attr.aria-label]="l.nbPreuves + ' preuve(s)'">
+                    <app-icone nom="trombone" [taille]="16" />{{ l.nbPreuves }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="vide">Aucun acte ne correspond à ces critères.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <app-pagination class="sans-impression" [total]="pagination.total()" [page]="pagination.courante()" [taille]="pagination.taille()" libelle="actes"
+                      (pageChange)="pagination.aller($event)" (tailleChange)="pagination.changerTaille($event)" />
+    </section>
+
+    @if (acteOuvert(); as a) {
+      <aside class="carte panneau sans-impression" aria-label="Détail de l'acte">
+        <div class="carte__entete">
+          <div>
+            <p class="surtitre">Acte n° {{ a.numero }}</p>
+            <h2>{{ a.nature }}</h2>
+            <p>{{ a.intitule }}</p>
+          </div>
+          <button class="bouton bouton--fantome bouton--petit" type="button" aria-label="Fermer le panneau" (click)="ouvert.set(null)">
+            <app-icone nom="fermer" [taille]="18" /></button>
+        </div>
+
+        <div class="carte__corps">
+          <div class="cle-valeur"><span>Signé le</span><span>{{ a.date | dateFr }} · {{ a.forme }}</span></div>
+          <div class="cle-valeur"><span>Notaire</span><span>{{ a.notaire ?? '—' }}</span></div>
+          <div class="cle-valeur"><span>Enregistrement</span>
+            <span>@if (a.enregistrement?.dateAchevement) { {{ a.enregistrement?.reference }} } @else if (a.enregistrement) { Déposé le {{ a.enregistrement.dateDepot | dateFr }} } @else { À enregistrer }</span></div>
+          <div class="cle-valeur"><span>Droits perçus</span><span>{{ a.droitsEnregistrement === null ? '—' : (a.droitsEnregistrement | xof) }}</span></div>
+          <div class="cle-valeur"><span>Conservation</span><span>jusqu'au {{ a.conservationJusquau | dateFr }}</span></div>
+          <div class="parties-panneau">
+            <span class="muet">Parties</span>
+            @for (p of a.parties; track $index) {
+              <span>@if (p.clientId) { <a [routerLink]="['/clients', p.clientId]">{{ p.nom }}</a> } @else { {{ p.nom }} } <span class="muet">· {{ p.qualite }}</span></span>
+            }
+          </div>
+          <a class="lien-dossier" [routerLink]="['/dossiers', a.dossierId]">Ouvrir le dossier {{ a.dossierId }} →</a>
+        </div>
+
+        <section class="bloc">
+          <h3>Archivage</h3>
+          @switch (a.etat) {
+            @case ('ARCHIVEE') {
+              <p><span class="badge badge--or">Archivé</span> le {{ a.dateArchivage | dateFr }} · {{ a.emplacement ?? 'emplacement non précisé' }}</p>
+            }
+            @case ('A_ARCHIVER') {
+              <p class="muet petit">Formalités achevées, taxage arrêté, reliquat restitué : la minute peut être rangée.</p>
+              @if (peutArchiver()) {
+                <button class="bouton bouton--creer bouton--petit" type="button" (click)="demander([a.dossierId])">
+                  <app-icone nom="archiver" [taille]="16" />Archiver cet acte</button>
+              }
+            }
+            @default {
+              <p class="muet petit">Pas encore archivable :</p>
+              <ul class="blocages">@for (b of a.blocages; track $index) { <li>{{ b }}</li> }</ul>
+            }
           }
-        </tbody>
-      </table>
-    </div>
-  </section>
+        </section>
+
+        <section class="bloc">
+          <h3>Preuves jointes · {{ preuves().length }}</h3>
+          <ul class="preuves">
+            @for (p of preuves(); track p.id) {
+              <li class="preuve">
+                <span class="preuve__icone" aria-hidden="true">{{ p.typeContenu === 'application/pdf' ? 'PDF' : 'IMG' }}</span>
+                <span class="preuve__texte">
+                  <strong>{{ p.typeLibelle }}</strong>
+                  <span class="sous">{{ p.nomFichier }} · {{ taille(p.taille) }}</span>
+                  <span class="sous">Versée le {{ p.deposeLe | dateFr: true }} par {{ p.deposeParNom }}</span>
+                </span>
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="apercu.set(p)">Voir</button>
+              </li>
+            } @empty {
+              <li class="vide">Aucune preuve jointe à cet acte.</li>
+            }
+          </ul>
+
+          @if (peutVerser()) {
+            <form class="versement" (ngSubmit)="verser(champFichier)">
+              <h4>Joindre une preuve</h4>
+              <div class="champ">
+                <label for="p-type">Nature</label>
+                <select id="p-type" name="type" [(ngModel)]="typePreuve">
+                  @for (t of typesPreuve(); track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="p-fichier">Fichier (PDF, PNG ou JPEG, 15 Mo au plus)</label>
+                <input #champFichier id="p-fichier" name="fichier" type="file" accept="application/pdf,image/png,image/jpeg" (change)="choisirFichier($event)" />
+              </div>
+              <div class="champ">
+                <label for="p-commentaire">Commentaire (facultatif)</label>
+                <input id="p-commentaire" name="commentaire" [(ngModel)]="commentairePreuve" placeholder="Ex. original numérisé le jour de la signature" />
+              </div>
+              @if (erreurPreuve(); as e) { <div class="bandeau bandeau--critique" role="alert">{{ e }}</div> }
+              <p class="champ__aide">Une preuve versée est définitive : elle ne peut être ni modifiée ni supprimée.</p>
+              <button class="bouton bouton--petit" type="submit" [disabled]="!fichier || envoi()">{{ envoi() ? 'Envoi…' : 'Joindre la preuve' }}</button>
+            </form>
+          }
+        </section>
+      </aside>
+    }
+  </div>
 </div>
+
+@if (confirmation(); as ids) {
+  <app-confirmation
+    [titre]="ids.length > 1 ? 'Archiver ' + ids.length + ' actes ?' : 'Archiver cet acte ?'"
+    message="La minute est rangée à son emplacement et le dossier clôturé : plus aucune pièce, partie ni écriture ne pourra y être ajoutée."
+    [recap]="recap()"
+    avertissement="La clôture d'un dossier ne peut pas être annulée."
+    [libelleAction]="ids.length > 1 ? 'Archiver ' + ids.length + ' actes' : 'Archiver l’acte'"
+    icone="archiver"
+    [occupe]="occupe()"
+    (confirmer)="archiver()"
+    (annuler)="confirmation.set(null)">
+    <div>
+      <label for="emplacement">Emplacement physique de la minute</label>
+      <input id="emplacement" name="emplacement" [(ngModel)]="emplacement" placeholder="Liasse, rayonnage, coffre…" />
+    </div>
+  </app-confirmation>
+}
+
+@if (apercu(); as p) {
+  <app-apercu-preuve [preuve]="p" (fermer)="apercu.set(null)" />
+}

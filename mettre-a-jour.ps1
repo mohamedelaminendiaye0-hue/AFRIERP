@@ -38,5 +38,5 @@ for ($i = 0; $i -lt 90; $i++) {
 }
 Write-Host ""
 Write-Host "Notarius est prêt : http://localhost:4200" -ForegroundColor Green
-Write-Host "La page de connexion doit afficher « version 0.3.0 » en bas. Sinon, rechargez avec Ctrl+F5."
+Write-Host "La page de connexion doit afficher « version 0.4.0 » en bas. Sinon, rechargez avec Ctrl+F5."
 Write-Host "Comptes de démonstration : mot de passe notarius2026 · super administrateur : admin@notarius.sn"

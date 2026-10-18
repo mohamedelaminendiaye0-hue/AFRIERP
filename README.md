@@ -20,7 +20,7 @@ Seul Docker est nécessaire : Maven et Node tournent dans les images.
 docker compose up --build
 ```
 
-- Application : http://localhost:4200 — la page de connexion affiche la version en service (0.3.0)
+- Application : http://localhost:4200 — la page de connexion affiche la version en service (0.4.0)
 - API : http://localhost:8080/api
 
 ### Mettre à jour
@@ -110,7 +110,7 @@ des blocages et est tracée au journal (`TENTATIVE_BLOQUEE`).
 | **Clerc rédacteur** | Instruction, pièces, KYC, rédaction, soumission au notaire. |
 | **Comptable-taxateur** | Taxage prévisionnel et définitif (dont la plus-value), séquestre, certification des fonds, virements. |
 | **Formaliste** | Dépôt puis achèvement des formalités (Conservation foncière, RCCM, avis légaux), suivi GAINDE. |
-| **Archiviste** | Archive la minute et clôture le dossier ; tient le **minutier**. |
+| **Archiviste** | Archive la minute depuis le répertoire des actes et clôture le dossier ; verse les preuves. |
 | **Secrétariat / accueil** | Ouverture des dossiers, prise de rendez-vous. |
 
 L'écran **Équipe** présente cette organisation (nomination, notaire responsable d'un salarié, charge de chacun).
@@ -262,9 +262,16 @@ appliquée à toute l'interface, à la page de connexion et au titre des onglets
 - **Répertoire des actes** : registre légal tenu dans l'ordre chronologique. Le **numéro d'ordre est attribué à
   la signature** (`2026/0001`…) et n'est jamais réutilisé ; l'enregistrement DGID et les droits perçus y
   figurent. Récapitulatif pour le **visa trimestriel**, export Excel (CSV) et impression.
-- **Minutier et archives** : les minutes signées sont conservées 75 ans. L'archivage — **unitaire ou
-  groupé** — range la minute à son emplacement (liasse, coffre) et clôture le dossier ; chaque dossier non
-  archivable est refusé avec son motif (formalités, taxage définitif, reliquat).
+- **Archives = répertoire des actes** : l'archivage se fait **uniquement** depuis le répertoire (onglets
+  « À archiver », « Formalités en cours », « Archivés »). Les minutes signées sont conservées 75 ans ;
+  l'archivage — unitaire ou groupé — range la minute à son emplacement (liasse, coffre) et clôture le dossier ;
+  chaque acte non archivable est refusé avec son motif (formalités, taxage définitif, reliquat).
+- **Preuves en pièce jointe** : chaque acte du répertoire porte ses preuves (minute signée numérisée, quittance
+  d'enregistrement, attestation de formalité, pièce annexée). PDF, PNG ou JPEG jusqu'à 15 Mo, format vérifié
+  dans le contenu du fichier ; aperçu dans la plateforme, téléchargement, **empreinte SHA-256** affichée.
+  Une preuve versée est définitive (ni modification ni suppression) et tracée au journal du dossier.
+- **Pagination** sur toutes les listes (dossiers, clients, répertoire, comptes, journal) : 10, 25, 50 ou 100
+  lignes par page.
 - **Actes irréversibles** (certification des fonds, signature, clôture, archivage, taxage définitif) :
   confirmation explicite avec récapitulatif ; la signature exige de ressaisir la référence du dossier.
 
@@ -286,7 +293,9 @@ appliquée à toute l'interface, à la page de connexion et au titre des onglets
 | `GET/PUT` | `/api/identite` | Marque blanche (lecture publique, écriture super administrateur) |
 | `GET/POST/PUT` | `/api/clients`, `/api/clients/{id}` | Fichier clients, fiche et historique des dossiers |
 | `GET` | `/api/repertoire?annee=` | Répertoire des actes et récapitulatif du visa trimestriel |
-| `GET/POST` | `/api/minutier`, `/api/minutier/archivage` | Minutier ; archivage unitaire ou groupé `{ dossierIds, emplacement }` |
+| `POST` | `/api/repertoire/archivage` | Archivage unitaire ou groupé `{ dossierIds, emplacement }` |
+| `GET/POST` | `/api/repertoire/{dossierId}/preuves` | Preuves d'un acte ; versement multipart (`fichier`, `type`, `commentaire`) |
+| `GET` | `/api/repertoire/preuves/{id}/contenu` | Contenu d'une preuve (aperçu / téléchargement, en-tête `X-Empreinte-Sha256`) |
 | `GET` | `/api/equipe` | Organisation de l'étude |
 | `GET` | `/api/dashboard`, `/api/notifications`, `/api/workflow` | Pilotage, retards, définition du workflow |
 | `GET/POST` | `/api/compta/...` | Contrôle, sous-comptes, alertes CDC, relevés, virements contrôlés |

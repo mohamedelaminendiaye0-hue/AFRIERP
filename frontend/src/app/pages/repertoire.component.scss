@@ -1,9 +1,49 @@
 .visa { display: flex; align-items: center; gap: 16px; padding: 14px 20px; box-shadow: inset 4px 0 0 var(--accent), var(--ombre); flex-wrap: wrap; }
 .visa__texte { display: flex; flex-direction: column; gap: 2px; }
-.parties { white-space: normal; min-width: 240px; max-width: 340px; }
+button.raccourci { text-align: left; font: inherit; }
+
+.disposition { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.disposition.avec-panneau { grid-template-columns: minmax(0, 1fr) 400px; }
+.panneau { position: sticky; top: 88px; max-height: calc(100vh - 110px); overflow-y: auto; }
+
+.col-case { width: 44px; }
+.col-acte { white-space: normal; min-width: 200px; max-width: 280px; }
+.col-parties { white-space: normal; min-width: 200px; max-width: 280px; }
 .partie { display: block; line-height: 1.4; }
-.partie a { font-weight: 700; }
+td { white-space: nowrap; }
+
+.trombone { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--primaire); }
+.trombone--vide { color: var(--critique); }
+
+.parties-panneau { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; font-size: 15px; }
+.lien-dossier { display: inline-block; margin-top: 8px; font-size: 14.5px; }
+
+.bloc { padding: 16px 20px; border-top: 1px solid var(--ligne-2); }
+.bloc h3 { margin-bottom: 10px; }
+.bloc p { margin: 0 0 10px; }
+.blocages { margin: 0; padding-left: 18px; font-size: 14px; color: var(--texte-2); }
+
+.preuves { list-style: none; margin: 0 0 12px; padding: 0; }
+.preuve { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--ligne-2); }
+.preuve:last-child { border-bottom: 0; }
+.preuve__icone {
+  width: 40px; height: 48px; flex-shrink: 0; border-radius: 4px; display: grid; place-items: center;
+  background: var(--primaire-fond); color: var(--primaire); font-size: 11.5px; font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--primaire-ligne);
+}
+.preuve__texte { flex: 1; min-width: 0; }
+.preuve__texte .sous { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.versement { padding: 14px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--ligne-2); }
+.versement h4 { margin: 0 0 10px; font-size: 15px; }
+.versement input[type='file'] { padding: 8px; min-height: 0; font-size: 14px; }
+.versement .bandeau { margin-bottom: 10px; }
+
 .entete-impression { display: none; }
+@media (max-width: 1200px) {
+  .disposition.avec-panneau { grid-template-columns: minmax(0, 1fr); }
+  .panneau { position: static; max-height: none; order: -1; }
+}
+@media (max-width: 1500px) { .avec-panneau .col-parties, .avec-panneau .col-enr { display: none; } }
 @media print {
   .entete-impression { display: block; font-weight: 700; margin: 0; }
   .registre th, .registre td { padding: 6px 8px; font-size: 11pt; }

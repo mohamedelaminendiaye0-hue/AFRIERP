@@ -5,6 +5,7 @@
       <a routerLink="/dossiers" class="retour">← Dossiers</a>
       <div class="entete-dossier">
         <div>
+          <p class="surtitre">Dossier {{ d.resume.id }} · {{ d.resume.typeActeLibelle }}</p>
           <div class="titre-ligne">
             <h1>{{ d.resume.intitule }}</h1>
             <app-badge-statut [statut]="d.resume.statut" />
@@ -64,6 +65,12 @@
           </div>
         </div>
         <div class="carte__corps actions">
+          @if (archivageAuRepertoire()) {
+            <div class="bandeau bandeau--info">
+              <p style="margin:0">Dernière étape : l'archivage de la minute se fait depuis le répertoire des actes, avec ses preuves.
+                <a routerLink="/repertoire" [queryParams]="{ acte: d.resume.id }">Ouvrir l'acte au répertoire →</a></p>
+            </div>
+          }
           @for (a of avancees(); track a.transition.vers) {
             <div class="action" [class.action--bloquee]="!a.autorisee">
               <div class="action__tete">
@@ -84,7 +91,7 @@
               </div>
               @if (a.blocages.length) {
                 <ul class="blocages">
-                  @for (b of a.blocages; track $index) { <li><span class="code">{{ b.code }}</span> {{ b.message }}</li> }
+                  @for (b of a.blocages; track $index) { <li>{{ b.message }}</li> }
                 </ul>
               } @else {
                 <p class="tres-petit ok">✓ Toutes les conditions sont réunies.</p>
@@ -292,7 +299,7 @@
                     @if (p.perimee) { <span class="badge badge--petit badge--critique">Périmée</span> }
                   </p>
                   <p class="tres-petit muet">
-                    {{ p.categorie.toLowerCase().replace('_', ' ') }} · à la charge de {{ p.responsable }}
+                    {{ libelleCategorie(p.categorie) }} · à la charge de {{ p.responsable }}
                     @if (p.dateReception) { · reçue le {{ p.dateReception | dateFr }} }
                     @if (p.validiteJours) { · valable {{ p.validiteJours }} j dès l'émission @if (p.dateEmission) { ({{ p.dateEmission | dateFr }}) } }
                     @if (p.dateExpiration) { · expire le {{ p.dateExpiration | dateFr }} }
@@ -303,7 +310,7 @@
                   <div class="pieces__commande">
                     @if (p.perimee) { <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="renouvelerPiece(p)">Marquer renouvelée</button> }
                     <select [ngModel]="p.statut" (ngModelChange)="changerPiece(p, $event)" [attr.aria-label]="'Statut : ' + p.libelle">
-                      @for (s of statutsPiece; track s) { <option [value]="s">{{ s.toLowerCase() }}</option> }
+                      @for (s of statutsPiece; track s) { <option [value]="s">{{ libellesPiece[s] }}</option> }
                     </select>
                   </div>
                 }
@@ -364,7 +371,7 @@
                 <input name="nom" [(ngModel)]="nouvellePartie.nom" placeholder="Nom de la partie" aria-label="Nom de la partie" required />
                 <div class="ligne-champs">
                   <select name="qualite" [(ngModel)]="nouvellePartie.qualite" aria-label="Qualité">
-                    @for (q of ['VENDEUR', 'ACQUEREUR', 'DONATEUR', 'DONATAIRE', 'HERITIER', 'SOCIETE', 'BANQUE', 'MANDATAIRE']; track q) { <option [value]="q">{{ q }}</option> }
+                    @for (q of qualites; track q[0]) { <option [value]="q[0]">{{ q[1] }}</option> }
                   </select>
                   <select name="type" [(ngModel)]="nouvellePartie.type" aria-label="Personne">
                     <option value="PHYSIQUE">Physique</option><option value="MORALE">Morale</option>

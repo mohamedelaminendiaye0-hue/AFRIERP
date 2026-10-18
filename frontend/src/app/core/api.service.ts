@@ -17,6 +17,8 @@ import {
   FicheClient,
   IdentiteEtude,
   LigneMinutier,
+  Preuve,
+  TypePreuve,
   Repertoire,
   ResultatArchivage,
   SaisieClient,
@@ -284,7 +286,30 @@ export class ApiService {
   }
 
   archiver(dossierIds: string[], emplacement?: string | null): Observable<ResultatArchivage[]> {
-    return this.http.post<ResultatArchivage[]>('/api/minutier/archivage', { dossierIds, emplacement });
+    return this.http.post<ResultatArchivage[]>('/api/repertoire/archivage', { dossierIds, emplacement });
+  }
+
+  /* --- Preuves jointes aux actes --- */
+
+  typesPreuve(): Observable<{ code: TypePreuve; libelle: string }[]> {
+    return this.http.get<{ code: TypePreuve; libelle: string }[]>('/api/repertoire/types-preuve');
+  }
+
+  preuves(dossierId: string): Observable<Preuve[]> {
+    return this.http.get<Preuve[]>(`/api/repertoire/${dossierId}/preuves`);
+  }
+
+  verserPreuve(dossierId: string, fichier: File, type: TypePreuve, commentaire?: string): Observable<Preuve> {
+    const donnees = new FormData();
+    donnees.append('fichier', fichier, fichier.name);
+    donnees.append('type', type);
+    if (commentaire) donnees.append('commentaire', commentaire);
+    return this.http.post<Preuve>(`/api/repertoire/${dossierId}/preuves`, donnees);
+  }
+
+  /** Contenu d'une preuve (le jeton de session ne peut pas accompagner un simple lien). */
+  contenuPreuve(id: number): Observable<Blob> {
+    return this.http.get(`/api/repertoire/preuves/${id}/contenu`, { responseType: 'blob' });
   }
 
   /* --- Mot de passe --- */

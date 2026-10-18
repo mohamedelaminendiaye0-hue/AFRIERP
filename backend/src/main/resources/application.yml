@@ -12,6 +12,11 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  # Preuves jointes aux actes : 15 Mo par fichier.
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
 
 server:
   port: 8080

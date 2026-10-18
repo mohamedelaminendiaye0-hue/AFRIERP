@@ -565,16 +565,42 @@ export interface SaisieClient {
   notes?: string | null;
 }
 
+export type EtatArchivage = 'FORMALITES' | 'A_ARCHIVER' | 'ARCHIVEE';
+
 export interface LigneRepertoire {
   numero: string;
   date: string;
   dossierId: string;
+  reference: string;
+  intitule: string;
   nature: string;
   forme: string;
   parties: { clientId: string | null; nom: string; qualite: string }[];
   enregistrement: { dateDepot: string | null; reference: string | null; dateAchevement: string | null } | null;
   droitsEnregistrement: number | null;
   notaire: string | null;
+  etat: EtatArchivage;
+  blocages: string[];
+  emplacement: string | null;
+  dateArchivage: string | null;
+  conservationJusquau: string | null;
+  nbPreuves: number;
+}
+
+export type TypePreuve = 'MINUTE_SIGNEE' | 'QUITTANCE_ENREGISTREMENT' | 'ATTESTATION_FORMALITE' | 'PIECE_ANNEXEE' | 'AUTRE';
+
+export interface Preuve {
+  id: number;
+  dossierId: string;
+  type: TypePreuve;
+  typeLibelle: string;
+  nomFichier: string;
+  typeContenu: string;
+  taille: number;
+  empreinteSha256: string;
+  commentaire: string | null;
+  deposeLe: string;
+  deposeParNom: string;
 }
 
 export interface Repertoire {

@@ -21,6 +21,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import sn.afrierp.notarius.bareme.TaxationService;
 import sn.afrierp.notarius.clients.ClientService;
 import sn.afrierp.notarius.domain.Client;
+import sn.afrierp.notarius.domain.ContenuPieceJointe;
+import sn.afrierp.notarius.domain.PieceJointe;
+import sn.afrierp.notarius.domain.TypePieceJointe;
+import sn.afrierp.notarius.repertoire.PreuveService;
+import sn.afrierp.notarius.repository.ContenuPieceJointeRepository;
+import sn.afrierp.notarius.repository.PieceJointeRepository;
 import sn.afrierp.notarius.domain.EvenementAdmin;
 import sn.afrierp.notarius.domain.ParametresSecurite;
 import sn.afrierp.notarius.domain.TypeEvenementAdmin;
@@ -93,6 +99,8 @@ public class DonneesDemo implements ApplicationRunner {
     private final PasswordEncoder encodeur;
     private final ParametresSecuriteRepository parametresSecurite;
     private final EvenementAdminRepository evenementsAdmin;
+    private final PieceJointeRepository piecesJointes;
+    private final ContenuPieceJointeRepository contenusPieces;
     private final Clock clock;
 
     private LocalDate aujourdhui;
@@ -103,7 +111,10 @@ public class DonneesDemo implements ApplicationRunner {
                        CompteCollectifRepository comptes, RendezVousRepository rendezVous, TaxationService taxation,
                        ClientService clientService, IdentiteEtudeRepository identite, PasswordEncoder encodeur,
                        ParametresSecuriteRepository parametresSecurite, EvenementAdminRepository evenementsAdmin,
+                       PieceJointeRepository piecesJointes, ContenuPieceJointeRepository contenusPieces,
                        Clock clock) {
+        this.piecesJointes = piecesJointes;
+        this.contenusPieces = contenusPieces;
         this.parametresSecurite = parametresSecurite;
         this.evenementsAdmin = evenementsAdmin;
         this.clientService = clientService;
@@ -145,6 +156,7 @@ public class DonneesDemo implements ApplicationRunner {
         chargerJournalVedette();
         chargerRendezVous();
         chargerJournalAdministration();
+        chargerPreuves();
         LOG.info("Données de démonstration chargées : {} dossiers, {} écritures.", dossiers.count(), mouvements.count());
     }
 
@@ -507,6 +519,47 @@ public class DonneesDemo implements ApplicationRunner {
                     d.setNotaireSignataireId(d.getNotaire().getId());
                     d.setNotaireResponsableId(d.getNotaire().notaireEngage().getId());
                 });
+    }
+
+    /** Preuves des actes du répertoire : minute numérisée et, si l'acte est enregistré, quittance DGID. */
+    private void chargerPreuves() {
+        java.time.format.DateTimeFormatter jour = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        dossiers.findByNumeroRepertoireNotNullOrderByNumeroRepertoireDesc().forEach(d -> {
+            List<String> parties = d.getIntervenants().stream().map(i -> i.getNom() + " (" + i.getQualite().getLibelle().toLowerCase() + ")").toList();
+            List<String> lignes = new ArrayList<>(List.of(
+                    "Répertoire n° " + d.getNumeroRepertoire() + "  -  dossier " + d.getId() + " (" + d.getReference() + ")",
+                    "Nature : " + d.getTypeActe().getLibelle(),
+                    "Signé le " + d.getDateSignature().format(jour) + " en l'étude, devant le notaire soussigné.",
+                    "", "Parties :"));
+            parties.forEach(p -> lignes.add("   - " + p));
+            if (d.getBien() != null) {
+                lignes.add("");
+                lignes.add("Bien : " + d.getBien().getDesignation());
+                lignes.add("Titre foncier : " + d.getBien().getTitreFoncier());
+            }
+            lignes.add("");
+            lignes.add("Copie numérique de la minute conservée au rang des minutes de l'étude.");
+            String signataire = users.containsKey(d.getNotaireSignataireId()) ? users.get(d.getNotaireSignataireId()).nomComplet() : "";
+            lignes.add("Le notaire : Me " + signataire);
+            verser(d, TypePieceJointe.MINUTE_SIGNEE, "minute-" + d.getNumeroRepertoire().replace('/', '-') + ".pdf",
+                    PdfDemo.page("MINUTE - " + d.getIntitule(), lignes), d.getDateSignature().plusDays(1).atTime(16, 30),
+                    users.get("U-012"), "Numérisation de l'original signé");
+            d.formalite(OrganismeFormalites.DGID).filter(Formalite::estAchevee).ifPresent(f -> verser(d,
+                    TypePieceJointe.QUITTANCE_ENREGISTREMENT, "quittance-" + f.getReference() + ".pdf",
+                    PdfDemo.page("QUITTANCE D'ENREGISTREMENT", List.of(
+                            "Direction générale des Impôts et des Domaines - bureau de Dakar-Plateau",
+                            "Référence : " + f.getReference(),
+                            "Acte : " + d.getTypeActe().getLibelle() + " - répertoire n° " + d.getNumeroRepertoire(),
+                            "Déposé le " + f.getDateDepot().format(jour) + ", enregistré le " + f.getDateAchevement().format(jour),
+                            "", "Droits d'enregistrement perçus selon décompte joint.")),
+                    f.getDateAchevement().atTime(11, 0), users.get("U-008"), "Quittance remise par la DGID"));
+        });
+    }
+
+    private void verser(Dossier d, TypePieceJointe type, String nom, byte[] pdf, LocalDateTime le, Utilisateur par, String commentaire) {
+        PieceJointe p = piecesJointes.save(new PieceJointe(d.getId(), type, nom, "application/pdf", pdf.length,
+                PreuveService.sha256(pdf), commentaire, le, par.getId(), par.nomComplet()));
+        contenusPieces.save(new ContenuPieceJointe(p.getId(), pdf));
     }
 
     /** Historique du journal d'administration (connexions, comptes, réglages). */

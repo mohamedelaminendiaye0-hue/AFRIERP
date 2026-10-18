@@ -519,6 +519,10 @@ a.ref { color: var(--primaire); }
 .cle-valeur span:first-child { color: var(--texte-2); }
 .cle-valeur span:last-child { font-weight: 700; text-align: right; }
 
+/* Alertes de fonds immobilisés (comptabilité) : message lisible, action dessous. */
+.alerte-cdc { white-space: normal; min-width: 220px; }
+.alerte-cdc .bouton { margin-top: 8px; }
+
 /* --- Dialogue de confirmation --- */
 .voile {
   position: fixed;

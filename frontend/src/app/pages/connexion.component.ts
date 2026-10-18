@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../core/api.service';
@@ -40,11 +40,30 @@ export class ConnexionComponent implements OnInit {
     this.api.comptesDemo().subscribe({ next: (c) => this.comptes.set(c), error: () => this.comptes.set([]) });
   }
 
-  protected choisir(c: CompteDemo): void {
+  protected compteDemo = '';
+
+  /** Remplit le formulaire avec un compte de démonstration ; la connexion reste un geste explicite. */
+  protected choisir(email: string): void {
+    const c = this.comptes().find((x) => x.email === email);
+    if (!c) return;
     this.email = c.email;
     this.motDePasse = c.motDePasse;
-    this.connecter();
+    this.erreur.set(null);
   }
+
+  /** Comptes groupés par fonction pour la liste déroulante. */
+  protected readonly groupes = computed(() => {
+    const groupes: { libelle: string; comptes: CompteDemo[] }[] = [];
+    const rang = (r: string) => (r.startsWith('NOTAIRE') ? 'Notaires' : r === 'PRINCIPAL_CLERC' || r === 'CLERC' ? 'Clercs'
+      : r === 'SUPER_ADMIN' ? 'Administration de la plateforme' : 'Fonctions support');
+    this.comptes().forEach((c) => {
+      const g = rang(c.role);
+      let groupe = groupes.find((x) => x.libelle === g);
+      if (!groupe) groupes.push((groupe = { libelle: g, comptes: [] }));
+      groupe.comptes.push(c);
+    });
+    return groupes;
+  });
 
   protected connecter(): void {
     if (!this.email.trim() || !this.motDePasse) {
@@ -70,11 +89,4 @@ export class ConnexionComponent implements OnInit {
     });
   }
 
-  protected teinte(role: string): string {
-    if (role.startsWith('NOTAIRE')) return 'var(--accent)';
-    if (role === 'PRINCIPAL_CLERC' || role === 'CLERC') return 'var(--primaire)';
-    if (role === 'COMPTABLE_TAXATEUR' || role === 'FORMALISTE') return 'var(--bon)';
-    if (role === 'SUPER_ADMIN') return 'var(--critique)';
-    return '#6b5b95';
-  }
 }

@@ -26,5 +26,5 @@ docker compose up -d
 
 i=0; until curl -fs http://localhost:4200/api/identite >/dev/null 2>&1 || [ $i -ge 90 ]; do i=$((i+1)); sleep 2; done
 echo
-echo "Notarius est prêt : http://localhost:4200 (la page de connexion affiche « version 0.3.0 »)."
+echo "Notarius est prêt : http://localhost:4200 (la page de connexion affiche « version 0.4.0 »)."
 echo "Comptes de démonstration : mot de passe notarius2026 · super administrateur : admin@notarius.sn"

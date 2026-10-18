@@ -73,7 +73,7 @@ export class DashboardComponent implements OnInit {
       case 'CLERC':
         return `${this.miens().filter((d) => d.statut !== 'CLOSED').length} dossiers vous sont confiés · ${this.miens().filter((d) => d.retardStatutJours > 0).length} en retard sur le délai cible.`;
       case 'ARCHIVISTE':
-        return `${this.minutier().filter((m) => m.etat === 'A_ARCHIVER').length} minute(s) prête(s) à être archivée(s).`;
+        return `${this.minutier().filter((m) => m.etat === 'A_ARCHIVER').length} acte(s) prêt(s) à être archivé(s) au répertoire.`;
       default:
         return `${this.signaturesDuJour().length} signature(s) prévue(s) aujourd'hui · ${retards} dossier(s) au-delà du délai cible.`;
     }
@@ -149,12 +149,12 @@ export class DashboardComponent implements OnInit {
         ];
       case 'ARCHIVISTE':
         return [
-          { libelle: 'Minutes à archiver', valeur: n(aArchiver), ton: aArchiver ? 'accent' : undefined, contexte: 'Dossiers prêts à être clôturés',
-            aller: 'Archiver les minutes', lien: '/minutier', params: { etat: 'A_ARCHIVER' } },
-          { libelle: 'Minutes archivées', valeur: n(this.minutier().filter((m) => m.etat === 'ARCHIVEE').length), contexte: 'Conservation 75 ans',
-            aller: 'Consulter le minutier', lien: '/minutier', params: { etat: 'ARCHIVEE' } },
+          { libelle: 'Actes à archiver', valeur: n(aArchiver), ton: aArchiver ? 'accent' : undefined, contexte: 'Dossiers prêts à être clôturés',
+            aller: 'Archiver les actes', lien: '/repertoire', params: { etat: 'A_ARCHIVER' } },
+          { libelle: 'Actes archivés', valeur: n(this.minutier().filter((m) => m.etat === 'ARCHIVEE').length), contexte: 'Conservation 75 ans',
+            aller: 'Consulter les archives', lien: '/repertoire', params: { etat: 'ARCHIVEE' } },
           { libelle: 'Formalités en cours', valeur: n(this.minutier().filter((m) => m.etat === 'FORMALITES').length), contexte: 'Minutes signées, pas encore archivables',
-            aller: 'Voir les minutes', lien: '/minutier', params: { etat: 'FORMALITES' } },
+            aller: 'Voir les minutes', lien: '/repertoire', params: { etat: 'FORMALITES' } },
           { libelle: 'Répertoire des actes', valeur: n(this.minutier().length), contexte: 'Actes inscrits', aller: 'Ouvrir le répertoire', lien: '/repertoire' },
         ];
       default:

@@ -67,7 +67,7 @@
           </div>
         </div>
         <ol class="chrono">
-          @for (d of dossiers(); track d.dossierId + d.qualite) {
+          @for (d of pagination.elements(); track d.dossierId + d.qualite) {
             <li class="chrono__evt">
               <span class="chrono__date chiffres">{{ (d.dateSignature ?? d.dateOuverture) | dateFr }}</span>
               <span class="chrono__point" [class.chrono__point--fini]="d.statut === 'CLOSED' || d.dateSignature" aria-hidden="true"></span>
@@ -86,6 +86,8 @@
             <li class="vide">Aucun dossier dans cette catégorie.</li>
           }
         </ol>
+        <app-pagination [total]="pagination.total()" [page]="pagination.courante()" [taille]="pagination.taille()" libelle="dossiers"
+                      (pageChange)="pagination.aller($event)" (tailleChange)="pagination.changerTaille($event)" />
       </section>
 
       <div class="colonne">

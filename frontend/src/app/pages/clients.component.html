@@ -1,6 +1,7 @@
 <div class="page">
   <header class="page__entete entete-ligne">
     <div>
+      <p class="surtitre">Fichier clients</p>
       <h1>Clients</h1>
       <p>Chaque personne, physique ou morale, avec l'historique de tous ses dossiers à l'étude.</p>
     </div>
@@ -70,7 +71,7 @@
           <tr><th>Client</th><th>Identifiant</th><th>Contact</th><th class="droite">Dossiers</th><th class="droite">En cours</th><th>Dernier dossier</th><th>Contrôle KYC</th></tr>
         </thead>
         <tbody>
-          @for (c of visibles(); track c.id) {
+          @for (c of pagination.elements(); track c.id) {
             <tr class="cliquable" tabindex="0" (click)="ouvrir(c.id)" (keydown.enter)="ouvrir(c.id)">
               <td><a class="ref" [routerLink]="['/clients', c.id]" (click)="$event.stopPropagation()">{{ c.nom }}</a>
                 <span class="sous">{{ c.type === 'MORALE' ? 'Personne morale' : 'Personne physique' }}</span></td>
@@ -90,5 +91,7 @@
         </tbody>
       </table>
     </div>
+    <app-pagination [total]="pagination.total()" [page]="pagination.courante()" [taille]="pagination.taille()" libelle="clients"
+                      (pageChange)="pagination.aller($event)" (tailleChange)="pagination.changerTaille($event)" />
   </section>
 </div>

@@ -1,6 +1,7 @@
 <div class="page">
   <header class="page__entete sans-impression">
-    <h1>Fonds clients &amp; Caisse des Dépôts et Consignations</h1>
+    <p class="surtitre">Comptes séquestres et Caisse des Dépôts et Consignations</p>
+    <h1>Fonds clients</h1>
     <p>Rapprochement du compte collectif, interdiction du solde débiteur et règle d'immobilisation des fonds.</p>
   </header>
 
@@ -24,13 +25,14 @@
             @for (a of alertes(); track a.id) {
               <tr>
                 <td><app-badge-niveau [niveau]="a.niveau" /></td>
-                <td><a class="ref" [routerLink]="['/dossiers', a.dossierId]">{{ a.reference }}</a><br /><span class="tres-petit muet">{{ a.message }}</span></td>
-                <td class="droite chiffres petit">{{ a.montantConcerne | xof }}</td>
-                <td class="droite">
+                <td class="alerte-cdc">
+                  <a class="ref" [routerLink]="['/dossiers', a.dossierId]">{{ a.reference }}</a>
+                  <span class="sous">{{ a.message }}</span>
                   @if (a.actionSuggeree === 'TRANSFERT_CDC') {
                     <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="genererOrdre(a)">Générer l'ordre CDC</button>
                   }
                 </td>
+                <td class="droite chiffres" style="white-space: nowrap">{{ a.montantConcerne | xof }}</td>
               </tr>
             } @empty {
               <tr><td class="vide">Aucun fonds immobilisé.</td></tr>

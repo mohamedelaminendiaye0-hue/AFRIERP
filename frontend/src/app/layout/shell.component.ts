@@ -43,8 +43,6 @@ const SECTIONS: { titre: string; liens: Lien[] }[] = [
     liens: [
       { lien: '/repertoire', libelle: 'Répertoire des actes', icone: 'repertoire',
         roles: [...NOTAIRES, 'PRINCIPAL_CLERC', 'COMPTABLE_TAXATEUR', 'FORMALISTE', 'ARCHIVISTE'] },
-      { lien: '/minutier', libelle: 'Minutier et archives', icone: 'minutier',
-        roles: [...NOTAIRES, 'PRINCIPAL_CLERC', 'FORMALISTE', 'ARCHIVISTE'] },
       { lien: '/comptabilite', libelle: 'Fonds clients', icone: 'fonds', roles: [...NOTAIRES, 'COMPTABLE_TAXATEUR'] },
       { lien: '/equipe', libelle: 'Équipe', icone: 'equipe', roles: MEMBRES },
     ],
@@ -99,7 +97,7 @@ export class ShellComponent implements OnInit {
   protected readonly actionPrincipale = computed((): ActionPrincipale | null => {
     switch (this.session.utilisateur()?.role) {
       case 'ARCHIVISTE':
-        return { libelle: 'Archiver des minutes', icone: 'archiver', lien: '/minutier', params: { etat: 'A_ARCHIVER' } };
+        return { libelle: 'Actes à archiver', icone: 'archiver', lien: '/repertoire', params: { etat: 'A_ARCHIVER' } };
       case 'COMPTABLE_TAXATEUR':
         return { libelle: 'Fonds à certifier', icone: 'fonds2', lien: '/dossiers', params: { statut: 'FUNDING' } };
       case 'FORMALISTE':

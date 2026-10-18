@@ -1,10 +1,11 @@
 <div class="page">
   <header class="page__entete entete-ligne">
     <div>
-      <h1>Agenda de l'étude</h1>
+      <p class="surtitre">Rendez-vous et signatures</p>
+      <h1>Agenda</h1>
       <p>Prise de rendez-vous : conflits de notaire, de collaborateur et de salle vérifiés avant enregistrement.</p>
     </div>
-    <button class="bouton bouton--or" type="button" (click)="ouvrirFormulaire()">Nouveau rendez-vous</button>
+    <button class="bouton bouton--creer" type="button" (click)="ouvrirFormulaire()"><app-icone nom="plus" [taille]="18" />Nouveau rendez-vous</button>
   </header>
 
   @if (message(); as m) { <div class="bandeau bandeau--bon">{{ m }}</div> }

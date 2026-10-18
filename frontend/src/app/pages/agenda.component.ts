@@ -6,6 +6,7 @@ import { ApiService, NouveauRendezVous, lireErreur } from '../core/api.service';
 import { Blocage, DossierResume, ErreurApi, ReferentielsAgenda, RendezVous, Salle, StatutRendezVous, TypeRendezVous } from '../core/models';
 import { SessionService } from '../core/session.service';
 import { DateFrPipe } from '../shared/format.pipes';
+import { IconeComponent } from '../shared/icone.component';
 
 const PX_PAR_MINUTE = 1.1;
 const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -46,7 +47,7 @@ interface Bloc {
 @Component({
   selector: 'app-agenda',
   standalone: true,
-  imports: [FormsModule, RouterLink, DateFrPipe],
+  imports: [FormsModule, RouterLink, DateFrPipe, IconeComponent],
   templateUrl: './agenda.component.html',
   styleUrl: './agenda.component.scss',
 })

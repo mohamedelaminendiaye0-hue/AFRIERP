@@ -7,6 +7,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import sn.afrierp.notarius.common.Blocage;
 import sn.afrierp.notarius.common.RegleMetierException;
 import sn.afrierp.notarius.common.RessourceIntrouvableException;
@@ -33,6 +34,12 @@ public class GestionErreurs {
                 .map(f -> new Blocage("CHAMP_INVALIDE", f.getField() + " : " + f.getDefaultMessage()))
                 .toList();
         return ResponseEntity.badRequest().body(new Erreur("Saisie invalide.", blocages));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Erreur> fichierTropLourd(MaxUploadSizeExceededException e) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(new Erreur("Le fichier dépasse 15 Mo.",
+                List.of(new Blocage("FICHIER_TROP_LOURD", "Le fichier dépasse 15 Mo."))));
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

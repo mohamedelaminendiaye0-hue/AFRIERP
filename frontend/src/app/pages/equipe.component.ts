@@ -34,7 +34,8 @@ const GROUPES: Groupe[] = [
   template: `
     <div class="page">
       <header class="page__entete">
-        <h1>Organisation de l'étude</h1>
+        <p class="surtitre">Organisation de l'étude</p>
+        <h1>Équipe</h1>
         <p>Hiérarchie des officiers et collaborateurs ; chaque profil dispose de droits propres dans le cycle des dossiers.</p>
       </header>
 

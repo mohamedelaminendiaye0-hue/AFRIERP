@@ -8,7 +8,8 @@ import { CatalogueService } from '../core/catalogue.service';
   template: `
     <div class="page">
       <header class="page__entete">
-        <h1>Catalogue des actes et démarches</h1>
+        <p class="surtitre">Référentiel de l'étude</p>
+        <h1>Catalogue des actes</h1>
         <p>Pour chaque acte : assiette, fiscalité, émolument, séquestre et formalités post-acte. Paramètres de démonstration (barème SN-2026.1), à valider juridiquement.</p>
       </header>
       @for (g of catalogue.groupes(); track g.domaine) {

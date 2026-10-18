@@ -1,6 +1,7 @@
 <div class="page">
   <header class="page__entete entete-ligne">
     <div>
+      <p class="surtitre">Portefeuille de l'étude</p>
       <h1>Dossiers</h1>
       <p>Chaque dossier suit les 10 étapes de l'acte authentique ; aucune étape légale ou fiscale ne peut être sautée.</p>
     </div>
@@ -164,13 +165,6 @@
         </span>
       }
       <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="exporter()">Exporter</button>
-      @if (peutArchiver()) {
-        <button class="bouton bouton--creer bouton--petit" type="button" (click)="demanderArchivage()"
-                [disabled]="!archivablesSelection()"
-                [title]="archivablesSelection() ? '' : 'Seuls les dossiers en formalités peuvent être archivés'">
-          <app-icone nom="archiver" [taille]="16" />Archiver
-        </button>
-      }
       <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="viderSelection()">Désélectionner</button>
     </div>
   }
@@ -212,7 +206,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (d of visibles(); track d.id) {
+          @for (d of pagination.elements(); track d.id) {
             <tr class="cliquable" tabindex="0" [class.selectionnee]="selection().has(d.id)"
                 (click)="ouvrir(d)" (keydown.enter)="ouvrir(d)" (keydown.space)="$event.preventDefault(); basculer(d.id)">
               <td (click)="$event.stopPropagation()">
@@ -245,18 +239,7 @@
         </tbody>
       </table>
     </div>
+    <app-pagination [total]="pagination.total()" [page]="pagination.courante()" [taille]="pagination.taille()" libelle="dossiers"
+                      (pageChange)="pagination.aller($event)" (tailleChange)="pagination.changerTaille($event)" />
   </section>
 </div>
-
-@if (archivage(); as ids) {
-  <app-confirmation
-    [titre]="'Archiver ' + ids.length + ' dossier' + (ids.length > 1 ? 's' : '') + ' ?'"
-    message="Chaque minute est rangée et son dossier clôturé. Les dossiers dont les formalités ne sont pas achevées seront refusés, avec le motif."
-    [recap]="[['Dossiers', ids.join(', ')]]"
-    avertissement="La clôture d'un dossier ne peut pas être annulée."
-    libelleAction="Archiver"
-    icone="archiver"
-    [occupe]="occupe()"
-    (confirmer)="archiver()"
-    (annuler)="archivage.set(null)" />
-}

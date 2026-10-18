@@ -5,11 +5,12 @@ import { ApiService } from '../core/api.service';
 import { CatalogueService } from '../core/catalogue.service';
 import { DecompteTaxation, TypeActe } from '../core/models';
 import { XofPipe } from '../shared/format.pipes';
+import { IconeComponent } from '../shared/icone.component';
 
 @Component({
   selector: 'app-simulateur',
   standalone: true,
-  imports: [FormsModule, XofPipe],
+  imports: [FormsModule, XofPipe, IconeComponent],
   templateUrl: './simulateur.component.html',
 })
 export class SimulateurComponent implements OnInit {

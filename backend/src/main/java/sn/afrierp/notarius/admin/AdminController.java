@@ -113,7 +113,7 @@ public class AdminController {
         LocalDateTime demarre = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(debut), clock.getZone());
         Duration duree = Duration.ofMillis(ManagementFactory.getRuntimeMXBean().getUptime());
         Systeme systeme = new Systeme(getClass().getPackage().getImplementationVersion() != null
-                ? getClass().getPackage().getImplementationVersion() : "0.3.0",
+                ? getClass().getPackage().getImplementationVersion() : "0.4.0",
                 urlBase.contains("postgresql") ? "PostgreSQL" : urlBase.contains("h2") ? "H2 (mémoire)" : urlBase,
                 demo, demarre, dossiers.count(), "%d h %02d min".formatted(duree.toHours(), duree.toMinutesPart()));
         return new TableauAdmin(actifs.size(), tous.size() - actifs.size(),

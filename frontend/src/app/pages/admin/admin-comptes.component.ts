@@ -9,6 +9,7 @@ import { ConfirmationComponent } from '../../shared/confirmation.component';
 import { DateFrPipe } from '../../shared/format.pipes';
 import { IconeComponent, NomIcone } from '../../shared/icone.component';
 import { MotDePasseRemisComponent } from '../../shared/mot-de-passe-remis.component';
+import { Pagination, PaginationComponent } from '../../shared/pagination';
 
 type Filtre = 'actifs' | 'verrouilles' | 'provisoires' | 'desactives' | 'tous';
 type Action = 'desactivation' | 'reactivation' | 'deverrouillage' | 'revocation' | 'reinitialisation';
@@ -41,7 +42,7 @@ interface Demande {
 @Component({
   selector: 'app-admin-comptes',
   standalone: true,
-  imports: [FormsModule, RouterLink, DateFrPipe, IconeComponent, ConfirmationComponent, MotDePasseRemisComponent],
+  imports: [FormsModule, RouterLink, DateFrPipe, IconeComponent, ConfirmationComponent, MotDePasseRemisComponent, PaginationComponent],
   templateUrl: './admin-comptes.component.html',
   styleUrls: ['./admin.scss', './admin-comptes.component.scss'],
 })
@@ -83,6 +84,7 @@ export class AdminComptesComponent implements OnInit {
       .filter((c) => !this.profil() || c.role === this.profil())
       .filter((c) => !q || normaliser(`${c.nomComplet} ${c.email} ${c.roleLibelle} ${c.id}`).includes(q));
   });
+  protected readonly pagination = new Pagination(this.visibles);
   protected readonly courant = computed(() => {
     const id = this.selection();
     return id && id !== 'nouveau' ? this.comptes().find((c) => c.id === id) ?? null : null;

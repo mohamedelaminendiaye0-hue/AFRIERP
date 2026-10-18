@@ -91,13 +91,35 @@ export class DossierDetailComponent implements OnInit {
 
   protected readonly libelleEvenement = LIBELLE_EVENEMENT;
   protected readonly statutsPiece: StatutPiece[] = ['MANQUANTE', 'DEMANDEE', 'RECUE', 'VALIDEE', 'REJETEE'];
+  protected readonly libellesPiece: Record<StatutPiece, string> = {
+    MANQUANTE: 'Manquante', DEMANDEE: 'Demandée', RECUE: 'Reçue', VALIDEE: 'Validée', REJETEE: 'Rejetée',
+  };
+  protected readonly qualites: [string, string][] = [
+    ['VENDEUR', 'Vendeur'], ['ACQUEREUR', 'Acquéreur'], ['DONATEUR', 'Donateur'], ['DONATAIRE', 'Donataire'],
+    ['HERITIER', 'Héritier'], ['EMPRUNTEUR', 'Emprunteur'], ['BANQUE', 'Banque'], ['ASSOCIE', 'Associé'],
+    ['CEDANT', 'Cédant'], ['CESSIONNAIRE', 'Cessionnaire'], ['MANDANT', 'Mandant'], ['MANDATAIRE', 'Mandataire'], ['SOCIETE', 'Société'],
+  ];
+
+  protected libelleCategorie(c: string): string {
+    const libelles: Record<string, string> = {
+      ETAT_CIVIL: 'état civil', FONCIER: 'foncier', FISCAL: 'fiscal', BANCAIRE: 'bancaire', SOCIETE: 'société',
+      URBANISME: 'urbanisme', JUDICIAIRE: 'judiciaire',
+    };
+    return libelles[c] ?? c.toLowerCase().replace(/_/g, ' ');
+  }
 
   protected readonly clercs = computed(() =>
     this.session.utilisateurs().filter((u) => (u.role === 'CLERC' || u.role === 'PRINCIPAL_CLERC') && u.actif),
   );
   protected readonly notaires = computed(() => this.session.utilisateurs().filter((u) => u.notaire && u.actif));
 
-  protected readonly avancees = computed(() => this.dossier()?.actions.filter((a) => !a.transition.retour) ?? []);
+  /** L'archivage (clôture) se fait uniquement depuis le répertoire des actes. */
+  protected readonly avancees = computed(() =>
+    this.dossier()?.actions.filter((a) => !a.transition.retour && a.transition.vers !== 'CLOSED') ?? [],
+  );
+  protected readonly archivageAuRepertoire = computed(() =>
+    this.dossier()?.actions.some((a) => a.transition.vers === 'CLOSED') ?? false,
+  );
   protected readonly retours = computed(() => this.dossier()?.actions.filter((a) => a.transition.retour) ?? []);
 
   protected readonly piecesBloquantes = computed(() => {

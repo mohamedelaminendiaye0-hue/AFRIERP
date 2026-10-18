@@ -98,11 +98,8 @@ export const routes: Routes = [
             title: 'Répertoire des actes',
             loadComponent: () => import('./pages/repertoire.component').then((m) => m.RepertoireComponent),
           },
-          {
-            path: 'minutier',
-            title: 'Minutier et archives',
-            loadComponent: () => import('./pages/minutier.component').then((m) => m.MinutierComponent),
-          },
+          // Les archives des minutes sont tenues dans le répertoire des actes.
+          { path: 'minutier', redirectTo: 'repertoire' },
           {
             path: 'comptabilite',
             title: 'Fonds clients',

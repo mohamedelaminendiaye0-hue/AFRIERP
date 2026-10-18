@@ -1,21 +1,25 @@
 <div class="connexion">
-  <section class="presentation" aria-hidden="false">
-    @if (identite().logo; as logo) {
-      <img class="presentation__logo" [src]="logo" alt="" />
-    } @else {
-      <span class="presentation__sceau" aria-hidden="true">{{ identite().monogramme || identite().nom.charAt(0) }}</span>
-    }
-    <div class="presentation__texte">
+  <section class="presentation">
+    <div class="presentation__bloc">
+      @if (identite().logo; as logo) {
+        <img class="presentation__logo" [src]="logo" alt="" />
+      } @else {
+        <span class="presentation__sceau" aria-hidden="true">{{ identite().monogramme || identite().nom.charAt(0) }}</span>
+      }
       @if (identite().sousTitre) { <p class="presentation__sous">{{ identite().sousTitre }}</p> }
       <h1 class="presentation__nom">{{ identite().nom }}</h1>
-      <p class="presentation__desc">Espace de travail de l'étude : dossiers, actes, répertoire, fonds clients et conservation des minutes.</p>
+      <p class="presentation__desc">Connectez-vous pour retrouver vos dossiers, le répertoire des actes, l'agenda et les fonds clients de l'étude.</p>
+      <ul class="presentation__points">
+        <li>Accès réservé aux collaborateurs de l'étude</li>
+        <li>Chaque action est tracée à votre nom</li>
+      </ul>
+      <address class="presentation__pied">
+        @if (identite().adresse) { <span>{{ identite().adresse }}</span> }
+        @if (identite().telephone || identite().email) {
+          <span>{{ identite().telephone }}@if (identite().telephone && identite().email) { · }{{ identite().email }}</span>
+        }
+      </address>
     </div>
-    <address class="presentation__pied">
-      @if (identite().adresse) { <span>{{ identite().adresse }}</span> }
-      @if (identite().telephone || identite().email) {
-        <span>{{ identite().telephone }}@if (identite().telephone && identite().email) { · }{{ identite().email }}</span>
-      }
-    </address>
   </section>
 
   <main class="formulaire">
@@ -54,15 +58,16 @@
 
       @if (comptes().length) {
         <div class="demo">
-          <p class="demo__titre">Comptes de démonstration · mot de passe {{ comptes()[0].motDePasse }}</p>
-          <div class="demo__grille">
-            @for (c of comptes(); track c.email) {
-              <button type="button" class="demo__compte" (click)="choisir(c)" [disabled]="envoi()" [title]="c.nom + ' — ' + c.email">
-                <i [style.background]="teinte(c.role)"></i>
-                <span><strong>{{ c.roleLibelle }}</strong><small>{{ c.nom }}</small></span>
-              </button>
+          <label for="demo">Essayer un profil de démonstration</label>
+          <select id="demo" name="demo" [(ngModel)]="compteDemo" (ngModelChange)="choisir($event)">
+            <option value="" disabled>Choisir un profil…</option>
+            @for (g of groupes(); track g.libelle) {
+              <optgroup [label]="g.libelle">
+                @for (c of g.comptes; track c.email) { <option [value]="c.email">{{ c.roleLibelle }} — {{ c.nom }}</option> }
+              </optgroup>
             }
-          </div>
+          </select>
+          <p class="champ__aide">Le formulaire est rempli : cliquez sur « Se connecter ». Mot de passe commun : {{ comptes()[0].motDePasse }}.</p>
         </div>
       }
       <p class="version">Notarius · version {{ version }}</p>
