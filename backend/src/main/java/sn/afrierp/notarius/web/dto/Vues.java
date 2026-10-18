@@ -8,7 +8,9 @@ import sn.afrierp.notarius.bareme.DecompteTaxation;
 import sn.afrierp.notarius.common.Blocage;
 import sn.afrierp.notarius.compta.ComptaRecords.LigneReleve;
 import sn.afrierp.notarius.compta.SousCompte;
+import sn.afrierp.notarius.bareme.Bareme;
 import sn.afrierp.notarius.domain.Bien;
+import sn.afrierp.notarius.domain.DomaineActe;
 import sn.afrierp.notarius.domain.EvenementAudit;
 import sn.afrierp.notarius.domain.Intervenant;
 import sn.afrierp.notarius.domain.ModeSignature;
@@ -105,6 +107,29 @@ public final class Vues {
     public record WorkflowVue(List<StatutVue> statuts, List<TransitionVue> transitions) {
     }
 
+    /** Fiche d'un type d'acte du catalogue (parametres fiscaux et proceduraux). */
+    public record TypeActeVue(TypeActe code, String libelle, String codeReference, DomaineActe domaine,
+                              String domaineLibelle, boolean complexe, String assietteLibelle, String enregistrement,
+                              boolean publiciteFonciere, String emolument, Bareme.Sequestre sequestre,
+                              List<String> formalites, Integer delaiOppositionJours, boolean plusValue) {
+
+        public static TypeActeVue de(TypeActe t) {
+            Bareme.ParametresActe p = Bareme.parametres(t);
+            String enr = p.tauxEnregistrement() != null
+                    ? String.format(java.util.Locale.FRANCE, "Droit proportionnel %.2f %%", p.tauxEnregistrement() * 100)
+                    : String.format(java.util.Locale.FRANCE, "Droit fixe %,d FCFA", p.droitFixe());
+            String emo = p.emolumentFixe() == null ? "Bareme proportionnel degressif"
+                    : String.format(java.util.Locale.FRANCE, "Forfait %,d FCFA", p.emolumentFixe());
+            return new TypeActeVue(t, t.getLibelle(), t.getCode(), t.getDomaine(), t.getDomaine().getLibelle(),
+                    t.estComplexe(), t.getAssietteLibelle(), enr, p.publiciteFonciere(), emo, p.sequestre(),
+                    p.formalites().stream().map(OrganismeFormalites::getLibelle).toList(), p.delaiOppositionJours(),
+                    p.plusValue());
+        }
+    }
+
+    public record DossierLie(String id, String reference, String intitule) {
+    }
+
     /** Verdict d'une transition sortante pour l'utilisateur courant. */
     public record ActionVue(TransitionVue transition, boolean autorisee, List<Blocage> blocages) {
     }
@@ -112,7 +137,7 @@ public final class Vues {
     public record DossierResume(
             String id, String reference, String intitule, TypeActe typeActe, String typeActeLibelle,
             StatutDossier statut, String statutLibelle, String clercId, String clercNom, String notaireId,
-            String notaireNom, boolean typeComplexe, LocalDate dateOuverture, LocalDate dateSignaturePrevue, LocalDate dateSignature,
+            String notaireNom, boolean typeComplexe, DomaineActe domaine, LocalDate dateOuverture, LocalDate dateSignaturePrevue, LocalDate dateSignature,
             long montantTransaction, double tauxCompletudePieces, long soldeFonds, long joursDansStatut,
             Integer delaiCibleJours, long retardStatutJours, long retardSignatureJours, boolean alerteCdc,
             boolean purgeConditionsEnCours, ModeSignature modeSignature, StatutGainde gaindeStatut) {
@@ -164,6 +189,11 @@ public final class Vues {
             Visa validationNotaire,
             Visa certificationFonds,
             Long montantCertifie,
+            DossierLie dossierLie,
+            String assietteLibelle,
+            Bareme.Sequestre sequestre,
+            /* Cession de fonds de commerce : date a partir de laquelle le prix peut etre remis au vendeur. */
+            LocalDate finDelaiOpposition,
             Visa visaPrincipalClerc,
             Visa taxageDefinitif,
             Long fraisDefinitifs,

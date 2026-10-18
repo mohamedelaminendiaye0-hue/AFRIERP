@@ -10,13 +10,16 @@
             <app-badge-statut [statut]="d.resume.statut" />
             @if (d.resume.alerteCdc) { <span class="badge badge--serieux">Alerte CDC</span> }
           </div>
+          @if (d.dossierLie; as l) {
+            <p class="petit">Dossier d'origine : <a [routerLink]="['/dossiers', l.id]">{{ l.reference }} — {{ l.intitule }}</a></p>
+          }
           <p class="muet petit chiffres">
             {{ d.resume.reference }} · {{ d.resume.typeActeLibelle }} · ouvert le {{ d.resume.dateOuverture | dateFr }}
             · clerc {{ d.resume.clercNom ?? 'a assigner' }} · notaire {{ d.resume.notaireNom }}
           </p>
         </div>
         <div class="encarts">
-          <div class="encart"><span>Transaction</span><strong>{{ d.resume.montantTransaction | xof: true }}</strong></div>
+          <div class="encart"><span>{{ d.assietteLibelle ?? 'Assiette' }}</span><strong>{{ d.assietteLibelle ? (d.resume.montantTransaction | xof: true) : 'Acte a droit fixe' }}</strong></div>
           <div class="encart encart--or"><span>Fonds detenus</span><strong>{{ d.resume.soldeFonds | xof: true }}</strong></div>
           <div class="encart">
             <span>Dans le statut</span>
@@ -222,6 +225,16 @@
                   }
                 </div>
               }
+              @if (d.resume.statut === 'POST_ACT' && organismesComplementaires().length) {
+                <div class="ligne-champs">
+                  <select [(ngModel)]="organismeComplementaire" aria-label="Formalite complementaire">
+                    <option value="">Formalite complementaire…</option>
+                    @for (o of organismesComplementaires(); track o.code) { <option [value]="o.code">{{ o.libelle }} — {{ o.objet }}</option> }
+                  </select>
+                  <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!organismeComplementaire"
+                          (click)="deposer($any(organismeComplementaire)); organismeComplementaire = ''">Deposer</button>
+                </div>
+              }
             </div>
           }
 
@@ -302,15 +315,23 @@
       <div class="colonne">
         <!-- Passerelle comptable -->
         <section class="carte">
-          <div class="carte__entete"><div><h2>Passerelle comptable</h2><p>Fonds sur le sequestre face aux frais{{ d.couverture.prix > 0 ? ' + prix' : '' }}</p></div></div>
+          <div class="carte__entete"><div><h2>Passerelle comptable</h2><p>Fonds sur le sequestre face aux frais{{ d.sequestre === 'PRIX' ? ' + prix' : d.sequestre === 'CAPITAL' ? ' + capital a liberer' : '' }}</p></div></div>
           <div class="carte__corps">
             <div class="couverture">
               <div><span class="tres-petit muet">Frais previsionnels</span><span class="chiffres">{{ d.couverture.frais | xof }}</span></div>
-              @if (d.couverture.prix > 0) { <div><span class="tres-petit muet">Prix a sequestrer</span><span class="chiffres">{{ d.couverture.prix | xof }}</span></div> }
+              @if (d.couverture.prix > 0) { <div><span class="tres-petit muet">{{ d.sequestre === 'CAPITAL' ? 'Capital a sequestrer' : 'Prix a sequestrer' }}</span><span class="chiffres">{{ d.couverture.prix | xof }}</span></div> }
               <div><span class="tres-petit muet">Besoin total</span><strong class="chiffres">{{ d.couverture.besoin | xof }}</strong></div>
               <div><span class="tres-petit muet">Encaisse</span><span class="chiffres">{{ d.couverture.encaisse | xof }}</span></div>
             </div>
             <div class="barre" [class.barre--bon]="d.couverture.couvert"><span [style.width.%]="tauxCouverture() * 100"></span></div>
+            @if (d.finDelaiOpposition) {
+              <div class="bandeau bandeau--vigilance">
+                <div>Prix sequestre : delai d'opposition des creanciers jusqu'au <strong>{{ d.finDelaiOpposition | dateFr }}</strong>.
+                  Aucune remise du prix au vendeur avant cette date.</div>
+              </div>
+            } @else if (d.resume.typeActe === 'CESSION_FONDS_COMMERCE' && d.signature) {
+              <p class="petit manque">Le delai d'opposition court a compter de la publication de l'avis de cession.</p>
+            }
             @if (d.couverture.couvert) {
               <p class="petit ok">✓ Fonds suffisants — certification possible.</p>
             } @else {

@@ -8,6 +8,7 @@ import {
   DossierDetail,
   ErreurApi,
   ModeSignature,
+  Organisme,
   OrganismeFormalites,
   Piece,
   StatutGainde,
@@ -89,6 +90,14 @@ export class DossierDetailComponent implements OnInit {
     return d.pieces.filter((p) => p.obligatoire && (!['RECUE', 'VALIDEE'].includes(p.statut) || p.perimee));
   });
 
+  /** Formalites hors catalogue du type d'acte (ex : homologation judiciaire d'un changement de regime). */
+  protected readonly organismes = signal<Organisme[]>([]);
+  protected organismeComplementaire = '';
+  protected readonly organismesComplementaires = computed(() => {
+    const presents = new Set((this.dossier()?.formalites ?? []).map((f) => f.organisme));
+    return this.organismes().filter((o) => !presents.has(o.code));
+  });
+
   protected readonly signaturePlanifiee = computed(() =>
     (this.dossier()?.rendezVous ?? []).some((r) => r.type === 'SIGNATURE' && (r.statut === 'PLANIFIE' || r.statut === 'CONFIRME')),
   );
@@ -99,6 +108,7 @@ export class DossierDetailComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.api.organismes().subscribe((o) => this.organismes.set(o));
     this.api.dossier(this.id()).subscribe({
       next: (d) => this.dossier.set(d),
       error: (e) => this.erreur.set(lireErreur(e)),

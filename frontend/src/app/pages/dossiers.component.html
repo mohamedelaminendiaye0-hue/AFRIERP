@@ -26,14 +26,31 @@
           <div class="champ">
             <label for="type">Type d'acte</label>
             <select id="type" name="type" [(ngModel)]="nouveau.typeActe">
-              @for (t of typesActe; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+              @for (g of catalogue.groupes(); track g.domaine) {
+                <optgroup [label]="g.libelle">
+                  @for (t of g.types; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+                </optgroup>
+              }
             </select>
           </div>
-          <div class="champ">
-            <label for="montant">Prix / valeur (FCFA)</label>
-            <input id="montant" name="montant" type="number" min="0" step="1000" [(ngModel)]="nouveau.montant" />
-          </div>
-          @if (nouveau.typeActe === 'VENTE_IMMOBILIERE') {
+          @if (typeChoisi()?.assietteLibelle; as assiette) {
+            <div class="champ">
+              <label for="montant">{{ assiette }} (FCFA)</label>
+              <input id="montant" name="montant" type="number" min="0" step="1000" [(ngModel)]="nouveau.montant" />
+            </div>
+          } @else {
+            <div class="champ"><label>Assiette</label><p class="petit muet">Acte sans assiette : droit fixe et emolument forfaitaire.</p></div>
+          }
+          @if (nouveau.typeActe === 'MAINLEVEE_HYPOTHEQUE') {
+            <div class="champ">
+              <label for="lie">Affectation hypothecaire d'origine</label>
+              <select id="lie" name="lie" [(ngModel)]="nouveau.dossierLieId">
+                <option value="">— hypotheque prise hors de l'etude —</option>
+                @for (h of hypotheques(); track h.id) { <option [value]="h.id">{{ h.reference }} — {{ h.intitule }}</option> }
+              </select>
+            </div>
+          }
+          @if (typeChoisi()?.plusValue) {
             <div class="champ">
               <label for="acq">Prix d'acquisition du vendeur (plus-value)</label>
               <input id="acq" name="acq" type="number" min="0" step="1000" [(ngModel)]="nouveau.prixAcquisition" />
@@ -85,6 +102,14 @@
             <input id="commune" name="commune" [(ngModel)]="nouveau.commune" placeholder="Dakar — Fann" />
           </div>
         </div>
+        @if (typeChoisi(); as t) {
+          <div class="bandeau bandeau--info">
+            <div><strong>{{ t.libelle }}</strong> — {{ t.enregistrement }} · emolument : {{ t.emolument.toLowerCase() }}
+              @if (t.publiciteFonciere) { · publicite fonciere } @if (t.sequestre !== 'AUCUN') { · sequestre du {{ t.sequestre === 'PRIX' ? 'prix' : 'capital' }} avant signature }
+              @if (t.formalites.length) { <br />Formalites post-acte : {{ t.formalites.join(', ') }} }
+              @if (t.complexe) { <br />Dossier complexe : visa du principal clerc avant soumission au notaire. }</div>
+          </div>
+        }
         @if (erreur(); as e) {
           <div class="bandeau bandeau--critique">
             <div>{{ e.message }} @if (e.blocages.length) { <ul>@for (b of e.blocages; track $index) { <li>{{ b.message }}</li> }</ul> }</div>
@@ -108,6 +133,10 @@
           {{ f.libelle }} <span class="chiffres">({{ compte(f) }})</span>
         </button>
       }
+      <select class="filtre-domaine" [value]="domaineFiltre()" (change)="domaineFiltre.set($any($event.target).value)" aria-label="Domaine">
+        <option value="">Tous les domaines</option>
+        @for (g of catalogue.groupes(); track g.domaine) { <option [value]="g.domaine">{{ g.libelle }}</option> }
+      </select>
       <input class="recherche" type="search" placeholder="Rechercher une reference, un client, un clerc…"
              [value]="recherche()" (input)="recherche.set($any($event.target).value)" />
     </div>

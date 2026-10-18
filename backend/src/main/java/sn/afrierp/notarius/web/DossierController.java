@@ -75,7 +75,7 @@ public class DossierController {
         List<Intervenant> intervenants = cmd.intervenants() == null ? List.of() : cmd.intervenants().stream()
                 .map(DossierController::intervenant).toList();
         Dossier d = dossierService.creer(cmd.intitule(), cmd.typeActe(), cmd.montantTransaction(), cmd.prixAcquisition(),
-                optionnel(cmd.clercId()), utilisateur(cmd.notaireId()), bien, intervenants, moi);
+                optionnel(cmd.clercId()), utilisateur(cmd.notaireId()), bien, intervenants, cmd.dossierLieId(), moi);
         return mapper.detail(d, moi);
     }
 

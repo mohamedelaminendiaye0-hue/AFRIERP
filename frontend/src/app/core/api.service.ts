@@ -5,6 +5,8 @@ import {
   AlerteConformite,
   Blocage,
   LigneMinutier,
+  Organisme,
+  TypeActeVue,
   Membre,
   ReferentielsAgenda,
   RendezVous,
@@ -39,6 +41,7 @@ export interface NouveauDossier {
   prixAcquisition?: number | null;
   clercId?: string | null;
   notaireId: string;
+  dossierLieId?: string | null;
   bien?: { designation: string; titreFoncier: string; adresse: string; commune: string } | null;
   intervenants: { type: 'PHYSIQUE' | 'MORALE'; nom: string; qualite: string; identifiant?: string }[];
 }
@@ -59,6 +62,14 @@ export interface NouveauRendezVous {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
+
+  typesActe(): Observable<TypeActeVue[]> {
+    return this.http.get<TypeActeVue[]>('/api/referentiels/types-acte');
+  }
+
+  organismes(): Observable<Organisme[]> {
+    return this.http.get<Organisme[]>('/api/referentiels/organismes');
+  }
 
   utilisateurs(): Observable<Utilisateur[]> {
     return this.http.get<Utilisateur[]>('/api/utilisateurs');

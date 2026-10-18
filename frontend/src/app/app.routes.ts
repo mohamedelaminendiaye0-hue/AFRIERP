@@ -28,6 +28,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/equipe.component').then((m) => m.EquipeComponent),
   },
   {
+    path: 'catalogue',
+    title: 'Catalogue des actes — Notarius',
+    loadComponent: () => import('./pages/catalogue.component').then((m) => m.CatalogueComponent),
+  },
+  {
     path: 'minutier',
     title: 'Minutier — Notarius',
     loadComponent: () => import('./pages/minutier.component').then((m) => m.MinutierComponent),

@@ -31,6 +31,8 @@ import sn.afrierp.notarius.repository.EvenementAuditRepository;
 import sn.afrierp.notarius.repository.UtilisateurRepository;
 import sn.afrierp.notarius.workflow.WorkflowRecords.NotificationRetard;
 import sn.afrierp.notarius.workflow.WorkflowRecords.VerdictTransition;
+import sn.afrierp.notarius.workflow.DossierService;
+import sn.afrierp.notarius.workflow.ModelesPieces;
 import sn.afrierp.notarius.workflow.RendezVousService;
 import sn.afrierp.notarius.workflow.WorkflowService;
 import sn.afrierp.notarius.domain.OrganismeFormalites;
@@ -56,6 +58,7 @@ class ReglesMetierTest {
     @Autowired UtilisateurRepository utilisateurs;
     @Autowired EvenementAuditRepository evenements;
     @Autowired RendezVousService rendezVous;
+    @Autowired DossierService dossierService;
 
     private Utilisateur u(String id) {
         return utilisateurs.findById(id).orElseThrow();
@@ -268,6 +271,10 @@ class ReglesMetierTest {
         workflow.appliquer(id, StatutDossier.POST_ACT, u("U-008"), null, null);
         workflow.deposerFormalite(id, OrganismeFormalites.CONSERVATION_FONCIERE, "CF-1", u("U-008"));
         workflow.acheverFormalite(id, OrganismeFormalites.CONSERVATION_FONCIERE, u("U-008"));
+        assertThat(codes(workflow.verifier(workflow.dossier(id), StatutDossier.CLOSED, u("U-012"), null, null)))
+                .contains("FORMALITES_INCOMPLETES"); // la mutation fiscale (DGID) reste a faire
+        workflow.deposerFormalite(id, OrganismeFormalites.DGID, "ENR-1", u("U-008"));
+        workflow.acheverFormalite(id, OrganismeFormalites.DGID, u("U-008"));
         workflow.arreterTaxageDefinitif(id, u("U-007"));
 
         compta.executerVirement(workflow.dossier(id), compta.solde(id), NatureMouvement.RESTITUTION_CLIENT, "Acquereur", u("U-007"));
@@ -379,6 +386,78 @@ class ReglesMetierTest {
     /* ------------------------------------------------------------------ *
      *  Moteur de taxation
      * ------------------------------------------------------------------ */
+
+    /* ------------------------------------------------------------------ *
+     *  Catalogue des actes et regles propres a certaines demarches
+     * ------------------------------------------------------------------ */
+
+    @Test
+    void chaque_type_dacte_a_ses_parametres_et_sa_checklist() {
+        for (TypeActe t : TypeActe.values()) {
+            Bareme.ParametresActe p = Bareme.parametres(t);
+            assertThat(p).as("parametres %s", t).isNotNull();
+            assertThat(ModelesPieces.pour(t)).as("checklist %s", t).isNotEmpty();
+            DecompteTaxation d = taxation.simuler(t, t.aUneAssiette() ? 50_000_000 : 0);
+            assertThat(d.lignes().stream().mapToLong(DecompteTaxation.LigneDecompte::montant).sum())
+                    .as("total %s", t).isEqualTo(d.totaux().totalGeneral());
+            assertThat(d.lignes().stream().anyMatch(l -> l.code().equals("CF"))).as("publicite fonciere %s", t)
+                    .isEqualTo(p.publiciteFonciere());
+            if (!t.aUneAssiette()) {
+                assertThat(p.tauxEnregistrement()).as("droit fixe %s", t).isNull();
+                assertThat(p.emolumentFixe()).as("emolument fixe %s", t).isNotNull();
+            }
+        }
+    }
+
+    @Test
+    void acte_sans_assiette_procuration_taxe_au_forfait_et_ouvrable_sans_prix() {
+        DecompteTaxation d = taxation.simuler(TypeActe.PROCURATION, 0);
+        assertThat(d.lignes()).extracting(DecompteTaxation.LigneDecompte::code).contains("ENR", "EMO-FIXE").doesNotContain("CF", "EMO-PROP");
+        Dossier p = dossierService.creer("Procuration — test", TypeActe.PROCURATION, 0, null, u("U-004"), u("U-001"), null,
+                List.of(new sn.afrierp.notarius.domain.Intervenant(sn.afrierp.notarius.domain.TypePersonne.PHYSIQUE, "M. Test",
+                        sn.afrierp.notarius.domain.QualiteIntervenant.MANDATAIRE, null, false)), null, u("U-011"));
+        assertThat(workflow.verifier(p, StatutDossier.PENDING_DOCS, u("U-009"), null, null).autorisee()).isTrue();
+    }
+
+    @Test
+    void fonds_de_commerce_prix_sequestre_pendant_le_delai_dopposition() {
+        Dossier d = dossiers.findById("D-0150").orElseThrow();
+        var verdict = compta.autoriserVirement(d, 1_000_000, NatureMouvement.VERSEMENT_VENDEUR, u("U-007"));
+        assertThat(verdict.code()).isEqualTo("DELAI_OPPOSITION_EN_COURS");
+        assertThat(verdict.message()).contains(HorlogeDeTest.AUJOURDHUI.minusDays(12).plusDays(30)
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        // Les paiements au Tresor restent possibles.
+        assertThat(compta.autoriserVirement(d, 100_000, NatureMouvement.PAIEMENT_TRESOR, u("U-007")).autorise()).isTrue();
+    }
+
+    @Test
+    void capital_libere_seulement_apres_immatriculation_au_rccm() {
+        Dossier constitution = dossiers.findById("D-0127").orElseThrow();
+        assertThat(compta.autoriserVirement(constitution, 1_000_000, NatureMouvement.DEBLOCAGE_CAPITAL, u("U-007")).code())
+                .isEqualTo("IMMATRICULATION_REQUISE");
+        Dossier vente = dossiers.findById("D-0138").orElseThrow();
+        assertThat(compta.autoriserVirement(vente, 1_000_000, NatureMouvement.DEBLOCAGE_CAPITAL, u("U-007")).code())
+                .isEqualTo("NATURE_INVALIDE");
+    }
+
+    @Test
+    void sequestre_du_capital_exige_avant_la_signature_dune_constitution() {
+        Dossier constitution = dossiers.findById("D-0127").orElseThrow();
+        assertThat(workflow.couverture(constitution).prix()).isEqualTo(constitution.getMontantTransaction());
+        Dossier hypotheque = dossiers.findById("D-0112").orElseThrow();
+        assertThat(workflow.couverture(hypotheque).prix()).isZero(); // le pret n'est pas sequestre
+    }
+
+    @Test
+    void mainlevee_rattachee_a_une_affectation_hypothecaire() {
+        assertThatThrownBy(() -> dossierService.creer("Mainlevee", TypeActe.MAINLEVEE_HYPOTHEQUE, 10_000_000, null, null,
+                u("U-001"), null, List.of(), "D-0138", u("U-009")))
+                .isInstanceOf(RegleMetierException.class);
+        Dossier m = dossierService.creer("Mainlevee — Sy", TypeActe.MAINLEVEE_HYPOTHEQUE, 52_000_000, null, null,
+                u("U-001"), null, List.of(), "D-0112", u("U-009"));
+        assertThat(m.getDossierLieId()).isEqualTo("D-0112");
+        assertThat(m.getReference()).contains("-MH-");
+    }
 
     @Test
     void taxe_sur_la_plus_value_retenue_sur_le_prix_hors_total_a_provisionner() {

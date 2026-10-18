@@ -181,3 +181,8 @@ tr.cliquable:hover td { background: var(--ivoire-50); }
 
 .affectation { display: inline-flex; gap: 4px; align-items: center; }
 .affectation select { width: 150px; padding: 3px 6px; font-size: 12px; }
+.filtre-domaine { width: auto; max-width: 240px; padding: 5px 8px; font-size: 12px; }
+optgroup { font-weight: 600; color: var(--marine-500); }
+.parametres { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+.parametres dt { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--marine-400); }
+.parametres dd { margin: 0; font-size: 12px; }

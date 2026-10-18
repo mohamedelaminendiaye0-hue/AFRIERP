@@ -2,7 +2,8 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, switchMap } from 'rxjs';
 import { ApiService } from '../core/api.service';
-import { DecompteTaxation, TYPES_ACTE, TypeActe } from '../core/models';
+import { CatalogueService } from '../core/catalogue.service';
+import { DecompteTaxation, TypeActe } from '../core/models';
 import { XofPipe } from '../shared/format.pipes';
 
 @Component({
@@ -15,7 +16,7 @@ export class SimulateurComponent implements OnInit {
   private readonly api = inject(ApiService);
 
   protected readonly decompte = signal<DecompteTaxation | null>(null);
-  protected readonly types = TYPES_ACTE;
+  protected readonly catalogue = inject(CatalogueService);
   protected typeActe: TypeActe = 'VENTE_IMMOBILIERE';
   protected assiette = 185_000_000;
   protected honoraire = 0;
@@ -38,7 +39,17 @@ export class SimulateurComponent implements OnInit {
   }
 
   protected libelleType(code: TypeActe): string {
-    return this.types.find((t) => t.code === code)?.libelle ?? code;
+    return this.catalogue.type(code)?.libelle ?? code;
+  }
+
+  protected typeChoisi() {
+    return this.catalogue.type(this.typeActe);
+  }
+
+  protected changerType(): void {
+    if (!this.typeChoisi()?.assietteLibelle) this.assiette = 0;
+    else if (!this.assiette) this.assiette = 50_000_000;
+    this.recalculer();
   }
 
   protected imprimer(): void {

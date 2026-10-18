@@ -24,7 +24,9 @@ import sn.afrierp.notarius.web.dto.Vues.EvenementVue;
 import sn.afrierp.notarius.web.dto.Vues.IntervenantVue;
 import sn.afrierp.notarius.bareme.Bareme;
 import sn.afrierp.notarius.domain.OrganismeFormalites;
+import sn.afrierp.notarius.web.dto.Vues.DossierLie;
 import sn.afrierp.notarius.web.dto.Vues.FormaliteVue;
+import sn.afrierp.notarius.repository.DossierRepository;
 import sn.afrierp.notarius.web.dto.Vues.MinuteVue;
 import sn.afrierp.notarius.web.dto.Vues.RendezVousVue;
 import sn.afrierp.notarius.workflow.RendezVousService;
@@ -44,15 +46,18 @@ public class VueMapper {
     private final AuditService audit;
     private final UtilisateurRepository utilisateurs;
     private final RendezVousService rendezVous;
+    private final DossierRepository dossiers;
     private final Clock clock;
 
     public VueMapper(WorkflowService workflow, ComptaService compta, AuditService audit,
-                     UtilisateurRepository utilisateurs, RendezVousService rendezVous, Clock clock) {
+                     UtilisateurRepository utilisateurs, RendezVousService rendezVous, DossierRepository dossiers,
+                     Clock clock) {
         this.workflow = workflow;
         this.compta = compta;
         this.audit = audit;
         this.utilisateurs = utilisateurs;
         this.rendezVous = rendezVous;
+        this.dossiers = dossiers;
         this.clock = clock;
     }
 
@@ -85,12 +90,23 @@ public class VueMapper {
         return new DossierResume(d.getId(), d.getReference(), d.getIntitule(), d.getTypeActe(),
                 d.getTypeActe().getLibelle(), d.getStatut(), d.getStatut().getLibelle(),
                 d.getClerc() == null ? null : d.getClerc().getId(), d.getClerc() == null ? null : d.getClerc().nomComplet(),
-                d.getNotaire().getId(), d.getNotaire().nomComplet(), d.getTypeActe().estComplexe(), d.getDateOuverture(),
+                d.getNotaire().getId(), d.getNotaire().nomComplet(), d.getTypeActe().estComplexe(), d.getTypeActe().getDomaine(),
+                d.getDateOuverture(),
                 d.getDateSignaturePrevue(), d.getDateSignature(), d.getMontantTransaction(),
                 obligatoires.isEmpty() ? 1 : (double) obtenues / obligatoires.size(),
                 ctx.soldes().getOrDefault(d.getId(), 0L), delais.joursDansStatut(), delais.delaiCibleJours(),
                 delais.retardJours(), retardSignature, ctx.alertesCdc().contains(d.getId()),
                 d.isPurgeConditionsEnCours(), d.getModeSignature(), d.getGaindeStatut());
+    }
+
+    private static LocalDate finDelaiOpposition(Dossier d) {
+        Integer delai = Bareme.parametres(d.getTypeActe()).delaiOppositionJours();
+        if (delai == null) {
+            return null;
+        }
+        return d.formalite(OrganismeFormalites.PUBLICATION_LEGALE)
+                .map(f -> f.getDateAchevement() == null ? null : f.getDateAchevement().plusDays(delai))
+                .orElse(null);
     }
 
     private static Visa visa(String parId, LocalDate date, Function<String, String> nom) {
@@ -99,7 +115,7 @@ public class VueMapper {
 
     /** Formalites requises par le type d'acte, completees de celles deposees en plus. */
     private static List<FormaliteVue> formalites(Dossier d) {
-        List<OrganismeFormalites> requises = Bareme.FORMALITES_REQUISES.getOrDefault(d.getTypeActe(), List.of());
+        List<OrganismeFormalites> requises = Bareme.parametres(d.getTypeActe()).formalites();
         java.util.LinkedHashSet<OrganismeFormalites> organismes = new java.util.LinkedHashSet<>(requises);
         d.getFormalites().forEach(f -> organismes.add(f.getOrganisme()));
         return organismes.stream()
@@ -147,6 +163,11 @@ public class VueMapper {
                 d.getCertificationFondsDate() == null ? null
                         : new Visa(d.getCertificationFondsParId(), nom.apply(d.getCertificationFondsParId()), d.getCertificationFondsDate()),
                 d.getMontantCertifie(),
+                d.getDossierLieId() == null ? null : dossiers.findById(d.getDossierLieId())
+                        .map(l -> new DossierLie(l.getId(), l.getReference(), l.getIntitule())).orElse(null),
+                d.getTypeActe().getAssietteLibelle(),
+                Bareme.parametres(d.getTypeActe()).sequestre(),
+                finDelaiOpposition(d),
                 visa(d.getVisaPrincipalClercParId(), d.getVisaPrincipalClercDate(), nom),
                 visa(d.getTaxageDefinitifParId(), d.getTaxageDefinitifDate(), nom),
                 d.getFraisDefinitifs(),

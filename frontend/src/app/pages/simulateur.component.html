@@ -10,23 +10,39 @@
       <div class="carte__corps">
         <div class="champ">
           <label for="type">Type d'acte</label>
-          <select id="type" [(ngModel)]="typeActe" (ngModelChange)="recalculer()">
-            @for (t of types; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+          <select id="type" [(ngModel)]="typeActe" (ngModelChange)="changerType()">
+            @for (g of catalogue.groupes(); track g.domaine) {
+              <optgroup [label]="g.libelle">
+                @for (t of g.types; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+              </optgroup>
+            }
           </select>
         </div>
-        <div class="champ">
-          <label for="assiette">Prix / valeur declaree (FCFA)</label>
-          <input id="assiette" type="number" min="0" step="100000" [(ngModel)]="assiette" (ngModelChange)="recalculer()" />
-        </div>
+        @if (typeChoisi()?.assietteLibelle; as libelleAssiette) {
+          <div class="champ">
+            <label for="assiette">{{ libelleAssiette }} (FCFA)</label>
+            <input id="assiette" type="number" min="0" step="100000" [(ngModel)]="assiette" (ngModelChange)="recalculer()" />
+          </div>
+        } @else {
+          <p class="petit muet">Acte sans assiette : droit fixe et emolument forfaitaire.</p>
+        }
         <div class="champ">
           <label for="hon">Honoraires libres (FCFA)</label>
           <input id="hon" type="number" min="0" step="10000" [(ngModel)]="honoraire" (ngModelChange)="recalculer()" />
         </div>
-        @if (typeActe === 'VENTE_IMMOBILIERE') {
+        @if (typeChoisi()?.plusValue) {
           <div class="champ">
             <label for="acq">Prix d'acquisition du vendeur (FCFA)</label>
             <input id="acq" type="number" min="0" step="100000" [(ngModel)]="prixAcquisition" (ngModelChange)="recalculer()" placeholder="Pour la taxe sur la plus-value" />
           </div>
+        }
+        @if (typeChoisi(); as t) {
+          <dl class="parametres">
+            <div><dt>Enregistrement</dt><dd>{{ t.enregistrement }}</dd></div>
+            <div><dt>Emolument</dt><dd>{{ t.emolument }}</dd></div>
+            <div><dt>Publicite fonciere</dt><dd>{{ t.publiciteFonciere ? 'Oui' : 'Non' }}</dd></div>
+            <div><dt>Sequestre</dt><dd>{{ t.sequestre === 'AUCUN' ? 'Frais seuls' : t.sequestre === 'PRIX' ? 'Frais + prix' : 'Frais + capital' }}</dd></div>
+          </dl>
         }
         <div class="bandeau bandeau--info">Les taux livres sont des parametres de demonstration, a valider juridiquement avant exploitation.</div>
       </div>

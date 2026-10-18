@@ -28,6 +28,7 @@ export class AppComponent implements OnInit {
     { lien: '/agenda', libelle: 'Agenda', sousTitre: 'Prise de rendez-vous' },
     { lien: '/comptabilite', libelle: 'Fonds clients & CDC', sousTitre: 'Maniement de fonds' },
     { lien: '/simulateur', libelle: 'Calculateur de frais', sousTitre: 'Emoluments & taxes' },
+    { lien: '/catalogue', libelle: 'Catalogue des actes', sousTitre: 'Demarches & parametres' },
     { lien: '/minutier', libelle: 'Minutier', sousTitre: 'Minutes archivees' },
     { lien: '/equipe', libelle: 'Equipe', sousTitre: "Organisation de l'etude" },
   ];

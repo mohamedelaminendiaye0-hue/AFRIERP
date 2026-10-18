@@ -23,19 +23,15 @@ export type StatutDossier =
   | 'POST_ACT'
   | 'CLOSED';
 
-export type TypeActe =
-  | 'VENTE_IMMOBILIERE'
-  | 'DROIT_DES_SOCIETES'
-  | 'SUCCESSION'
-  | 'DONATION_FAMILLE'
-  | 'BAIL_COMMERCIAL'
-  | 'CREDIT_HYPOTHECAIRE';
+/** Code d'un type d'acte du catalogue (voir /api/referentiels/types-acte). */
+export type TypeActe = string;
+export type DomaineActe = 'IMMOBILIER' | 'AFFAIRES' | 'FAMILLE' | 'AUTHENTIFICATION';
 
 export type StatutPiece = 'MANQUANTE' | 'DEMANDEE' | 'RECUE' | 'VALIDEE' | 'REJETEE';
 export type ModeSignature = 'PHYSIQUE' | 'ELECTRONIQUE_GAINDE';
 export type StatutGainde = 'TRANSMIS' | 'VALIDE' | 'REJETE';
 export type NiveauAlerte = 'CRITIQUE' | 'SERIEUX' | 'VIGILANCE' | 'INFO';
-export type OrganismeFormalites = 'CONSERVATION_FONCIERE' | 'GREFFE_RCCM' | 'PUBLICATION_LEGALE';
+export type OrganismeFormalites = 'DGID' | 'CONSERVATION_FONCIERE' | 'GREFFE_RCCM' | 'NINEA' | 'PUBLICATION_LEGALE' | 'TRIBUNAL';
 export type TypeRendezVous = 'CONSULTATION' | 'REMISE_PIECES' | 'LECTURE_PROJET' | 'SIGNATURE' | 'REMISE_FONDS' | 'AUTRE';
 export type StatutRendezVous = 'PLANIFIE' | 'CONFIRME' | 'HONORE' | 'ANNULE' | 'ABSENT';
 export type Salle = 'SALLE_SIGNATURES' | 'BUREAU_NOTAIRE' | 'SALLE_REUNION' | 'BUREAU_CLERC' | 'VISIOCONFERENCE';
@@ -172,6 +168,7 @@ export interface DossierResume {
   notaireId: string;
   notaireNom: string;
   typeComplexe: boolean;
+  domaine: DomaineActe;
   dateOuverture: string;
   dateSignaturePrevue: string | null;
   dateSignature: string | null;
@@ -317,6 +314,10 @@ export interface DossierDetail {
   validationNotaire: Visa | null;
   certificationFonds: Visa | null;
   montantCertifie: number | null;
+  dossierLie: { id: string; reference: string; intitule: string } | null;
+  assietteLibelle: string | null;
+  sequestre: 'AUCUN' | 'PRIX' | 'CAPITAL';
+  finDelaiOpposition: string | null;
   visaPrincipalClerc: Visa | null;
   taxageDefinitif: Visa | null;
   fraisDefinitifs: number | null;
@@ -428,11 +429,26 @@ export interface OrdreVirementCdc {
   mentionConformite: string;
 }
 
-export const TYPES_ACTE: { code: TypeActe; libelle: string }[] = [
-  { code: 'VENTE_IMMOBILIERE', libelle: 'Vente immobiliere' },
-  { code: 'DROIT_DES_SOCIETES', libelle: 'Droit des societes' },
-  { code: 'SUCCESSION', libelle: 'Succession' },
-  { code: 'DONATION_FAMILLE', libelle: 'Donation / Famille' },
-  { code: 'BAIL_COMMERCIAL', libelle: 'Bail commercial' },
-  { code: 'CREDIT_HYPOTHECAIRE', libelle: 'Credit hypothecaire' },
-];
+
+export interface TypeActeVue {
+  code: TypeActe;
+  libelle: string;
+  codeReference: string;
+  domaine: DomaineActe;
+  domaineLibelle: string;
+  complexe: boolean;
+  assietteLibelle: string | null;
+  enregistrement: string;
+  publiciteFonciere: boolean;
+  emolument: string;
+  sequestre: 'AUCUN' | 'PRIX' | 'CAPITAL';
+  formalites: string[];
+  delaiOppositionJours: number | null;
+  plusValue: boolean;
+}
+
+export interface Organisme {
+  code: OrganismeFormalites;
+  libelle: string;
+  objet: string;
+}

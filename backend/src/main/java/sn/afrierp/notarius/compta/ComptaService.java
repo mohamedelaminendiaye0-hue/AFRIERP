@@ -29,6 +29,7 @@ import sn.afrierp.notarius.domain.MoyenPaiement;
 import sn.afrierp.notarius.domain.MouvementComptable;
 import sn.afrierp.notarius.domain.NatureMouvement;
 import sn.afrierp.notarius.domain.NiveauAlerte;
+import sn.afrierp.notarius.domain.OrganismeFormalites;
 import sn.afrierp.notarius.domain.Role;
 import sn.afrierp.notarius.domain.SensEcriture;
 import sn.afrierp.notarius.domain.StatutDossier;
@@ -152,6 +153,32 @@ public class ComptaService {
         }
         if (nature == NatureMouvement.VERSEMENT_VENDEUR && !dossier.getStatut().estAuMoins(StatutDossier.SIGNED)) {
             return new VerdictVirement(false, "DOSSIER_NON_SIGNE", "Le versement du prix au vendeur suppose un acte signe.", solde, montant, manquant);
+        }
+        Bareme.ParametresActe param = Bareme.parametres(dossier.getTypeActe());
+        if (nature == NatureMouvement.VERSEMENT_VENDEUR && param.delaiOppositionJours() != null) {
+            // Cession de fonds de commerce : le prix reste sequestre pendant le delai d'opposition
+            // des creanciers, qui court a compter de la publication de l'avis.
+            Optional<LocalDate> publication = dossier.formalite(OrganismeFormalites.PUBLICATION_LEGALE)
+                    .map(f -> f.getDateAchevement());
+            if (publication.isEmpty()) {
+                return new VerdictVirement(false, "PUBLICATION_REQUISE",
+                        "Prix sequestre : l'avis de cession doit etre publie avant toute remise du prix au vendeur.", solde, montant, manquant);
+            }
+            LocalDate finDelai = publication.get().plusDays(param.delaiOppositionJours());
+            if (aujourdhui().isBefore(finDelai)) {
+                return new VerdictVirement(false, "DELAI_OPPOSITION_EN_COURS", String.format(Locale.FRANCE,
+                        "Delai d'opposition des creanciers en cours jusqu'au %s : le prix reste sequestre.",
+                        finDelai.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))), solde, montant, manquant);
+            }
+        }
+        if (nature == NatureMouvement.DEBLOCAGE_CAPITAL) {
+            if (param.sequestre() != Bareme.Sequestre.CAPITAL) {
+                return new VerdictVirement(false, "NATURE_INVALIDE", "Aucun capital sequestre sur ce type d'acte.", solde, montant, manquant);
+            }
+            if (dossier.formalite(OrganismeFormalites.GREFFE_RCCM).map(f -> !f.estAchevee()).orElse(true)) {
+                return new VerdictVirement(false, "IMMATRICULATION_REQUISE",
+                        "Le capital n'est libere qu'une fois la societe immatriculee au RCCM.", solde, montant, manquant);
+            }
         }
         if (montant > solde) {
             return new VerdictVirement(false, "SOLDE_INSUFFISANT",

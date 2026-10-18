@@ -5,6 +5,8 @@ public enum NatureMouvement {
     PRIX_VENTE(false),
     DEPOT_GARANTIE(false),
     VERSEMENT_VENDEUR(true),
+    /** Liberation du capital sequestre au profit de la societe immatriculee. */
+    DEBLOCAGE_CAPITAL(true),
     PAIEMENT_TRESOR(true),
     PAIEMENT_TIERS(true),
     HONORAIRES_ETUDE(true),

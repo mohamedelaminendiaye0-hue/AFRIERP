@@ -33,6 +33,7 @@ import sn.afrierp.notarius.repository.DossierRepository;
 import sn.afrierp.notarius.web.dto.Vues.LigneMinutier;
 import sn.afrierp.notarius.web.dto.Vues.MembreVue;
 import sn.afrierp.notarius.web.dto.Vues.StatutVue;
+import sn.afrierp.notarius.web.dto.Vues.TypeActeVue;
 import sn.afrierp.notarius.workflow.RendezVousService;
 import sn.afrierp.notarius.web.dto.Vues.TransitionVue;
 import sn.afrierp.notarius.web.dto.Vues.UtilisateurVue;
@@ -121,9 +122,16 @@ public class ApiController {
         return new WorkflowVue(statuts, Transition.TOUTES.stream().map(TransitionVue::de).toList());
     }
 
+    /** Catalogue des actes et demarches, avec leurs parametres fiscaux et proceduraux. */
     @GetMapping("/referentiels/types-acte")
-    public List<Map<String, String>> typesActe() {
-        return Arrays.stream(TypeActe.values()).map(t -> Map.of("code", t.name(), "libelle", t.getLibelle())).toList();
+    public List<TypeActeVue> typesActe() {
+        return Arrays.stream(TypeActe.values()).map(TypeActeVue::de).toList();
+    }
+
+    @GetMapping("/referentiels/organismes")
+    public List<Map<String, String>> organismes() {
+        return Arrays.stream(sn.afrierp.notarius.domain.OrganismeFormalites.values())
+                .map(o -> Map.of("code", o.name(), "libelle", o.getLibelle(), "objet", o.getObjet())).toList();
     }
 
     /* --- Pilotage --- */

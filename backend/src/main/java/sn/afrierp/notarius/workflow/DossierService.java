@@ -36,7 +36,7 @@ public class DossierService {
     @Transactional
     public Dossier creer(String intitule, TypeActe typeActe, long montantTransaction, Long prixAcquisition,
                          Utilisateur clerc, Utilisateur notaire, Bien bien, List<Intervenant> intervenants,
-                         Utilisateur auteur) {
+                         String dossierLieId, Utilisateur auteur) {
         if (!EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.PRINCIPAL_CLERC, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE,
                 Role.NOTAIRE_SALARIE).contains(auteur.getRole())) {
             throw new RegleMetierException("ROLE_NON_HABILITE", "Ouverture de dossier reservee a l'accueil, aux clercs et aux notaires.");
@@ -69,6 +69,14 @@ public class DossierService {
         d.setDateOuverture(date);
         d.setMontantTransaction(montantTransaction);
         d.setPrixAcquisition(prixAcquisition);
+        if (dossierLieId != null && !dossierLieId.isBlank()) {
+            Dossier lie = dossiers.findById(dossierLieId)
+                    .orElseThrow(() -> new RegleMetierException("DOSSIER_LIE_INCONNU", "Dossier d'origine introuvable : " + dossierLieId));
+            if (typeActe == TypeActe.MAINLEVEE_HYPOTHEQUE && lie.getTypeActe() != TypeActe.AFFECTATION_HYPOTHECAIRE) {
+                throw new RegleMetierException("DOSSIER_LIE_INVALIDE", "Une mainlevee se rattache a une affectation hypothecaire.");
+            }
+            d.setDossierLieId(lie.getId());
+        }
         d.setClerc(clerc);
         d.setNotaire(notaire);
         d.setBien(bien);

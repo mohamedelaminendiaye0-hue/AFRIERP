@@ -131,7 +131,9 @@ public class WorkflowService {
         long frais = dossier.getFraisPrevisionnels() != null
                 ? dossier.getFraisPrevisionnels()
                 : taxationPrevisionnelle(dossier).totaux().totalGeneral();
-        long prix = Bareme.SEQUESTRE_PRIX_EXIGE.contains(dossier.getTypeActe()) ? dossier.getMontantTransaction() : 0;
+        // Prix (vente, cession, adjudication) ou capital (constitution) a sequestrer en plus des frais.
+        long prix = Bareme.parametres(dossier.getTypeActe()).sequestre() != Bareme.Sequestre.AUCUN
+                ? dossier.getMontantTransaction() : 0;
         long encaisse = 0;
         for (MouvementComptable m : compta.mouvementsValides(dossier.getId())) {
             if (m.getSens() == SensEcriture.CREDIT) {
@@ -186,8 +188,9 @@ public class WorkflowService {
                 if (dossier.getIntervenants().isEmpty()) {
                     blocages.add(new Blocage("INFOS_INCOMPLETES", "Renseigner au moins une partie a l'acte."));
                 }
-                if (dossier.getMontantTransaction() <= 0) {
-                    blocages.add(new Blocage("INFOS_INCOMPLETES", "Renseigner le prix ou la valeur servant d'assiette."));
+                if (dossier.getTypeActe().aUneAssiette() && dossier.getMontantTransaction() <= 0) {
+                    blocages.add(new Blocage("INFOS_INCOMPLETES",
+                            "Renseigner l'assiette de l'acte : " + dossier.getTypeActe().getAssietteLibelle().toLowerCase() + "."));
                 }
             }
             case DRAFTING -> ajouterBlocagesPieces(dossier, StatutDossier.DRAFTING, blocages);
@@ -199,7 +202,7 @@ public class WorkflowService {
                 }
             }
             case FUNDING -> {
-                if (dossier.getMontantTransaction() <= 0) {
+                if (dossier.getTypeActe().aUneAssiette() && dossier.getMontantTransaction() <= 0) {
                     blocages.add(new Blocage("TAXATION_ABSENTE", "Assiette nulle : le taxage previsionnel ne peut pas etre arrete."));
                 }
             }
@@ -207,8 +210,13 @@ public class WorkflowService {
                 ajouterBlocagesPieces(dossier, StatutDossier.READY_TO_SIGN, blocages);
                 couverture = couverture(dossier);
                 if (!couverture.couvert()) {
+                    String objet = switch (Bareme.parametres(dossier.getTypeActe()).sequestre()) {
+                        case PRIX -> "frais + prix";
+                        case CAPITAL -> "frais + capital a liberer";
+                        default -> "frais";
+                    };
                     blocages.add(new Blocage("FONDS_INSUFFISANTS",
-                            String.format(Locale.FRANCE, "Fonds consignes insuffisants : %,d FCFA manquent sur le sequestre (frais%s).", couverture.manquant(), couverture.prix() > 0 ? " + prix" : "")));
+                            String.format(Locale.FRANCE, "Fonds consignes insuffisants : %,d FCFA manquent sur le sequestre (%s).", couverture.manquant(), objet)));
                 }
                 List<Intervenant> sansKyc = dossier.getIntervenants().stream().filter(i -> !i.isKycValide()).toList();
                 if (dossier.getIntervenants().isEmpty()) {
@@ -259,7 +267,7 @@ public class WorkflowService {
 
     /** Formalites requises pour le type d'acte et pas encore achevees par l'administration. */
     public static List<OrganismeFormalites> formalitesNonAchevees(Dossier dossier) {
-        return Bareme.FORMALITES_REQUISES.getOrDefault(dossier.getTypeActe(), List.of()).stream()
+        return Bareme.parametres(dossier.getTypeActe()).formalites().stream()
                 .filter(o -> dossier.formalite(o).map(f -> !f.estAchevee()).orElse(true))
                 .toList();
     }

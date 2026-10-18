@@ -39,7 +39,7 @@ public final class Commandes {
     /** {@code clercId} facultatif : sans lui, le dossier rejoint la file « a assigner ». */
     public record NouveauDossier(@NotBlank String intitule, @NotNull TypeActe typeActe,
                                  @PositiveOrZero long montantTransaction, @PositiveOrZero Long prixAcquisition,
-                                 String clercId, @NotBlank String notaireId, NouveauBien bien,
+                                 String clercId, @NotBlank String notaireId, String dossierLieId, NouveauBien bien,
                                  List<@Valid NouvelIntervenant> intervenants) {
     }
 

@@ -2,7 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, NouveauDossier, lireErreur } from '../core/api.service';
-import { DossierResume, ErreurApi, TYPES_ACTE, TypeActe } from '../core/models';
+import { CatalogueService } from '../core/catalogue.service';
+import { DomaineActe, DossierResume, ErreurApi, TypeActe } from '../core/models';
 import { SessionService } from '../core/session.service';
 import { BadgeStatutComponent } from '../shared/badges';
 import { PourcentagePipe, XofPipe } from '../shared/format.pipes';
@@ -29,7 +30,8 @@ export class DossiersComponent implements OnInit {
   protected readonly filtreActif = signal('tous');
   protected readonly formulaireOuvert = signal(false);
   protected readonly erreur = signal<ErreurApi | null>(null);
-  protected readonly typesActe = TYPES_ACTE;
+  protected readonly catalogue = inject(CatalogueService);
+  protected readonly domaineFiltre = signal<DomaineActe | ''>('');
 
   protected readonly filtres: Filtre[] = [
     { cle: 'tous', libelle: 'Tous', predicat: () => true },
@@ -48,8 +50,10 @@ export class DossiersComponent implements OnInit {
   protected readonly visibles = computed(() => {
     const filtre = this.filtres.find((f) => f.cle === this.filtreActif())!;
     const q = this.recherche().trim().toLowerCase();
+    const domaine = this.domaineFiltre();
     return this.dossiers()
       .filter(filtre.predicat)
+      .filter((d) => !domaine || d.domaine === domaine)
       .filter((d) => !q || `${d.reference} ${d.intitule} ${d.clercNom} ${d.typeActeLibelle}`.toLowerCase().includes(q));
   });
 
@@ -57,6 +61,12 @@ export class DossiersComponent implements OnInit {
     this.session.utilisateurs().filter((u) => (u.role === 'CLERC' || u.role === 'PRINCIPAL_CLERC') && u.actif),
   );
   protected readonly notaires = computed(() => this.session.utilisateurs().filter((u) => u.notaire && u.actif));
+
+  protected readonly hypotheques = computed(() => this.dossiers().filter((d) => d.typeActe === 'AFFECTATION_HYPOTHECAIRE'));
+
+  protected typeChoisi() {
+    return this.catalogue.type(this.nouveau.typeActe);
+  }
 
   /** Charge actuelle de chaque clerc (planning de production) pour guider l'affectation. */
   protected readonly charge = computed(() => {
@@ -88,6 +98,7 @@ export class DossiersComponent implements OnInit {
       montantTransaction: Number(n.montant) || 0,
       prixAcquisition: Number(n.prixAcquisition) || null,
       clercId: n.clercId || null,
+      dossierLieId: n.dossierLieId || null,
       notaireId: n.notaireId,
       bien: n.designation ? { designation: n.designation, titreFoncier: n.titreFoncier, adresse: n.adresse, commune: n.commune } : null,
       intervenants: n.partie ? [{ type: n.partieType, nom: n.partie, qualite: n.partieQualite }] : [],
@@ -133,6 +144,7 @@ export class DossiersComponent implements OnInit {
       partie: '',
       partieType: 'PHYSIQUE' as 'PHYSIQUE' | 'MORALE',
       partieQualite: 'VENDEUR',
+      dossierLieId: '',
     };
   }
 

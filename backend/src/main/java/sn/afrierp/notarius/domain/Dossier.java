@@ -68,6 +68,9 @@ public class Dossier {
     /** Prix / valeur servant d'assiette a la taxation (XOF, sans decimale). */
     private long montantTransaction;
 
+    /** Dossier d'origine (ex : l'affectation hypothecaire dont on donne mainlevee). */
+    private String dossierLieId;
+
     /** Prix d'acquisition du bien par le vendeur : base de la taxe sur la plus-value. */
     private Long prixAcquisition;
 

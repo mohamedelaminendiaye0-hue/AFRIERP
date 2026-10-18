@@ -121,7 +121,39 @@ signature électronique est confirmée (statut *Validé*). Un filtre « GAINDE 2
 
 ---
 
-## Prise de rendez-vous (`backend/.../workflow/RendezVousService.java`)
+## Catalogue des actes et démarches
+
+23 types d'actes répartis en 4 domaines (écran **Catalogue des actes**, `GET /api/referentiels/types-acte`).
+Chaque type porte son assiette, sa fiscalité, son émolument, son séquestre, sa checklist de pièces et ses
+formalités post-acte (`Bareme.CATALOGUE`, `ModelesPieces`).
+
+| Domaine | Actes |
+|---|---|
+| Immobilier, foncier & sûretés | Vente immobilière · promesse / compromis · affectation hypothécaire · mainlevée d'hypothèque · bail emphytéotique / à construction · règlement de copropriété & EDD · bail commercial |
+| Sociétés & affaires (OHADA) | Constitution de société · cession de parts / actions · modification statutaire · fusion, dissolution, liquidation · cession de fonds de commerce · nantissement |
+| Famille, successions & patrimoine | Succession · donation · testament · contrat de mariage · changement de régime matrimonial · partage de communauté · procuration / mandat de protection future |
+| Conservation, authentification & enchères | Dépôt au rang des minutes · acte de notoriété / constat · vente aux enchères / adjudication |
+
+Paramètres par type :
+- **Assiette** : prix, crédit garanti, capital, actif net… ou **aucune** (testament, procuration, dépôt, notoriété,
+  contrat de mariage) : l'acte est alors taxé au **droit fixe** avec un **émolument forfaitaire**.
+- **Publicité foncière** : la taxe de conservation foncière et les débours fonciers ne s'appliquent qu'aux actes
+  publiés au livre foncier.
+- **Séquestre** avant signature : le **prix** (vente, cession de parts ou de fonds, adjudication) ou le **capital**
+  (constitution de société), en plus des frais.
+- **Formalités requises** : DGID, Conservation foncière, RCCM, NINEA, annonces légales ; le formaliste peut en
+  ajouter une complémentaire (ex. **homologation judiciaire** d'un changement de régime matrimonial).
+
+Règles propres à certaines démarches :
+
+| Démarche | Règle appliquée par le serveur |
+|---|---|
+| Cession de fonds de commerce | Le prix reste séquestré : aucun versement au vendeur avant la publication de l'avis puis l'expiration du **délai d'opposition** des créanciers (30 j, paramétrable). |
+| Constitution de société | Le capital déposé sur le séquestre n'est **libéré** (nature `DEBLOCAGE_CAPITAL`) qu'après l'immatriculation au RCCM. |
+| Mainlevée d'hypothèque | Peut être rattachée au dossier d'**affectation hypothécaire** d'origine (contrôle du type). |
+| Dossiers complexes | Visa du principal clerc avant soumission au notaire (vente, hypothèque, bail emphytéotique, copropriété, sociétés, fonds de commerce, succession, enchères). |
+
+ (`backend/.../workflow/RendezVousService.java`)
 
 Agenda de l'étude (vue semaine, filtres par personne et par lieu). Types : consultation, remise de pièces,
 lecture de projet, **signature**, remise de fonds. Cycle : *Planifié → Confirmé → Honoré / Client absent*, ou
@@ -196,3 +228,5 @@ contrôles de rôle côté serveur (en-tête `X-Utilisateur`).
 - Intégration GAINDE 2000 et télé-déclaration DGID quand les API seront disponibles.
 - GED réelle (dépôt des fichiers des pièces) et génération des actes depuis des modèles.
 - Rapprochement bancaire automatique (import MT940 / CSV), export SYSCOHADA.
+- Fiscalité exacte par acte (taux, droits fixes, abattements successoraux) à confronter au CGI avant production :
+  les valeurs du catalogue sont des paramètres de démonstration.

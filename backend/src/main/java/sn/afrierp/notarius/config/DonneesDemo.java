@@ -259,7 +259,7 @@ public class DonneesDemo implements ApplicationRunner {
         d131.setBien(bien("Terrain nu viabilise", "TF n° 24 561/R", "Pole urbain de Diamniadio, ilot 12", "Rufisque — Diamniadio", 2400, UsageBien.TERRAIN_NU));
         liste.add(d131);
 
-        liste.add(dossier("D-0127", "2026-DS-0127", "Constitution SARL Baobab Logistics", TypeActe.DROIT_DES_SOCIETES,
+        liste.add(dossier("D-0127", "2026-CS-0127", "Constitution SARL Baobab Logistics", TypeActe.CONSTITUTION_SOCIETE,
                 StatutDossier.REVIEW, 8, "U-006", "U-001", 41, 6, 25_000_000, 5));
 
         Dossier d125 = dossier("D-0125", "2026-VI-0125", "Vente appartement Point E — Diouf/Mbaye", TypeActe.VENTE_IMMOBILIERE,
@@ -283,7 +283,7 @@ public class DonneesDemo implements ApplicationRunner {
         d116.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(18), "CF-DKR-2026-4471", null));
         liste.add(d116);
 
-        Dossier d112 = dossier("D-0112", "2026-CH-0112", "Credit hypothecaire — Sy / BOA Senegal", TypeActe.CREDIT_HYPOTHECAIRE,
+        Dossier d112 = dossier("D-0112", "2026-AH-0112", "Affectation hypothecaire — Sy / BOA Senegal", TypeActe.AFFECTATION_HYPOTHECAIRE,
                 StatutDossier.READY_TO_SIGN, 6, "U-006", "U-002", 58, 3, 52_000_000, 11);
         d112.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Pape Sy", QualiteIntervenant.ACQUEREUR, "CNI 1 751 1984 02213", true));
         d112.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "BOA Senegal", QualiteIntervenant.BANQUE, "NINEA 001 942 210", true));
@@ -295,7 +295,7 @@ public class DonneesDemo implements ApplicationRunner {
         d108.setPurgeConditionsEnCours(true);
         liste.add(d108);
 
-        liste.add(dossier("D-0104", "2026-DF-0104", "Donation-partage famille Thiam", TypeActe.DONATION_FAMILLE,
+        liste.add(dossier("D-0104", "2026-DO-0104", "Donation-partage famille Thiam", TypeActe.DONATION,
                 StatutDossier.DRAFTING, 12, "U-005", "U-001", 52, 15, 64_000_000, 5));
 
         Dossier d098 = dossier("D-0098", "2026-BC-0098", "Bail commercial — Centre Sea Plaza", TypeActe.BAIL_COMMERCIAL,
@@ -321,11 +321,11 @@ public class DonneesDemo implements ApplicationRunner {
         d082.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(60), "CF-DKR-2026-2210", ilYA(12)));
         liste.add(d082);
 
-        Dossier d076 = dossier("D-0076", "2026-DS-0076", "Cession de parts — Sahel Distribution SA", TypeActe.DROIT_DES_SOCIETES,
+        Dossier d076 = dossier("D-0076", "2026-CP-0076", "Cession de parts — Sahel Distribution SA", TypeActe.CESSION_PARTS,
                 StatutDossier.CLOSED, 120, "U-006", "U-002", 220, -140, 180_000_000, 6);
         signe(d076, 138, ModeSignature.PHYSIQUE);
+        d076.getFormalites().add(new Formalite(OrganismeFormalites.DGID, ilYA(136), "ENR-DKR-2026-11873", ilYA(133)));
         d076.getFormalites().add(new Formalite(OrganismeFormalites.GREFFE_RCCM, ilYA(134), "RCCM-SN-DKR-2026-B-0312", ilYA(126)));
-        d076.getFormalites().add(new Formalite(OrganismeFormalites.PUBLICATION_LEGALE, ilYA(134), "Le Soleil — annonce n° 4471", ilYA(131)));
         d076.setTaxageDefinitifParId("U-007");
         d076.setTaxageDefinitifDate(ilYA(122));
         d076.setNumeroRepertoire(ilYA(120).getYear() + "/0001");
@@ -343,7 +343,7 @@ public class DonneesDemo implements ApplicationRunner {
         liste.add(dossier("D-0065", "2026-VI-0065", "Vente magasin Guediawaye — Ndao", TypeActe.VENTE_IMMOBILIERE,
                 StatutDossier.DRAFTING, 6, "U-003", "U-010", 34, 22, 31_000_000, 9));
 
-        Dossier d059 = dossier("D-0059", "2026-DF-0059", "Donation immobiliere — famille Seck", TypeActe.DONATION_FAMILLE,
+        Dossier d059 = dossier("D-0059", "2026-DO-0059", "Donation immobiliere — famille Seck", TypeActe.DONATION,
                 StatutDossier.SIGNED, 5, "U-005", "U-001", 61, -5, 41_000_000, 5);
         signe(d059, 5, ModeSignature.PHYSIQUE);
         liste.add(d059);
@@ -354,8 +354,41 @@ public class DonneesDemo implements ApplicationRunner {
         d146.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "Mme Awa Mbengue", QualiteIntervenant.VENDEUR, null, false));
         liste.add(d146);
 
-        liste.add(dossier("D-0144", "2026-DF-0144", "Donation entre epoux — Sow", TypeActe.DONATION_FAMILLE,
+        liste.add(dossier("D-0144", "2026-DO-0144", "Donation entre epoux — Sow", TypeActe.DONATION,
                 StatutDossier.TAXING, 2, "U-006", "U-001", 30, 18, 35_000_000, 5));
+
+        /* --- Autres demarches de l'etude --- */
+        Dossier d150 = dossier("D-0150", "2026-FC-0150", "Cession fonds de commerce — Boulangerie Le Fromager (Medina)",
+                TypeActe.CESSION_FONDS_COMMERCE, StatutDossier.POST_ACT, 20, "U-005", "U-002", 70, -25, 40_000_000, 6);
+        d150.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Serigne Mboup", QualiteIntervenant.VENDEUR, "CNI 1 619 1975 01842", true));
+        d150.ajouterIntervenant(new Intervenant(TypePersonne.MORALE, "SARL Pain Dore", QualiteIntervenant.ACQUEREUR, "NINEA 007 455 120", true));
+        signe(d150, 25, ModeSignature.PHYSIQUE);
+        d150.getFormalites().add(new Formalite(OrganismeFormalites.DGID, ilYA(22), "ENR-DKR-2026-20411", ilYA(18)));
+        // Avis publie il y a 12 jours : le delai d'opposition de 30 jours court encore.
+        d150.getFormalites().add(new Formalite(OrganismeFormalites.PUBLICATION_LEGALE, ilYA(20), "Le Soleil — annonce n° 5102", ilYA(12)));
+        liste.add(d150);
+
+        liste.add(dossier("D-0151", "2026-MH-0151", "Mainlevee d'hypotheque — Diallo / CBAO (pret solde)",
+                TypeActe.MAINLEVEE_HYPOTHEQUE, StatutDossier.DRAFTING, 5, "U-004", "U-001", 20, 10, 30_000_000, 3));
+
+        Dossier d152 = dossier("D-0152", "2026-RM-0152", "Changement de regime matrimonial — epoux Ba",
+                TypeActe.CHANGEMENT_REGIME_MATRIMONIAL, StatutDossier.PENDING_DOCS, 12, "U-003", "U-010", 15, 30, 0, 2);
+        d152.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Babacar Ba", QualiteIntervenant.MANDATAIRE, null, false));
+        d152.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "Mme Mame Diarra Ba", QualiteIntervenant.MANDATAIRE, null, false));
+        liste.add(d152);
+
+        Dossier d153 = dossier("D-0153", "2026-PR-0153", "Procuration pour vente a distance — M. Fall (diaspora)",
+                TypeActe.PROCURATION, StatutDossier.REVIEW, 1, "U-006", "U-010", 6, 4, 0, 2);
+        d153.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "M. Cheikh Fall", QualiteIntervenant.MANDATAIRE, "Passeport A01938274", true));
+        liste.add(d153);
+
+        liste.add(dossier("D-0154", "2026-DM-0154", "Depot au rang des minutes — reconnaissance de dette Ndiaye / Sarr",
+                TypeActe.DEPOT_RANG_MINUTES, StatutDossier.TAXING, 1, "U-004", "U-002", 9, 7, 0, 2));
+
+        Dossier d155 = dossier("D-0155", "2026-VE-0155", "Adjudication volontaire — villa Fann Residence",
+                TypeActe.VENTE_ENCHERES, StatutDossier.DRAFTING, 8, "U-003", "U-001", 40, 25, 210_000_000, 3);
+        d155.setBien(bien("Villa R+1 avec jardin", "TF n° 6 233/DG", "Fann Residence, rue F x Corniche", "Dakar — Fann", 540, UsageBien.HABITATION));
+        liste.add(d155);
 
         dossiers.saveAll(liste);
     }
@@ -435,6 +468,10 @@ public class DonneesDemo implements ApplicationRunner {
 
                 c("D-0071", 105, 8_900_000, NatureMouvement.DEPOT_GARANTIE, "Depot de garantie 10 %", "Acquereur M. Cisse"),
                 db("D-0071", 83, 600_000, NatureMouvement.PAIEMENT_TIERS, "Frais d'expertise immobiliere", "Cabinet Expertys"),
+
+                c("D-0150", 41, 3_500_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais et droits", "SARL Pain Dore"),
+                c("D-0150", 40, 40_000_000, NatureMouvement.PRIX_VENTE, "Sequestre du prix du fonds de commerce", "SARL Pain Dore"),
+                db("D-0150", 22, 2_000_000, NatureMouvement.PAIEMENT_TRESOR, "Droits d'enregistrement de la cession", "Tresor public"),
 
                 c("D-0065", 29, 2_400_000, NatureMouvement.PROVISION_CLIENT, "Provision sur frais", "M. Ndao"),
 

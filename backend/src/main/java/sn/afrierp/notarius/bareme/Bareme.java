@@ -30,17 +30,85 @@ public final class Bareme {
     public record Tranche(long plancher, Long plafond, double taux) {
     }
 
-    public record Debours(String code, String libelle, long montant) {
+    public record Debours(String code, String libelle, long montant, boolean foncier) {
     }
 
-    /** Droits d'enregistrement de la mutation, par type d'acte. */
-    public static final Map<TypeActe, Double> DROITS_ENREGISTREMENT = new EnumMap<>(Map.of(
-            TypeActe.VENTE_IMMOBILIERE, 0.05,
-            TypeActe.DROIT_DES_SOCIETES, 0.01,
-            TypeActe.SUCCESSION, 0.03,
-            TypeActe.DONATION_FAMILLE, 0.03,
-            TypeActe.BAIL_COMMERCIAL, 0.02,
-            TypeActe.CREDIT_HYPOTHECAIRE, 0.01));
+    /** Fonds a consigner sur le sequestre avant la signature, en plus des frais. */
+    public enum Sequestre {
+        AUCUN, PRIX, CAPITAL
+    }
+
+    /**
+     * Parametres fiscaux et proceduraux d'un type d'acte.
+     *
+     * @param tauxEnregistrement droit proportionnel sur l'assiette ; null = droit fixe
+     * @param droitFixe          droit fixe d'enregistrement (actes sans valeur ou non mutatifs)
+     * @param publiciteFonciere  l'acte est publie au livre foncier (taxe de conservation fonciere)
+     * @param emolumentFixe      emolument forfaitaire ; null = bareme proportionnel degressif
+     * @param formalites         formalites a achever avant la cloture
+     * @param delaiOppositionJours delai d'opposition des creanciers apres publication, pendant lequel
+     *                           le prix reste sequestre (cession de fonds de commerce)
+     */
+    public record ParametresActe(Double tauxEnregistrement, long droitFixe, boolean publiciteFonciere,
+                                 Long emolumentFixe, long emolumentFormalites, Sequestre sequestre,
+                                 List<OrganismeFormalites> formalites, Integer delaiOppositionJours,
+                                 boolean plusValue) {
+    }
+
+    private static ParametresActe proportionnel(double taux, boolean foncier, long formalites, Sequestre sequestre,
+                                                OrganismeFormalites... organismes) {
+        return new ParametresActe(taux, 0, foncier, null, formalites, sequestre, List.of(organismes), null, false);
+    }
+
+    private static ParametresActe forfaitaire(long droitFixe, boolean foncier, long emolument, long formalites,
+                                              OrganismeFormalites... organismes) {
+        return new ParametresActe(null, droitFixe, foncier, emolument, formalites, Sequestre.AUCUN, List.of(organismes), null, false);
+    }
+
+    private static final OrganismeFormalites DGID = OrganismeFormalites.DGID;
+    private static final OrganismeFormalites CF = OrganismeFormalites.CONSERVATION_FONCIERE;
+    private static final OrganismeFormalites RCCM = OrganismeFormalites.GREFFE_RCCM;
+    private static final OrganismeFormalites NINEA = OrganismeFormalites.NINEA;
+    private static final OrganismeFormalites AVIS = OrganismeFormalites.PUBLICATION_LEGALE;
+
+    /** Catalogue : un jeu de parametres par type d'acte (valeurs de demonstration, a valider). */
+    public static final Map<TypeActe, ParametresActe> CATALOGUE = new EnumMap<>(TypeActe.class);
+
+    static {
+        /* Immobilier, foncier & suretes */
+        CATALOGUE.put(TypeActe.VENTE_IMMOBILIERE, new ParametresActe(0.05, 0, true, null, 150_000, Sequestre.PRIX, List.of(DGID, CF), null, true));
+        CATALOGUE.put(TypeActe.PROMESSE_VENTE, forfaitaire(10_000, false, 150_000, 50_000, DGID));
+        CATALOGUE.put(TypeActe.AFFECTATION_HYPOTHECAIRE, proportionnel(0.01, true, 120_000, Sequestre.AUCUN, CF));
+        CATALOGUE.put(TypeActe.MAINLEVEE_HYPOTHEQUE, forfaitaire(25_000, true, 100_000, 50_000, CF));
+        CATALOGUE.put(TypeActe.BAIL_EMPHYTEOTIQUE, proportionnel(0.02, true, 150_000, Sequestre.AUCUN, DGID, CF));
+        CATALOGUE.put(TypeActe.REGLEMENT_COPROPRIETE, new ParametresActe(null, 50_000, true, null, 200_000, Sequestre.AUCUN, List.of(CF), null, false));
+        CATALOGUE.put(TypeActe.BAIL_COMMERCIAL, proportionnel(0.02, false, 100_000, Sequestre.AUCUN, DGID));
+        /* Societes & affaires (OHADA) */
+        CATALOGUE.put(TypeActe.CONSTITUTION_SOCIETE, proportionnel(0.01, false, 200_000, Sequestre.CAPITAL, DGID, RCCM, NINEA, AVIS));
+        CATALOGUE.put(TypeActe.CESSION_PARTS, proportionnel(0.01, false, 150_000, Sequestre.PRIX, DGID, RCCM));
+        CATALOGUE.put(TypeActe.MODIFICATION_STATUTS, proportionnel(0.01, false, 150_000, Sequestre.AUCUN, DGID, RCCM, AVIS));
+        CATALOGUE.put(TypeActe.FUSION_DISSOLUTION, proportionnel(0.01, false, 250_000, Sequestre.AUCUN, DGID, RCCM, AVIS));
+        CATALOGUE.put(TypeActe.CESSION_FONDS_COMMERCE, new ParametresActe(0.05, 0, false, null, 150_000, Sequestre.PRIX, List.of(DGID, AVIS, RCCM), 30, false));
+        CATALOGUE.put(TypeActe.NANTISSEMENT, proportionnel(0.01, false, 100_000, Sequestre.AUCUN, RCCM));
+        /* Famille, successions & patrimoine */
+        CATALOGUE.put(TypeActe.SUCCESSION, proportionnel(0.03, true, 175_000, Sequestre.AUCUN, DGID, CF));
+        CATALOGUE.put(TypeActe.DONATION, proportionnel(0.03, true, 125_000, Sequestre.AUCUN, DGID, CF));
+        CATALOGUE.put(TypeActe.TESTAMENT, forfaitaire(15_000, false, 75_000, 0));
+        CATALOGUE.put(TypeActe.CONTRAT_MARIAGE, forfaitaire(15_000, false, 100_000, 25_000, DGID));
+        // Homologation judiciaire « le cas echeant » : formalite complementaire ajoutee par le formaliste.
+        CATALOGUE.put(TypeActe.CHANGEMENT_REGIME_MATRIMONIAL, forfaitaire(15_000, false, 150_000, 50_000, DGID));
+        CATALOGUE.put(TypeActe.PARTAGE_COMMUNAUTE, proportionnel(0.01, true, 125_000, Sequestre.AUCUN, DGID, CF));
+        CATALOGUE.put(TypeActe.PROCURATION, forfaitaire(5_000, false, 30_000, 0));
+        /* Conservation, authentification & encheres */
+        CATALOGUE.put(TypeActe.DEPOT_RANG_MINUTES, forfaitaire(5_000, false, 50_000, 0, DGID));
+        CATALOGUE.put(TypeActe.ACTE_NOTORIETE, forfaitaire(5_000, false, 50_000, 0));
+        CATALOGUE.put(TypeActe.VENTE_ENCHERES, proportionnel(0.05, true, 250_000, Sequestre.PRIX, DGID, CF));
+    }
+
+    public static ParametresActe parametres(TypeActe type) {
+        return CATALOGUE.get(type);
+    }
+
 
     public static final double CONSERVATION_FONCIERE_TAUX = 0.01;
     public static final long CONSERVATION_FONCIERE_MINIMUM = 25_000;
@@ -53,22 +121,14 @@ public final class Bareme {
             new Tranche(100_000_000, null, 0.008));
     public static final long EMOLUMENTS_MINIMUM = 100_000;
 
-    /** Emoluments de formalites (forfait par acte). */
-    public static final Map<TypeActe, Long> EMOLUMENTS_FORMALITES = new EnumMap<>(Map.of(
-            TypeActe.VENTE_IMMOBILIERE, 150_000L,
-            TypeActe.DROIT_DES_SOCIETES, 200_000L,
-            TypeActe.SUCCESSION, 175_000L,
-            TypeActe.DONATION_FAMILLE, 125_000L,
-            TypeActe.BAIL_COMMERCIAL, 100_000L,
-            TypeActe.CREDIT_HYPOTHECAIRE, 120_000L));
 
     public static final List<Debours> DEBOURS = List.of(
-            new Debours("DEB-ETAT-CIVIL", "Extraits d'etat civil et copies certifiees", 25_000),
-            new Debours("DEB-URBANISME", "Extrait d'urbanisme et note de renseignement", 45_000),
-            new Debours("DEB-CADASTRE", "Releve cadastral et bornage", 60_000),
-            new Debours("DEB-TIMBRE", "Timbres fiscaux et papeterie legale", 35_000),
-            new Debours("DEB-PUBLICITE", "Frais de publication / telepublication", 55_000),
-            new Debours("DEB-TRANSPORT", "Deplacements et diligences administratives", 30_000));
+            new Debours("DEB-ETAT-CIVIL", "Extraits d'etat civil et copies certifiees", 25_000, false),
+            new Debours("DEB-URBANISME", "Extrait d'urbanisme et note de renseignement", 45_000, true),
+            new Debours("DEB-CADASTRE", "Releve cadastral et bornage", 60_000, true),
+            new Debours("DEB-TIMBRE", "Timbres fiscaux et papeterie legale", 35_000, false),
+            new Debours("DEB-PUBLICITE", "Frais de publication / telepublication", 55_000, true),
+            new Debours("DEB-TRANSPORT", "Deplacements et diligences administratives", 30_000, false));
 
     /** TVA applicable aux seuls emoluments et honoraires de l'etude. */
     public static final double TVA_TAUX = 0.18;
@@ -97,17 +157,7 @@ public final class Bareme {
     /** Validite de l'etat des droits reels delivre par la Conservation fonciere (3 mois). */
     public static final int VALIDITE_ETAT_DROITS_REELS_JOURS = 90;
 
-    /** Types d'acte dont le prix doit etre sequestre avant signature, en plus des frais. */
-    public static final Set<TypeActe> SEQUESTRE_PRIX_EXIGE = Set.of(TypeActe.VENTE_IMMOBILIERE);
 
-    /** Formalites post-acte a achever avant la cloture, par type d'acte. */
-    public static final Map<TypeActe, List<OrganismeFormalites>> FORMALITES_REQUISES = new EnumMap<>(Map.of(
-            TypeActe.VENTE_IMMOBILIERE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
-            TypeActe.DROIT_DES_SOCIETES, List.of(OrganismeFormalites.GREFFE_RCCM, OrganismeFormalites.PUBLICATION_LEGALE),
-            TypeActe.SUCCESSION, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
-            TypeActe.DONATION_FAMILLE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
-            TypeActe.BAIL_COMMERCIAL, List.of(OrganismeFormalites.GREFFE_RCCM),
-            TypeActe.CREDIT_HYPOTHECAIRE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE)));
 
     /** Duree legale minimale de conservation des minutes, en annees. */
     public static final int DUREE_CONSERVATION_MINUTES_ANS = 75;

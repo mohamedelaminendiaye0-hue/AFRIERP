@@ -11,7 +11,8 @@ import { DateFrPipe, XofPipe } from '../shared/format.pipes';
 const NATURES_DECAISSEMENT = [
   { code: 'PAIEMENT_TRESOR', libelle: 'Paiement Tresor (droits, conservation)' },
   { code: 'PAIEMENT_TIERS', libelle: 'Paiement tiers (creancier, geometre…)' },
-  { code: 'VERSEMENT_VENDEUR', libelle: 'Versement du prix au vendeur' },
+  { code: 'VERSEMENT_VENDEUR', libelle: 'Versement du prix au vendeur / cedant' },
+  { code: 'DEBLOCAGE_CAPITAL', libelle: 'Liberation du capital a la societe immatriculee' },
   { code: 'HONORAIRES_ETUDE', libelle: 'Prelevement des emoluments' },
   { code: 'RESTITUTION_CLIENT', libelle: 'Restitution du reliquat au client' },
   { code: 'TRANSFERT_CDC', libelle: 'Transfert a la CDC' },
