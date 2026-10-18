@@ -3,6 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   AlerteConformite,
+  Blocage,
+  LigneMinutier,
+  Membre,
+  ReferentielsAgenda,
+  RendezVous,
+  Salle,
+  StatutRendezVous,
+  TypeRendezVous,
   ControleEtancheite,
   DecompteTaxation,
   DossierDetail,
@@ -28,10 +36,24 @@ export interface NouveauDossier {
   intitule: string;
   typeActe: TypeActe;
   montantTransaction: number;
-  clercId: string;
+  prixAcquisition?: number | null;
+  clercId?: string | null;
   notaireId: string;
   bien?: { designation: string; titreFoncier: string; adresse: string; commune: string } | null;
   intervenants: { type: 'PHYSIQUE' | 'MORALE'; nom: string; qualite: string; identifiant?: string }[];
+}
+
+export interface NouveauRendezVous {
+  type: TypeRendezVous;
+  debut: string;
+  dureeMinutes: number;
+  salle: Salle;
+  notaireId?: string | null;
+  collaborateurId?: string | null;
+  dossierId?: string | null;
+  clientNom?: string | null;
+  clientTelephone?: string | null;
+  objet?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -88,20 +110,68 @@ export class ApiService {
     return this.http.post<DossierDetail>(`/api/dossiers/${id}/purge/levee`, {});
   }
 
-  assigner(id: string, clercId: string): Observable<DossierDetail> {
-    return this.http.post<DossierDetail>(`/api/dossiers/${id}/assignation`, { clercId });
+  assigner(id: string, cmd: { clercId?: string | null; notaireId?: string | null }): Observable<DossierDetail> {
+    return this.http.post<DossierDetail>(`/api/dossiers/${id}/assignation`, cmd);
   }
 
-  planifierSignature(id: string, date: string): Observable<DossierDetail> {
-    return this.http.post<DossierDetail>(`/api/dossiers/${id}/rendez-vous-signature`, { date });
+  viserProjet(id: string): Observable<DossierDetail> {
+    return this.http.post<DossierDetail>(`/api/dossiers/${id}/visa-principal-clerc`, {});
+  }
+
+  taxageDefinitif(id: string): Observable<DossierDetail> {
+    return this.http.post<DossierDetail>(`/api/dossiers/${id}/taxage-definitif`, {});
   }
 
   majGainde(id: string, statut: StatutGainde, reference?: string): Observable<DossierDetail> {
     return this.http.post<DossierDetail>(`/api/dossiers/${id}/gainde`, { statut, reference });
   }
 
-  deposerFormalites(id: string, organisme: OrganismeFormalites, reference?: string): Observable<DossierDetail> {
+  deposerFormalite(id: string, organisme: OrganismeFormalites, reference?: string): Observable<DossierDetail> {
     return this.http.post<DossierDetail>(`/api/dossiers/${id}/formalites`, { organisme, reference });
+  }
+
+  acheverFormalite(id: string, organisme: OrganismeFormalites): Observable<DossierDetail> {
+    return this.http.post<DossierDetail>(`/api/dossiers/${id}/formalites/${organisme}/achevement`, {});
+  }
+
+  /* --- Equipe & minutier --- */
+
+  equipe(): Observable<Membre[]> {
+    return this.http.get<Membre[]>('/api/equipe');
+  }
+
+  minutier(): Observable<LigneMinutier[]> {
+    return this.http.get<LigneMinutier[]>('/api/minutier');
+  }
+
+  /* --- Rendez-vous --- */
+
+  referentielsAgenda(): Observable<ReferentielsAgenda> {
+    return this.http.get<ReferentielsAgenda>('/api/rendez-vous/referentiels');
+  }
+
+  agenda(du: string, au: string): Observable<RendezVous[]> {
+    return this.http.get<RendezVous[]>('/api/rendez-vous', { params: { du, au } });
+  }
+
+  rendezVousDuJour(): Observable<RendezVous[]> {
+    return this.http.get<RendezVous[]>('/api/rendez-vous/aujourdhui');
+  }
+
+  verifierRendezVous(cmd: NouveauRendezVous): Observable<Blocage[]> {
+    return this.http.post<Blocage[]>('/api/rendez-vous/verification', cmd);
+  }
+
+  creerRendezVous(cmd: NouveauRendezVous): Observable<RendezVous> {
+    return this.http.post<RendezVous>('/api/rendez-vous', cmd);
+  }
+
+  reporterRendezVous(id: number, debut: string, dureeMinutes?: number): Observable<RendezVous> {
+    return this.http.post<RendezVous>(`/api/rendez-vous/${id}/report`, { debut, dureeMinutes });
+  }
+
+  statutRendezVous(id: number, statut: StatutRendezVous, motif?: string): Observable<RendezVous> {
+    return this.http.post<RendezVous>(`/api/rendez-vous/${id}/statut`, { statut, motif });
   }
 
   /* --- Comptabilite --- */
@@ -136,8 +206,8 @@ export class ApiService {
 
   /* --- Simulateur --- */
 
-  simuler(typeActe: TypeActe, assiette: number, honoraireLibre: number): Observable<DecompteTaxation> {
-    return this.http.post<DecompteTaxation>('/api/taxation/simulation', { typeActe, assiette, honoraireLibre });
+  simuler(typeActe: TypeActe, assiette: number, honoraireLibre: number, prixAcquisition?: number | null): Observable<DecompteTaxation> {
+    return this.http.post<DecompteTaxation>('/api/taxation/simulation', { typeActe, assiette, honoraireLibre, prixAcquisition });
   }
 }
 

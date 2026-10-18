@@ -24,6 +24,7 @@ import sn.afrierp.notarius.common.RegleMetierException;
 import sn.afrierp.notarius.common.RessourceIntrouvableException;
 import sn.afrierp.notarius.compta.ComptaService;
 import sn.afrierp.notarius.domain.Dossier;
+import sn.afrierp.notarius.domain.Formalite;
 import sn.afrierp.notarius.domain.Intervenant;
 import sn.afrierp.notarius.domain.ModeSignature;
 import sn.afrierp.notarius.domain.MouvementComptable;
@@ -67,21 +68,25 @@ import sn.afrierp.notarius.workflow.WorkflowRecords.VerdictTransition;
 @Transactional(readOnly = true)
 public class WorkflowService {
 
-    private static final Set<Role> SUPERVISION = EnumSet.of(Role.NOTAIRE, Role.DIRECTEUR);
-    private static final Set<Role> GESTION_DOSSIER = EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.NOTAIRE, Role.DIRECTEUR);
+    private static final Set<Role> GESTION_DOSSIER = EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.PRINCIPAL_CLERC,
+            Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE);
+    private static final Set<Role> JURIDIQUE = EnumSet.of(Role.CLERC, Role.PRINCIPAL_CLERC,
+            Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE);
 
     private final DossierRepository dossiers;
     private final ComptaService compta;
     private final TaxationService taxation;
     private final AuditService audit;
+    private final RendezVousService rendezVous;
     private final Clock clock;
 
     public WorkflowService(DossierRepository dossiers, ComptaService compta, TaxationService taxation,
-                           AuditService audit, Clock clock) {
+                           AuditService audit, RendezVousService rendezVous, Clock clock) {
         this.dossiers = dossiers;
         this.compta = compta;
         this.taxation = taxation;
         this.audit = audit;
+        this.rendezVous = rendezVous;
         this.clock = clock;
     }
 
@@ -114,7 +119,7 @@ public class WorkflowService {
     }
 
     public DecompteTaxation taxationPrevisionnelle(Dossier dossier) {
-        return taxation.simuler(dossier.getTypeActe(), dossier.getMontantTransaction());
+        return taxation.simuler(dossier.getTypeActe(), dossier.getMontantTransaction(), 0, dossier.getPrixAcquisition());
     }
 
     /**
@@ -159,9 +164,10 @@ public class WorkflowService {
         if (!t.roles().contains(utilisateur.getRole())) {
             blocages.add(new Blocage("ROLE_NON_HABILITE", "Action reservee au profil : %s."
                     .formatted(t.roles().stream().map(Role::getLibelle).sorted().collect(Collectors.joining(", ")))));
-        } else if (t.notaireDuDossier() && utilisateur.getRole() != Role.DIRECTEUR
+        } else if (t.notaireDuDossier() && !utilisateur.getRole().estNotaireEnTitre()
                 && !utilisateur.getId().equals(dossier.getNotaire().getId())) {
-            blocages.add(new Blocage("NOTAIRE_NON_TITULAIRE", "Seul le notaire superviseur du dossier peut realiser cette action."));
+            blocages.add(new Blocage("NOTAIRE_NON_SUPERVISEUR",
+                    "Seul le notaire superviseur du dossier (ou un notaire en titre) peut realiser cette action."));
         }
 
         if (t.retour()) {
@@ -174,6 +180,9 @@ public class WorkflowService {
         /* --- Conditions metier propres au statut vise --- */
         switch (vers) {
             case PENDING_DOCS -> {
+                if (dossier.getClerc() == null) {
+                    blocages.add(new Blocage("CLERC_NON_ASSIGNE", "Assigner un clerc redacteur au dossier (principal clerc ou notaire)."));
+                }
                 if (dossier.getIntervenants().isEmpty()) {
                     blocages.add(new Blocage("INFOS_INCOMPLETES", "Renseigner au moins une partie a l'acte."));
                 }
@@ -182,6 +191,13 @@ public class WorkflowService {
                 }
             }
             case DRAFTING -> ajouterBlocagesPieces(dossier, StatutDossier.DRAFTING, blocages);
+            case REVIEW -> {
+                if (dossier.getTypeActe().estComplexe() && dossier.getVisaPrincipalClercDate() == null) {
+                    blocages.add(new Blocage("VISA_PRINCIPAL_CLERC_ABSENT",
+                            "Dossier complexe (%s) : le projet d'acte doit etre vise par le principal clerc avant soumission au notaire."
+                                    .formatted(dossier.getTypeActe().getLibelle().toLowerCase())));
+                }
+            }
             case FUNDING -> {
                 if (dossier.getMontantTransaction() <= 0) {
                     blocages.add(new Blocage("TAXATION_ABSENTE", "Assiette nulle : le taxage previsionnel ne peut pas etre arrete."));
@@ -206,8 +222,8 @@ public class WorkflowService {
                 }
             }
             case SIGNED -> {
-                if (dossier.getDateSignaturePrevue() == null) {
-                    blocages.add(new Blocage("RDV_NON_PLANIFIE", "Planifier le rendez-vous de signature."));
+                if (rendezVous.signatureActive(dossier.getId()).isEmpty()) {
+                    blocages.add(new Blocage("RDV_NON_PLANIFIE", "Aucun rendez-vous de signature planifie (module Rendez-vous)."));
                 }
                 if (modeSignature == null) {
                     blocages.add(new Blocage("MODE_SIGNATURE_ABSENT", "Choisir le mode de signature (physique ou GAINDE 2000)."));
@@ -220,8 +236,13 @@ public class WorkflowService {
                 }
             }
             case CLOSED -> {
-                if (dossier.getFormalitesDateDepot() == null) {
-                    blocages.add(new Blocage("FORMALITES_NON_DEPOSEES", "Le depot des formalites n'est pas enregistre."));
+                List<OrganismeFormalites> enAttente = formalitesNonAchevees(dossier);
+                if (!enAttente.isEmpty()) {
+                    blocages.add(new Blocage("FORMALITES_INCOMPLETES", "Formalites non achevees : %s."
+                            .formatted(enAttente.stream().map(OrganismeFormalites::getLibelle).collect(Collectors.joining(", ")))));
+                }
+                if (dossier.getTaxageDefinitifDate() == null) {
+                    blocages.add(new Blocage("TAXAGE_DEFINITIF_ABSENT", "Le comptable-taxateur doit arreter le taxage definitif."));
                 }
                 long reliquat = compta.solde(dossier.getId());
                 if (reliquat != 0) {
@@ -234,6 +255,13 @@ public class WorkflowService {
             }
         }
         return new VerdictTransition(blocages.isEmpty(), t, blocages, couverture);
+    }
+
+    /** Formalites requises pour le type d'acte et pas encore achevees par l'administration. */
+    public static List<OrganismeFormalites> formalitesNonAchevees(Dossier dossier) {
+        return Bareme.FORMALITES_REQUISES.getOrDefault(dossier.getTypeActe(), List.of()).stream()
+                .filter(o -> dossier.formalite(o).map(f -> !f.estAchevee()).orElse(true))
+                .toList();
     }
 
     private void ajouterBlocagesPieces(Dossier dossier, StatutDossier statut, List<Blocage> blocages) {
@@ -286,6 +314,11 @@ public class WorkflowService {
         LocalDate date = aujourdhui();
         StatutDossier avant = dossier.getStatut();
 
+        if (vers == StatutDossier.PENDING_DOCS || (avant == StatutDossier.REVIEW && vers == StatutDossier.DRAFTING)) {
+            // Le projet sera retravaille : le visa du principal clerc devra etre redonne.
+            dossier.setVisaPrincipalClercParId(null);
+            dossier.setVisaPrincipalClercDate(null);
+        }
         if (avant == StatutDossier.REVIEW && vers == StatutDossier.TAXING) {
             dossier.setValidationNotaireParId(utilisateur.getId());
             dossier.setValidationNotaireDate(date);
@@ -309,16 +342,35 @@ public class WorkflowService {
                             "encaisse", Long.toString(verdict.couverture().encaisse())));
         }
         if (vers == StatutDossier.SIGNED) {
+            Utilisateur responsable = utilisateur.notaireEngage();
             dossier.setDateSignature(date);
             dossier.setModeSignature(modeSignature);
+            dossier.setNotaireSignataireId(utilisateur.getId());
+            dossier.setNotaireResponsableId(responsable.getId());
             if (modeSignature == ModeSignature.ELECTRONIQUE_GAINDE) {
                 dossier.setGaindeStatut(StatutGainde.TRANSMIS);
                 dossier.setGaindeDateMiseAJour(date);
             }
-            audit.tracer(dossier, TypeEvenement.SIGNATURE, utilisateur, "Minute signee — " + modeSignature.getLibelle(), null);
+            Map<String, String> signature = new LinkedHashMap<>();
+            signature.put("signataire", utilisateur.nomComplet() + " (" + utilisateur.getRole().getLibelle() + ")");
+            if (responsable != utilisateur) {
+                signature.put("responsabilite", responsable.nomComplet() + " — notaire titulaire");
+            }
+            audit.tracer(dossier, TypeEvenement.SIGNATURE, utilisateur, "Minute signee et scellee — " + modeSignature.getLibelle(), signature);
+            rendezVous.marquerSignatureHonoree(dossier);
         }
         if (vers == StatutDossier.CLOSED) {
+            String annee = String.valueOf(date.getYear());
+            long rang = dossiers.countByNumeroRepertoireStartingWith(annee + "/") + 1;
+            LocalDate depart = dossier.getDateSignature() != null ? dossier.getDateSignature() : date;
             dossier.setDateCloture(date);
+            dossier.setNumeroRepertoire("%s/%04d".formatted(annee, rang));
+            dossier.setArchiveParId(utilisateur.getId());
+            dossier.setDateArchivage(date);
+            dossier.setConservationJusquau(depart.plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
+            audit.tracer(dossier, TypeEvenement.ARCHIVAGE_MINUTE, utilisateur,
+                    "Minute archivee — repertoire n° " + dossier.getNumeroRepertoire(),
+                    Map.of("conservationJusquau", dossier.getConservationJusquau().toString()));
         }
 
         Map<String, String> detail = new LinkedHashMap<>();
@@ -351,21 +403,67 @@ public class WorkflowService {
         }
     }
 
-    /** Reassignation dynamique du clerc redacteur, par le notaire ou le directeur. */
+    /**
+     * Assignation du dossier. Le principal clerc et les notaires en titre affectent le
+     * clerc redacteur (planning de production) ; seuls les notaires en titre designent
+     * le notaire superviseur. Chaque changement est trace au journal.
+     */
     @Transactional
-    public Dossier reassignerClerc(String dossierId, Utilisateur clerc, Utilisateur auteur) {
+    public Dossier assigner(String dossierId, Utilisateur clerc, Utilisateur notaire, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, SUPERVISION, "Seul un notaire peut reassigner un dossier.");
-        if (clerc.getRole() != Role.CLERC || !clerc.isActif()) {
-            throw new RegleMetierException("CLERC_INVALIDE", "Le dossier doit etre assigne a un clerc actif.");
+        exigerRole(auteur, Role.ENCADREMENT, "L'assignation des dossiers est reservee au principal clerc et aux notaires en titre.");
+        boolean change = false;
+        if (clerc != null) {
+            if (clerc.getRole() != Role.CLERC && clerc.getRole() != Role.PRINCIPAL_CLERC || !clerc.isActif()) {
+                throw new RegleMetierException("CLERC_INVALIDE", "Le dossier doit etre confie a un clerc actif.");
+            }
+            String avant = dossier.getClerc() == null ? "non assigne" : dossier.getClerc().getId();
+            if (!avant.equals(clerc.getId())) {
+                audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Clerc redacteur : " + clerc.nomComplet(),
+                        Map.of("role", "CLERC", "avant", avant, "apres", clerc.getId()));
+                dossier.setClerc(clerc);
+                change = true;
+            }
         }
-        if (clerc.getId().equals(dossier.getClerc().getId())) {
-            throw new RegleMetierException("DEJA_ASSIGNE", "Ce clerc est deja assigne au dossier.");
+        if (notaire != null) {
+            if (!auteur.getRole().estNotaireEnTitre()) {
+                throw new RegleMetierException("ROLE_NON_HABILITE", "Seul un notaire en titre designe le notaire superviseur.");
+            }
+            if (!notaire.getRole().estNotaire() || !notaire.isActif()) {
+                throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit etre un notaire actif.");
+            }
+            if (dossier.getStatut().estAuMoins(StatutDossier.SIGNED)) {
+                throw new RegleMetierException("ACTE_SIGNE", "L'acte est signe : le notaire instrumentaire ne peut plus changer.");
+            }
+            if (!notaire.getId().equals(dossier.getNotaire().getId())) {
+                audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Notaire superviseur : " + notaire.nomComplet(),
+                        Map.of("role", "NOTAIRE", "avant", dossier.getNotaire().getId(), "apres", notaire.getId()));
+                dossier.setNotaire(notaire);
+                change = true;
+            }
         }
-        audit.tracer(dossier, TypeEvenement.ASSIGNATION, auteur, "Dossier reassigne a " + clerc.nomComplet(),
-                Map.of("avant", dossier.getClerc().getId(), "apres", clerc.getId()));
-        dossier.setClerc(clerc);
+        if (!change) {
+            throw new RegleMetierException("AUCUN_CHANGEMENT", "Ces collaborateurs sont deja assignes au dossier.");
+        }
+        return dossier;
+    }
+
+    /** Visa du principal clerc sur le projet d'acte d'un dossier complexe. */
+    @Transactional
+    public Dossier viserProjet(String dossierId, Utilisateur auteur) {
+        Dossier dossier = dossier(dossierId);
+        exigerRole(auteur, EnumSet.of(Role.PRINCIPAL_CLERC, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE),
+                "Le visa du projet est donne par le principal clerc.");
+        if (dossier.getStatut() != StatutDossier.DRAFTING) {
+            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le projet se vise pendant la redaction.");
+        }
+        if (dossier.getVisaPrincipalClercDate() != null) {
+            throw new RegleMetierException("DEJA_VISE", "Le projet a deja ete vise.");
+        }
+        dossier.setVisaPrincipalClercParId(auteur.getId());
+        dossier.setVisaPrincipalClercDate(aujourdhui());
+        audit.tracer(dossier, TypeEvenement.VISA_PRINCIPAL_CLERC, auteur, "Projet d'acte vise par le principal clerc", null);
         return dossier;
     }
 
@@ -425,7 +523,7 @@ public class WorkflowService {
     public Dossier validerKyc(String dossierId, Long intervenantId, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         exigerNonCloture(dossier);
-        exigerRole(auteur, EnumSet.of(Role.CLERC, Role.NOTAIRE, Role.DIRECTEUR), "Controle KYC reserve aux clercs et aux notaires.");
+        exigerRole(auteur, JURIDIQUE, "Controle KYC reserve aux clercs et aux notaires.");
         Intervenant intervenant = dossier.getIntervenants().stream().filter(i -> i.getId().equals(intervenantId)).findFirst()
                 .orElseThrow(() -> new RessourceIntrouvableException("Partie " + intervenantId + " introuvable."));
         intervenant.setKycValide(true);
@@ -436,29 +534,12 @@ public class WorkflowService {
     @Transactional
     public Dossier leverPurge(String dossierId, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
-        exigerRole(auteur, EnumSet.of(Role.CLERC, Role.NOTAIRE, Role.DIRECTEUR), "Action reservee aux clercs et aux notaires.");
+        exigerRole(auteur, JURIDIQUE, "Action reservee aux clercs et aux notaires.");
         if (!dossier.isPurgeConditionsEnCours()) {
             throw new RegleMetierException("AUCUNE_PURGE", "Aucune purge en cours sur ce dossier.");
         }
         dossier.setPurgeConditionsEnCours(false);
         audit.tracer(dossier, TypeEvenement.PIECE_VALIDEE, auteur, "Purge des droits de preemption / conditions suspensives achevee", null);
-        return dossier;
-    }
-
-    /** Planification du rendez-vous de signature (secretariat / clerc). */
-    @Transactional
-    public Dossier planifierSignature(String dossierId, LocalDate date, Utilisateur auteur) {
-        Dossier dossier = dossier(dossierId);
-        if (dossier.getStatut() != StatutDossier.READY_TO_SIGN) {
-            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le rendez-vous se planifie une fois le dossier pret pour signature.");
-        }
-        exigerRole(auteur, GESTION_DOSSIER, "Planification reservee au secretariat, aux clercs et aux notaires.");
-        if (date == null || date.isBefore(aujourdhui())) {
-            throw new RegleMetierException("DATE_INVALIDE", "Choisir une date a venir.");
-        }
-        audit.tracer(dossier, TypeEvenement.PLANIFICATION_SIGNATURE, auteur, "Rendez-vous de signature planifie",
-                Map.of("avant", String.valueOf(dossier.getDateSignaturePrevue()), "apres", date.toString()));
-        dossier.setDateSignaturePrevue(date);
         return dossier;
     }
 
@@ -469,7 +550,8 @@ public class WorkflowService {
         if (dossier.getModeSignature() != ModeSignature.ELECTRONIQUE_GAINDE) {
             throw new RegleMetierException("HORS_GAINDE", "Ce dossier n'a pas ete signe via GAINDE 2000.");
         }
-        exigerRole(auteur, EnumSet.of(Role.NOTAIRE, Role.DIRECTEUR, Role.FORMALISTE), "Mise a jour reservee aux notaires et au formaliste.");
+        exigerRole(auteur, EnumSet.of(Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE, Role.NOTAIRE_SALARIE, Role.FORMALISTE),
+                "Mise a jour reservee aux notaires et au formaliste.");
         Map<String, String> detail = new LinkedHashMap<>();
         detail.put("avant", String.valueOf(dossier.getGaindeStatut()));
         detail.put("apres", statut.name());
@@ -483,21 +565,63 @@ public class WorkflowService {
         return dossier;
     }
 
-    /** Enregistrement du depot des formalites (Conservation fonciere ou Greffe). */
+    private static final Set<Role> FORMALITES = EnumSet.of(Role.FORMALISTE, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE);
+
+    /** Depot d'une formalite aupres de l'administration (formaliste). */
     @Transactional
-    public Dossier deposerFormalites(String dossierId, OrganismeFormalites organisme, String reference, Utilisateur auteur) {
+    public Dossier deposerFormalite(String dossierId, OrganismeFormalites organisme, String reference, Utilisateur auteur) {
         Dossier dossier = dossier(dossierId);
         if (dossier.getStatut() != StatutDossier.POST_ACT) {
             throw new RegleMetierException("STATUT_INCOMPATIBLE", "Les formalites se deposent au statut « Formalites en cours ».");
         }
-        exigerRole(auteur, EnumSet.of(Role.FORMALISTE, Role.DIRECTEUR), "Depot reserve au formaliste.");
-        dossier.setFormalitesOrganisme(organisme);
-        dossier.setFormalitesDateDepot(aujourdhui());
-        dossier.setFormalitesReference(reference == null || reference.isBlank() ? null : reference.trim());
-        audit.tracer(dossier, TypeEvenement.DEPOT_FORMALITES, auteur,
-                "Formalites deposees — " + (organisme == OrganismeFormalites.CONSERVATION_FONCIERE
-                        ? "Conservation fonciere (DGID)" : "Greffe (RCCM)"),
-                reference == null || reference.isBlank() ? null : Map.of("reference", reference.trim()));
+        exigerRole(auteur, FORMALITES, "Depot reserve au formaliste.");
+        if (dossier.formalite(organisme).isPresent()) {
+            throw new RegleMetierException("DEJA_DEPOSEE", "Formalite deja deposee : " + organisme.getLibelle() + ".");
+        }
+        String ref = reference == null || reference.isBlank() ? null : reference.trim();
+        dossier.getFormalites().add(new Formalite(organisme, aujourdhui(), ref, null));
+        audit.tracer(dossier, TypeEvenement.DEPOT_FORMALITES, auteur, "Formalite deposee — " + organisme.getLibelle(),
+                ref == null ? null : Map.of("reference", ref));
+        return dossier;
+    }
+
+    /** Achevement d'une formalite : mutation faite, inscription prise, avis publie. */
+    @Transactional
+    public Dossier acheverFormalite(String dossierId, OrganismeFormalites organisme, Utilisateur auteur) {
+        Dossier dossier = dossier(dossierId);
+        exigerNonCloture(dossier);
+        exigerRole(auteur, FORMALITES, "Suivi des formalites reserve au formaliste.");
+        Formalite f = dossier.formalite(organisme)
+                .orElseThrow(() -> new RegleMetierException("NON_DEPOSEE", "Formalite non deposee : " + organisme.getLibelle() + "."));
+        if (f.estAchevee()) {
+            throw new RegleMetierException("DEJA_ACHEVEE", "Formalite deja achevee.");
+        }
+        f.setDateAchevement(aujourdhui());
+        audit.tracer(dossier, TypeEvenement.ACHEVEMENT_FORMALITE, auteur,
+                "Formalite achevee — " + organisme.getLibelle() + " (" + organisme.getObjet().toLowerCase() + ")", null);
+        return dossier;
+    }
+
+    /** Taxage definitif par le comptable-taxateur, prealable a la cloture. */
+    @Transactional
+    public Dossier arreterTaxageDefinitif(String dossierId, Utilisateur auteur) {
+        Dossier dossier = dossier(dossierId);
+        exigerRole(auteur, EnumSet.of(Role.COMPTABLE_TAXATEUR, Role.NOTAIRE_TITULAIRE),
+                "Le taxage definitif est arrete par le comptable-taxateur.");
+        if (!dossier.getStatut().estAuMoins(StatutDossier.SIGNED) || dossier.getStatut() == StatutDossier.CLOSED) {
+            throw new RegleMetierException("STATUT_INCOMPATIBLE", "Le taxage definitif s'arrete apres la signature, avant la cloture.");
+        }
+        long definitif = taxationPrevisionnelle(dossier).totaux().totalGeneral();
+        Map<String, String> detail = new LinkedHashMap<>();
+        detail.put("fraisDefinitifs", Long.toString(definitif));
+        if (dossier.getFraisPrevisionnels() != null) {
+            detail.put("ecartPrevisionnel", Long.toString(definitif - dossier.getFraisPrevisionnels()));
+        }
+        detail.put("reliquat", Long.toString(compta.solde(dossierId)));
+        dossier.setFraisDefinitifs(definitif);
+        dossier.setTaxageDefinitifParId(auteur.getId());
+        dossier.setTaxageDefinitifDate(aujourdhui());
+        audit.tracer(dossier, TypeEvenement.TAXAGE_DEFINITIF, auteur, "Taxage definitif arrete", detail);
         return dossier;
     }
 
@@ -526,7 +650,7 @@ public class WorkflowService {
                     NiveauAlerte niveau = delais.retardJours() > cible ? NiveauAlerte.CRITIQUE
                             : delais.retardJours() > 7 ? NiveauAlerte.SERIEUX : NiveauAlerte.VIGILANCE;
                     return new NotificationRetard(d.getId(), d.getReference(), d.getIntitule(), d.getStatut(),
-                            delais.joursDansStatut(), cible, delais.retardJours(), d.getClerc().getId(),
+                            delais.joursDansStatut(), cible, delais.retardJours(), d.getClerc() == null ? null : d.getClerc().getId(),
                             d.getNotaire().getId(), niveau);
                 })
                 .filter(n -> n != null)
@@ -536,11 +660,11 @@ public class WorkflowService {
 
     public List<NotificationRetard> notificationsPour(Utilisateur utilisateur) {
         List<NotificationRetard> toutes = notificationsRetard(dossiers.findAll());
-        if (utilisateur.getRole() == Role.DIRECTEUR) {
+        if (Role.ENCADREMENT.contains(utilisateur.getRole())) {
             return toutes;
         }
         return toutes.stream()
-                .filter(n -> n.clercId().equals(utilisateur.getId()) || n.notaireId().equals(utilisateur.getId()))
+                .filter(n -> utilisateur.getId().equals(n.clercId()) || n.notaireId().equals(utilisateur.getId()))
                 .toList();
     }
 }

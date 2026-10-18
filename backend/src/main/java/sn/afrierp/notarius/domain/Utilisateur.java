@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,6 +31,13 @@ public class Utilisateur {
     private boolean actif = true;
     private LocalDate dateEntree;
 
+    /** Reference de l'acte de nomination (decret) ou de l'agrement, pour les notaires. */
+    private String referenceNomination;
+
+    /** Notaire salarie : notaire titulaire sous la responsabilite duquel il exerce. */
+    @ManyToOne
+    private Utilisateur notaireResponsable;
+
     public Utilisateur(String id, String prenom, String nom, Role role, String initiales, LocalDate dateEntree) {
         this.id = id;
         this.prenom = prenom;
@@ -42,5 +50,13 @@ public class Utilisateur {
 
     public String nomComplet() {
         return prenom + " " + nom;
+    }
+
+    /**
+     * Notaire qui engage sa responsabilite sur un acte authentifie par cet
+     * utilisateur : lui-meme, ou son titulaire s'il est notaire salarie.
+     */
+    public Utilisateur notaireEngage() {
+        return role == Role.NOTAIRE_SALARIE && notaireResponsable != null ? notaireResponsable : this;
     }
 }

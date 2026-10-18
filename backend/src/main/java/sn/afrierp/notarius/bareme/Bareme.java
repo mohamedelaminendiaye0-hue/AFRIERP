@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import sn.afrierp.notarius.domain.OrganismeFormalites;
 import sn.afrierp.notarius.domain.StatutDossier;
 import sn.afrierp.notarius.domain.TypeActe;
 
@@ -98,6 +99,28 @@ public final class Bareme {
 
     /** Types d'acte dont le prix doit etre sequestre avant signature, en plus des frais. */
     public static final Set<TypeActe> SEQUESTRE_PRIX_EXIGE = Set.of(TypeActe.VENTE_IMMOBILIERE);
+
+    /** Formalites post-acte a achever avant la cloture, par type d'acte. */
+    public static final Map<TypeActe, List<OrganismeFormalites>> FORMALITES_REQUISES = new EnumMap<>(Map.of(
+            TypeActe.VENTE_IMMOBILIERE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
+            TypeActe.DROIT_DES_SOCIETES, List.of(OrganismeFormalites.GREFFE_RCCM, OrganismeFormalites.PUBLICATION_LEGALE),
+            TypeActe.SUCCESSION, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
+            TypeActe.DONATION_FAMILLE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE),
+            TypeActe.BAIL_COMMERCIAL, List.of(OrganismeFormalites.GREFFE_RCCM),
+            TypeActe.CREDIT_HYPOTHECAIRE, List.of(OrganismeFormalites.CONSERVATION_FONCIERE)));
+
+    /** Duree legale minimale de conservation des minutes, en annees. */
+    public static final int DUREE_CONSERVATION_MINUTES_ANS = 75;
+
+    /** Taxe sur la plus-value immobiliere, retenue sur le prix revenant au vendeur. */
+    public static final double TAUX_PLUS_VALUE = 0.15;
+
+    /* --- Agenda de l'etude --- */
+    public static final java.time.LocalTime OUVERTURE_ETUDE = java.time.LocalTime.of(8, 0);
+    public static final java.time.LocalTime FERMETURE_ETUDE = java.time.LocalTime.of(18, 0);
+    /** Jours d'ouverture : du lundi (1) au vendredi (5). */
+    public static final Set<java.time.DayOfWeek> JOURS_OUVRES = java.util.EnumSet.range(
+            java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.FRIDAY);
 
     /* --- Objectifs internes (pilotage, non reglementaires) --- */
     public static final int OBJECTIF_DELAI_TRAITEMENT_JOURS = 45;

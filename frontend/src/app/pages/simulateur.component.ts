@@ -19,6 +19,7 @@ export class SimulateurComponent implements OnInit {
   protected typeActe: TypeActe = 'VENTE_IMMOBILIERE';
   protected assiette = 185_000_000;
   protected honoraire = 0;
+  protected prixAcquisition: number | null = null;
 
   private readonly calcul$ = new Subject<void>();
 
@@ -26,7 +27,7 @@ export class SimulateurComponent implements OnInit {
     this.calcul$
       .pipe(
         debounceTime(150),
-        switchMap(() => this.api.simuler(this.typeActe, Number(this.assiette) || 0, Number(this.honoraire) || 0)),
+        switchMap(() => this.api.simuler(this.typeActe, Number(this.assiette) || 0, Number(this.honoraire) || 0, Number(this.prixAcquisition) || null)),
       )
       .subscribe((d) => this.decompte.set(d));
     this.recalculer();

@@ -6,6 +6,7 @@ import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.DROIT_ENREGI
 import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.EMOLUMENT_FORMALITES;
 import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.EMOLUMENT_PROPORTIONNEL;
 import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.HONORAIRE_LIBRE;
+import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.PLUS_VALUE;
 import static sn.afrierp.notarius.bareme.DecompteTaxation.Categorie.TVA;
 
 import java.util.ArrayList;
@@ -45,6 +46,14 @@ public class TaxationService {
     }
 
     public DecompteTaxation simuler(TypeActe typeActe, long assietteBrute, long honoraireLibreBrut) {
+        return simuler(typeActe, assietteBrute, honoraireLibreBrut, null);
+    }
+
+    /**
+     * @param prixAcquisition prix d'acquisition du bien par le vendeur (vente immobiliere) :
+     *                        s'il est connu, la taxe sur la plus-value est calculee.
+     */
+    public DecompteTaxation simuler(TypeActe typeActe, long assietteBrute, long honoraireLibreBrut, Long prixAcquisition) {
         long assiette = Math.max(0, assietteBrute);
         long honoraireLibre = Math.max(0, honoraireLibreBrut);
         List<LigneDecompte> lignes = new ArrayList<>();
@@ -83,6 +92,16 @@ public class TaxationService {
         lignes.add(new LigneDecompte("TVA", "TVA sur emoluments et honoraires", TVA, assietteTva, Bareme.TVA_TAUX,
                 montantTva, false, "TVA %.0f %% — assiette : emoluments + honoraires uniquement".formatted(Bareme.TVA_TAUX * 100)));
 
+        long retenueVendeur = 0;
+        if (typeActe == TypeActe.VENTE_IMMOBILIERE && prixAcquisition != null && prixAcquisition > 0) {
+            long plusValue = Math.max(0, assiette - prixAcquisition);
+            retenueVendeur = Math.round(plusValue * Bareme.TAUX_PLUS_VALUE);
+            lignes.add(new LigneDecompte("PV", "Taxe sur la plus-value immobiliere (a la charge du vendeur)", PLUS_VALUE,
+                    plusValue, Bareme.TAUX_PLUS_VALUE, retenueVendeur, false,
+                    String.format(Locale.FRANCE, "Plus-value = prix %,d - acquisition %,d FCFA ; retenue sur le prix verse au vendeur",
+                            assiette, prixAcquisition)));
+        }
+
         long droitsEtTaxes = somme(lignes, DROIT_ENREGISTREMENT, CONSERVATION_FONCIERE);
         long emoluments = somme(lignes, EMOLUMENT_PROPORTIONNEL, EMOLUMENT_FORMALITES);
         long honoraires = somme(lignes, HONORAIRE_LIBRE);
@@ -90,7 +109,8 @@ public class TaxationService {
         long total = droitsEtTaxes + emoluments + honoraires + debours + montantTva;
 
         return new DecompteTaxation(typeActe, assiette, List.copyOf(lignes),
-                new Totaux(droitsEtTaxes, emoluments, honoraires, debours, montantTva, total, emoluments + honoraires),
+                new Totaux(droitsEtTaxes, emoluments, honoraires, debours, montantTva, total, emoluments + honoraires,
+                        retenueVendeur),
                 Bareme.VERSION);
     }
 

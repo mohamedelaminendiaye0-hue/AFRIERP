@@ -23,6 +23,8 @@ import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.CompteCollectif;
 import sn.afrierp.notarius.domain.Dossier;
 import sn.afrierp.notarius.domain.EvenementAudit;
+import sn.afrierp.notarius.domain.Formalite;
+import sn.afrierp.notarius.bareme.Bareme;
 import sn.afrierp.notarius.domain.Intervenant;
 import sn.afrierp.notarius.domain.ModeSignature;
 import sn.afrierp.notarius.domain.MoyenPaiement;
@@ -45,6 +47,11 @@ import sn.afrierp.notarius.repository.CompteCollectifRepository;
 import sn.afrierp.notarius.repository.DossierRepository;
 import sn.afrierp.notarius.repository.EvenementAuditRepository;
 import sn.afrierp.notarius.repository.MouvementComptableRepository;
+import sn.afrierp.notarius.repository.RendezVousRepository;
+import sn.afrierp.notarius.domain.RendezVous;
+import sn.afrierp.notarius.domain.Salle;
+import sn.afrierp.notarius.domain.StatutRendezVous;
+import sn.afrierp.notarius.domain.TypeRendezVous;
 import sn.afrierp.notarius.repository.UtilisateurRepository;
 import sn.afrierp.notarius.workflow.ModelesPieces;
 
@@ -68,6 +75,7 @@ public class DonneesDemo implements ApplicationRunner {
     private final MouvementComptableRepository mouvements;
     private final EvenementAuditRepository evenements;
     private final CompteCollectifRepository comptes;
+    private final RendezVousRepository rendezVous;
     private final TaxationService taxation;
     private final Clock clock;
 
@@ -76,12 +84,14 @@ public class DonneesDemo implements ApplicationRunner {
 
     public DonneesDemo(UtilisateurRepository utilisateurs, DossierRepository dossiers,
                        MouvementComptableRepository mouvements, EvenementAuditRepository evenements,
-                       CompteCollectifRepository comptes, TaxationService taxation, Clock clock) {
+                       CompteCollectifRepository comptes, RendezVousRepository rendezVous, TaxationService taxation,
+                       Clock clock) {
         this.utilisateurs = utilisateurs;
         this.dossiers = dossiers;
         this.mouvements = mouvements;
         this.evenements = evenements;
         this.comptes = comptes;
+        this.rendezVous = rendezVous;
         this.taxation = taxation;
         this.clock = clock;
     }
@@ -106,6 +116,7 @@ public class DonneesDemo implements ApplicationRunner {
         chargerEcritures();
         poserVisas();
         chargerJournalVedette();
+        chargerRendezVous();
         LOG.info("Donnees de demonstration chargees : {} dossiers, {} ecritures.", dossiers.count(), mouvements.count());
     }
 
@@ -114,15 +125,25 @@ public class DonneesDemo implements ApplicationRunner {
      * ------------------------------------------------------------------ */
 
     private void chargerUtilisateurs() {
+        Utilisateur titulaire = new Utilisateur("U-001", "Aminata", "Ndoye", Role.NOTAIRE_TITULAIRE, "AN", LocalDate.of(2009, 3, 2));
+        titulaire.setReferenceNomination("Decret de nomination n° 2009-212 du 2 mars 2009 (fictif)");
+        Utilisateur associe = new Utilisateur("U-002", "Ousmane", "Sarr", Role.NOTAIRE_ASSOCIE, "OS", LocalDate.of(2014, 9, 1));
+        associe.setReferenceNomination("Associe de la SCP Ndoye & Associes — decret n° 2014-1107 (fictif)");
+        users.put("U-001", utilisateurs.save(titulaire));
+        users.put("U-002", utilisateurs.save(associe));
+        Utilisateur salarie = new Utilisateur("U-010", "Fatou", "Kane", Role.NOTAIRE_SALARIE, "FK", LocalDate.of(2023, 6, 12));
+        salarie.setReferenceNomination("Notaire salarie — agrement n° 2023-045 (fictif)");
+        salarie.setNotaireResponsable(titulaire);
+        users.put("U-010", utilisateurs.save(salarie));
         List.of(
-                new Utilisateur("U-001", "Aminata", "Ndoye", Role.DIRECTEUR, "AN", LocalDate.of(2009, 3, 2)),
-                new Utilisateur("U-002", "Ousmane", "Sarr", Role.NOTAIRE, "OS", LocalDate.of(2014, 9, 1)),
+                new Utilisateur("U-011", "Mamadou", "Gueye", Role.PRINCIPAL_CLERC, "MG", LocalDate.of(2011, 1, 3)),
                 new Utilisateur("U-003", "Awa", "Diallo", Role.CLERC, "AD", LocalDate.of(2017, 1, 16)),
                 new Utilisateur("U-004", "Ibrahima", "Sow", Role.CLERC, "IS", LocalDate.of(2019, 5, 6)),
                 new Utilisateur("U-005", "Coumba", "Ndiaye", Role.CLERC, "CN", LocalDate.of(2021, 2, 15)),
                 new Utilisateur("U-006", "Moussa", "Faye", Role.CLERC, "MF", LocalDate.of(2022, 10, 10)),
-                new Utilisateur("U-007", "Cheikh", "Diop", Role.COMPTABLE, "CD", LocalDate.of(2016, 4, 20)),
+                new Utilisateur("U-007", "Cheikh", "Diop", Role.COMPTABLE_TAXATEUR, "CD", LocalDate.of(2016, 4, 20)),
                 new Utilisateur("U-008", "Mariama", "Tall", Role.FORMALISTE, "MT", LocalDate.of(2019, 6, 3)),
+                new Utilisateur("U-012", "Seynabou", "Diouf", Role.ARCHIVISTE, "SD", LocalDate.of(2015, 3, 9)),
                 new Utilisateur("U-009", "Ndeye", "Ba", Role.ASSISTANT, "NB", LocalDate.of(2023, 1, 9))
         ).forEach(u -> users.put(u.getId(), utilisateurs.save(u)));
     }
@@ -259,9 +280,7 @@ public class DonneesDemo implements ApplicationRunner {
         d116.setGaindeStatut(StatutGainde.VALIDE);
         d116.setGaindeDateMiseAJour(ilYA(27));
         d116.setGaindeReference("GAINDE-2026-118842");
-        d116.setFormalitesOrganisme(OrganismeFormalites.CONSERVATION_FONCIERE);
-        d116.setFormalitesDateDepot(ilYA(18));
-        d116.setFormalitesReference("CF-DKR-2026-4471");
+        d116.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(18), "CF-DKR-2026-4471", null));
         liste.add(d116);
 
         Dossier d112 = dossier("D-0112", "2026-CH-0112", "Credit hypothecaire — Sy / BOA Senegal", TypeActe.CREDIT_HYPOTHECAIRE,
@@ -299,17 +318,20 @@ public class DonneesDemo implements ApplicationRunner {
                 StatutDossier.POST_ACT, 90, "U-005", "U-001", 190, -96, 47_000_000, 11);
         d082.setBien(bien("Parcelle a usage mixte", "TF n° 21 774/DG", "Yoff Layene, lot 88", "Dakar — Yoff", 300, UsageBien.MIXTE));
         signe(d082, 94, ModeSignature.PHYSIQUE);
-        d082.setFormalitesOrganisme(OrganismeFormalites.CONSERVATION_FONCIERE);
-        d082.setFormalitesDateDepot(ilYA(60));
-        d082.setFormalitesReference("CF-DKR-2026-2210");
+        d082.getFormalites().add(new Formalite(OrganismeFormalites.CONSERVATION_FONCIERE, ilYA(60), "CF-DKR-2026-2210", ilYA(12)));
         liste.add(d082);
 
         Dossier d076 = dossier("D-0076", "2026-DS-0076", "Cession de parts — Sahel Distribution SA", TypeActe.DROIT_DES_SOCIETES,
                 StatutDossier.CLOSED, 120, "U-006", "U-002", 220, -140, 180_000_000, 6);
         signe(d076, 138, ModeSignature.PHYSIQUE);
-        d076.setFormalitesOrganisme(OrganismeFormalites.GREFFE_RCCM);
-        d076.setFormalitesDateDepot(ilYA(130));
-        d076.setFormalitesReference("RCCM-SN-DKR-2026-B-0312");
+        d076.getFormalites().add(new Formalite(OrganismeFormalites.GREFFE_RCCM, ilYA(134), "RCCM-SN-DKR-2026-B-0312", ilYA(126)));
+        d076.getFormalites().add(new Formalite(OrganismeFormalites.PUBLICATION_LEGALE, ilYA(134), "Le Soleil — annonce n° 4471", ilYA(131)));
+        d076.setTaxageDefinitifParId("U-007");
+        d076.setTaxageDefinitifDate(ilYA(122));
+        d076.setNumeroRepertoire(ilYA(120).getYear() + "/0001");
+        d076.setArchiveParId("U-012");
+        d076.setDateArchivage(ilYA(120));
+        d076.setConservationJusquau(ilYA(138).plusYears(Bareme.DUREE_CONSERVATION_MINUTES_ANS));
         d076.setDateCloture(ilYA(120));
         liste.add(d076);
 
@@ -319,7 +341,7 @@ public class DonneesDemo implements ApplicationRunner {
         liste.add(d071);
 
         liste.add(dossier("D-0065", "2026-VI-0065", "Vente magasin Guediawaye — Ndao", TypeActe.VENTE_IMMOBILIERE,
-                StatutDossier.DRAFTING, 6, "U-003", "U-002", 34, 22, 31_000_000, 9));
+                StatutDossier.DRAFTING, 6, "U-003", "U-010", 34, 22, 31_000_000, 9));
 
         Dossier d059 = dossier("D-0059", "2026-DF-0059", "Donation immobiliere — famille Seck", TypeActe.DONATION_FAMILLE,
                 StatutDossier.SIGNED, 5, "U-005", "U-001", 61, -5, 41_000_000, 5);
@@ -327,7 +349,7 @@ public class DonneesDemo implements ApplicationRunner {
         liste.add(d059);
 
         Dossier d146 = dossier("D-0146", "2026-VI-0146", "Vente appartement Sacre-Coeur — Mbengue", TypeActe.VENTE_IMMOBILIERE,
-                StatutDossier.DRAFT, 1, "U-004", "U-002", 1, null, 58_000_000, 0);
+                StatutDossier.DRAFT, 1, null, "U-002", 1, null, 58_000_000, 0); // a assigner par le principal clerc
         d146.setBien(bien("Appartement F3, 2e etage", "TF n° 22 015/DG", "Sacre-Coeur 3, villa 9120", "Dakar — Sacre-Coeur", 96, UsageBien.HABITATION));
         d146.ajouterIntervenant(new Intervenant(TypePersonne.PHYSIQUE, "Mme Awa Mbengue", QualiteIntervenant.VENDEUR, null, false));
         liste.add(d146);
@@ -474,6 +496,15 @@ public class DonneesDemo implements ApplicationRunner {
                 };
                 d.setValidationNotaireDate(validation);
             }
+            if (d.getTypeActe().estComplexe() && d.getStatut().estAuMoins(StatutDossier.REVIEW)) {
+                d.setVisaPrincipalClercParId("U-011");
+                d.setVisaPrincipalClercDate(d.getValidationNotaireDate() != null
+                        ? d.getValidationNotaireDate().minusDays(3) : d.getDateEntreeStatut());
+            }
+            if (d.getDateSignature() != null) {
+                d.setNotaireSignataireId(d.getNotaire().getId());
+                d.setNotaireResponsableId(d.getNotaire().notaireEngage().getId());
+            }
             if (d.getStatut().estAuMoins(StatutDossier.FUNDING)) {
                 var decompte = taxation.simuler(d.getTypeActe(), d.getMontantTransaction());
                 d.setFraisPrevisionnels(decompte.totaux().totalGeneral());
@@ -487,6 +518,61 @@ public class DonneesDemo implements ApplicationRunner {
                 d.setMontantCertifie(encaisse);
             }
         }
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Agenda : rendez-vous de la semaine
+     * ------------------------------------------------------------------ */
+
+    /** n-ieme jour ouvre a partir d'aujourd'hui (0 = aujourd'hui s'il est ouvre). */
+    private LocalDate jourOuvre(int n) {
+        LocalDate d = aujourdhui;
+        int compte = Bareme.JOURS_OUVRES.contains(d.getDayOfWeek()) ? 0 : -1;
+        while (compte < n || !Bareme.JOURS_OUVRES.contains(d.getDayOfWeek())) {
+            d = d.plusDays(1);
+            if (Bareme.JOURS_OUVRES.contains(d.getDayOfWeek())) {
+                compte++;
+            }
+        }
+        return d;
+    }
+
+    private void rdv(int jour, String heure, int duree, TypeRendezVous type, Salle salle, String notaire, String collaborateur,
+                     String dossierId, String client, String telephone, String objet, StatutRendezVous statut) {
+        RendezVous r = new RendezVous();
+        r.setType(type);
+        r.setDebut(LocalDateTime.of(jourOuvre(jour), LocalTime.parse(heure)));
+        r.setDureeMinutes(duree);
+        r.setSalle(salle);
+        r.setNotaire(notaire == null ? null : users.get(notaire));
+        r.setCollaborateur(collaborateur == null ? null : users.get(collaborateur));
+        r.setDossier(dossierId == null ? null : dossiers.getReferenceById(dossierId));
+        r.setClientNom(client);
+        r.setClientTelephone(telephone);
+        r.setObjet(objet);
+        r.setStatut(statut);
+        r.setCreeParId("U-009");
+        r.setCreeLe(LocalDateTime.of(aujourdhui.minusDays(3), LocalTime.of(10, 0)));
+        rendezVous.save(r);
+    }
+
+    private void chargerRendezVous() {
+        // Signature du credit hypothecaire (dossier pret pour signature) : fixe la date prevue.
+        rdv(2, "10:00", 90, TypeRendezVous.SIGNATURE, Salle.SALLE_SIGNATURES, "U-002", "U-006", "D-0112",
+                "M. Pape Sy / BOA Senegal", "+221 77 640 12 33", "Signature du pret hypothecaire", StatutRendezVous.CONFIRME);
+        dossiers.findById("D-0112").ifPresent(d -> d.setDateSignaturePrevue(jourOuvre(2)));
+        rdv(1, "09:30", 60, TypeRendezVous.LECTURE_PROJET, Salle.BUREAU_NOTAIRE, "U-002", "U-004", "D-0138",
+                "Heritiers Camara", "+221 76 220 41 18", "Lecture du projet de vente — villa Almadies", StatutRendezVous.CONFIRME);
+        rdv(1, "11:00", 30, TypeRendezVous.REMISE_PIECES, Salle.BUREAU_CLERC, null, "U-005", "D-0131",
+                "SCI Teranga", "+221 33 820 55 10", "Remise de l'etat des droits reels renouvele", StatutRendezVous.PLANIFIE);
+        rdv(1, "15:00", 45, TypeRendezVous.CONSULTATION, Salle.BUREAU_NOTAIRE, "U-001", null, null,
+                "Mme Rokhaya Seck", "+221 77 301 88 42", "Projet de constitution de SCI familiale", StatutRendezVous.PLANIFIE);
+        rdv(2, "15:30", 60, TypeRendezVous.LECTURE_PROJET, Salle.SALLE_REUNION, "U-001", "U-006", "D-0127",
+                "Associes Baobab Logistics", "+221 78 455 09 61", "Relecture des statuts de la SARL", StatutRendezVous.PLANIFIE);
+        rdv(3, "10:30", 30, TypeRendezVous.REMISE_FONDS, Salle.BUREAU_CLERC, null, "U-007", "D-0142",
+                "Mme Khady Gueye", "+221 78 330 12 05", "Complement de provision sur frais", StatutRendezVous.PLANIFIE);
+        rdv(4, "09:00", 45, TypeRendezVous.CONSULTATION, Salle.BUREAU_NOTAIRE, "U-010", "U-011", null,
+                "M. Alioune Mbaye", "+221 70 112 36 90", "Succession — premier rendez-vous", StatutRendezVous.PLANIFIE);
     }
 
     /* ------------------------------------------------------------------ *

@@ -1,0 +1,42 @@
+.semaine { margin: 0 8px; }
+.filtre { width: auto; max-width: 240px; padding: 5px 8px; font-size: 12px; }
+.case { display: inline-flex; gap: 6px; align-items: center; margin: 0; font-weight: 400; color: var(--marine-500); }
+.case input { width: auto; }
+
+.agenda { display: grid; grid-template-columns: 44px repeat(5, minmax(0, 1fr)); padding: 0 12px 12px; overflow-x: auto; }
+.agenda__heures { position: relative; margin-top: 34px; }
+.agenda__heures span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--marine-300); }
+.agenda__jour { min-width: 130px; border-left: 1px solid var(--ivoire-200); }
+.agenda__titre { height: 34px; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--marine-500); }
+.agenda__titre.aujourdhui { color: var(--marine-800); background: var(--or-50); border-radius: 8px 8px 0 0; }
+.agenda__colonne { position: relative; cursor: copy; }
+.ligne-heure { position: absolute; left: 0; right: 0; border-top: 1px solid var(--ivoire-200); pointer-events: none; }
+
+.rdv {
+  position: absolute; padding: 3px 6px; border-radius: 6px; overflow: hidden; text-align: left; cursor: pointer; font: inherit;
+  display: flex; flex-direction: column; gap: 1px; border: 1px solid transparent; border-left-width: 3px;
+  background: var(--neutre-fond); border-color: var(--neutre); color: var(--marine-700);
+}
+.rdv span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rdv__heure { font-size: 10px; font-weight: 600; }
+.rdv__client { font-size: 11px; }
+.rdv__qui { font-size: 10px; color: var(--marine-400); }
+.rdv--signature { background: var(--or-50); border-color: var(--or-400); }
+.rdv--lecture_projet { background: var(--marine-50); border-color: var(--marine-500); }
+.rdv--consultation { background: var(--bon-fond); border-color: var(--bon); }
+.rdv--remise_pieces, .rdv--remise_fonds, .rdv--autre { background: var(--ivoire-200); border-color: var(--marine-300); }
+.rdv--planifie { border-style: dashed; border-left-style: solid; }
+.rdv--annule, .rdv--absent { opacity: 0.45; text-decoration: line-through; }
+.rdv--honore { opacity: 0.7; }
+.rdv.selection { box-shadow: 0 0 0 2px var(--marine-700); z-index: 2; }
+
+.legende { display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; padding: 0 20px 14px; margin: 0; }
+.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1px solid; border-left-width: 3px; margin-right: -8px; }
+
+.detail-rdv { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.detail-rdv p { margin: 0 0 4px; }
+.actions-rdv { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.actions-rdv .ligne-champs { width: 100%; }
+@media (max-width: 800px) { .detail-rdv { grid-template-columns: 1fr; } }
+.rdv.court { flex-direction: row; gap: 4px; align-items: center; padding-top: 1px; padding-bottom: 1px; }
+.rdv.court .rdv__qui { display: none; }

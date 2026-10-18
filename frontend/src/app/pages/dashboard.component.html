@@ -14,7 +14,8 @@
       <div class="carte kpi">
         <div class="kpi__libelle">Dossiers actifs</div>
         <div class="kpi__valeur">{{ t.kpi.dossiersActifs }}</div>
-        <div class="kpi__contexte">{{ t.kpi.dossiersSignesCeMois }} signe(s) ce mois · {{ t.kpi.tauxRetardGlobal | pct }} en retard</div>
+        <div class="kpi__contexte">{{ t.kpi.dossiersSignesCeMois }} signe(s) ce mois · {{ t.kpi.tauxRetardGlobal | pct }} en retard
+          @if (t.dossiersAAssigner > 0) { · <a routerLink="/dossiers" class="badge badge--petit badge--vigilance">{{ t.dossiersAAssigner }} a assigner</a> }</div>
       </div>
       <div class="carte kpi">
         <div class="kpi__libelle">Encours fonds clients</div>
@@ -93,6 +94,31 @@
       </section>
     </div>
 
+    <!-- Rendez-vous du jour -->
+    <section class="carte">
+      <div class="carte__entete">
+        <div><h2>Rendez-vous du jour</h2><p>Clients attendus aujourd'hui a l'etude</p></div>
+        <a class="bouton bouton--secondaire bouton--petit" routerLink="/agenda">Ouvrir l'agenda</a>
+      </div>
+      <div class="table-defilante">
+        <table>
+          <tbody>
+            @for (r of t.rendezVousDuJour; track r.id) {
+              <tr>
+                <td class="chiffres petit"><strong>{{ r.debut.slice(11, 16) }}</strong> – {{ r.fin.slice(11, 16) }}</td>
+                <td class="petit"><strong>{{ r.typeLibelle }}</strong><br /><span class="tres-petit muet">{{ r.clientNom }}</span></td>
+                <td class="petit">{{ r.notaireNom ?? r.collaborateurNom }}<br /><span class="tres-petit muet">{{ r.salleLibelle }}</span></td>
+                <td>@if (r.dossierId) { <a class="ref" [routerLink]="['/dossiers', r.dossierId]">{{ r.dossierReference }}</a> }</td>
+                <td><span class="badge badge--petit" [class.badge--bon]="r.statut === 'CONFIRME'" [class.badge--neutre]="r.statut === 'PLANIFIE'">{{ r.statutLibelle }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td class="vide">Aucun rendez-vous aujourd'hui.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Conformite + charge -->
     <div class="grille grille--3">
       <section class="carte span-2">
@@ -128,8 +154,8 @@
       <section class="carte">
         <div class="carte__entete">
           <div>
-            <h2>Charge par clerc</h2>
-            <p>Dossiers actifs et taux de retard (seuil {{ t.tauxRetardMaximum | pct }})</p>
+            <h2>Planning de production</h2>
+            <p>Dossiers actifs par redacteur et taux de retard (seuil {{ t.tauxRetardMaximum | pct }})</p>
           </div>
         </div>
         <ul class="carte__corps charges">

@@ -12,7 +12,12 @@ import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.EvenementAudit;
 import sn.afrierp.notarius.domain.Intervenant;
 import sn.afrierp.notarius.domain.ModeSignature;
+import sn.afrierp.notarius.domain.Formalite;
 import sn.afrierp.notarius.domain.OrganismeFormalites;
+import sn.afrierp.notarius.domain.RendezVous;
+import sn.afrierp.notarius.domain.Salle;
+import sn.afrierp.notarius.domain.StatutRendezVous;
+import sn.afrierp.notarius.domain.TypeRendezVous;
 import sn.afrierp.notarius.domain.Role;
 import sn.afrierp.notarius.domain.StatutDossier;
 import sn.afrierp.notarius.domain.StatutGainde;
@@ -28,12 +33,59 @@ public final class Vues {
     }
 
     public record UtilisateurVue(String id, String prenom, String nom, String nomComplet, Role role,
-                                 String roleLibelle, String initiales, boolean actif) {
+                                 String roleLibelle, String initiales, boolean actif, boolean notaire,
+                                 boolean encadrement) {
 
         public static UtilisateurVue de(Utilisateur u) {
             return new UtilisateurVue(u.getId(), u.getPrenom(), u.getNom(), u.nomComplet(), u.getRole(),
-                    u.getRole().getLibelle(), u.getInitiales(), u.isActif());
+                    u.getRole().getLibelle(), u.getInitiales(), u.isActif(), u.getRole().estNotaire(),
+                    Role.ENCADREMENT.contains(u.getRole()));
         }
+    }
+
+    /** Fiche d'un membre de l'etude (vue « Equipe »). */
+    public record MembreVue(UtilisateurVue utilisateur, String description, String referenceNomination,
+                            String notaireResponsable, LocalDate dateEntree, long dossiersRediges,
+                            long dossiersSupervises, long rendezVousAVenir) {
+    }
+
+    public record RendezVousVue(Long id, TypeRendezVous type, String typeLibelle, StatutRendezVous statut,
+                                String statutLibelle, LocalDateTime debut, LocalDateTime fin, int dureeMinutes,
+                                Salle salle, String salleLibelle, String notaireId, String notaireNom,
+                                String collaborateurId, String collaborateurNom, String dossierId,
+                                String dossierReference, String clientNom, String clientTelephone, String objet,
+                                int nombreReports, String motifAnnulation) {
+
+        public static RendezVousVue de(RendezVous r) {
+            return new RendezVousVue(r.getId(), r.getType(), r.getType().getLibelle(), r.getStatut(),
+                    r.getStatut().getLibelle(), r.getDebut(), r.getFin(), r.getDureeMinutes(), r.getSalle(),
+                    r.getSalle().getLibelle(), r.getNotaire() == null ? null : r.getNotaire().getId(),
+                    r.getNotaire() == null ? null : r.getNotaire().nomComplet(),
+                    r.getCollaborateur() == null ? null : r.getCollaborateur().getId(),
+                    r.getCollaborateur() == null ? null : r.getCollaborateur().nomComplet(),
+                    r.getDossier() == null ? null : r.getDossier().getId(),
+                    r.getDossier() == null ? null : r.getDossier().getReference(), r.getClientNom(),
+                    r.getClientTelephone(), r.getObjet(), r.getNombreReports(), r.getMotifAnnulation());
+        }
+    }
+
+    public record FormaliteVue(OrganismeFormalites organisme, String libelle, String objet, boolean requise,
+                               LocalDate dateDepot, String reference, LocalDate dateAchevement) {
+
+        public static FormaliteVue de(OrganismeFormalites o, boolean requise, Formalite f) {
+            return new FormaliteVue(o, o.getLibelle(), o.getObjet(), requise, f == null ? null : f.getDateDepot(),
+                    f == null ? null : f.getReference(), f == null ? null : f.getDateAchevement());
+        }
+    }
+
+    public record MinuteVue(String numeroRepertoire, LocalDate dateArchivage, String archiveParNom,
+                            LocalDate conservationJusquau) {
+    }
+
+    /** Ligne du minutier (repertoire des minutes archivees). */
+    public record LigneMinutier(String numeroRepertoire, String dossierId, String reference, String intitule,
+                                String typeActeLibelle, LocalDate dateSignature, String notaireSignataire,
+                                String notaireResponsable, LocalDate dateArchivage, LocalDate conservationJusquau) {
     }
 
     public record StatutVue(StatutDossier code, String libelle, String acteur, String description, int rang,
@@ -41,10 +93,11 @@ public final class Vues {
     }
 
     public record TransitionVue(StatutDossier de, StatutDossier vers, String action, List<Role> roles,
-                                boolean notaireDuDossier, boolean retour) {
+                                List<String> rolesLibelles, boolean notaireDuDossier, boolean retour) {
 
         public static TransitionVue de(Transition t) {
-            return new TransitionVue(t.de(), t.vers(), t.action(), t.roles().stream().sorted().toList(),
+            List<Role> roles = t.roles().stream().sorted().toList();
+            return new TransitionVue(t.de(), t.vers(), t.action(), roles, roles.stream().map(Role::getLibelle).toList(),
                     t.notaireDuDossier(), t.retour());
         }
     }
@@ -59,7 +112,7 @@ public final class Vues {
     public record DossierResume(
             String id, String reference, String intitule, TypeActe typeActe, String typeActeLibelle,
             StatutDossier statut, String statutLibelle, String clercId, String clercNom, String notaireId,
-            String notaireNom, LocalDate dateOuverture, LocalDate dateSignaturePrevue, LocalDate dateSignature,
+            String notaireNom, boolean typeComplexe, LocalDate dateOuverture, LocalDate dateSignaturePrevue, LocalDate dateSignature,
             long montantTransaction, double tauxCompletudePieces, long soldeFonds, long joursDansStatut,
             Integer delaiCibleJours, long retardStatutJours, long retardSignatureJours, boolean alerteCdc,
             boolean purgeConditionsEnCours, ModeSignature modeSignature, StatutGainde gaindeStatut) {
@@ -93,12 +146,11 @@ public final class Vues {
     public record Visa(String parId, String parNom, LocalDate date) {
     }
 
-    public record Signature(ModeSignature mode, String modeLibelle, LocalDate date, StatutGainde gaindeStatut,
+    public record Signature(ModeSignature mode, String modeLibelle, LocalDate date, String signataireNom,
+                            String signataireRole, String responsableNom, StatutGainde gaindeStatut,
                             String gaindeStatutLibelle, LocalDate gaindeDateMiseAJour, String gaindeReference) {
     }
 
-    public record Formalites(OrganismeFormalites organisme, LocalDate dateDepot, String reference) {
-    }
 
     public record DossierDetail(
             DossierResume resume,
@@ -112,8 +164,13 @@ public final class Vues {
             Visa validationNotaire,
             Visa certificationFonds,
             Long montantCertifie,
+            Visa visaPrincipalClerc,
+            Visa taxageDefinitif,
+            Long fraisDefinitifs,
             Signature signature,
-            Formalites formalites,
+            List<FormaliteVue> formalites,
+            MinuteVue minute,
+            List<RendezVousVue> rendezVous,
             SousCompte sousCompte,
             List<LigneReleve> releve,
             List<ActionVue> actions,

@@ -1,0 +1,172 @@
+<div class="page">
+  <header class="page__entete entete-ligne">
+    <div>
+      <h1>Agenda de l'etude</h1>
+      <p>Prise de rendez-vous : conflits de notaire, de collaborateur et de salle verifies avant enregistrement.</p>
+    </div>
+    <button class="bouton bouton--or" type="button" (click)="ouvrirFormulaire()">Nouveau rendez-vous</button>
+  </header>
+
+  @if (message(); as m) { <div class="bandeau bandeau--bon">{{ m }}</div> }
+
+  <section class="carte">
+    <div class="filtres">
+      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="semaine(-1)" aria-label="Semaine precedente">←</button>
+      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="semaine(0)">Cette semaine</button>
+      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="semaine(1)" aria-label="Semaine suivante">→</button>
+      <strong class="petit semaine">{{ libelleSemaine() }}</strong>
+      <select class="filtre" [(ngModel)]="filtrePersonne" (ngModelChange)="rafraichirFiltres()" aria-label="Filtrer par personne">
+        <option value="">Toute l'etude</option>
+        @for (u of personnes(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} — {{ u.roleLibelle }}</option> }
+      </select>
+      <select class="filtre" [(ngModel)]="filtreSalle" (ngModelChange)="rafraichirFiltres()" aria-label="Filtrer par lieu">
+        <option value="">Tous les lieux</option>
+        @for (s of referentiels()?.salles ?? []; track s.code) { <option [value]="s.code">{{ s.libelle }}</option> }
+      </select>
+      <label class="case"><input type="checkbox" [(ngModel)]="masquerClos" (ngModelChange)="rafraichirFiltres()" /> Masquer annules / absents</label>
+    </div>
+
+    <div class="agenda">
+      <div class="agenda__heures" [style.height.px]="hauteurGrille()">
+        @for (h of heures(); track h) { <span [style.top.px]="(h - heures()[0]) * 66">{{ h }}h</span> }
+      </div>
+      @for (j of jours(); track j.date) {
+        <div class="agenda__jour">
+          <div class="agenda__titre" [class.aujourdhui]="j.aujourdhui">{{ j.libelle }}</div>
+          <div class="agenda__colonne" [style.height.px]="hauteurGrille()" (click)="nouveauSurCreneau(j.date, $event)"
+               title="Cliquer sur un creneau libre pour planifier">
+            @for (h of heures(); track h) { <span class="ligne-heure" [style.top.px]="(h - heures()[0]) * 66"></span> }
+            @for (b of blocsParJour()[j.date] ?? []; track b.rdv.id) {
+              <button type="button" class="rdv" [class]="'rdv rdv--' + b.rdv.type.toLowerCase() + ' rdv--' + b.rdv.statut.toLowerCase()"
+                      [class.selection]="selection()?.id === b.rdv.id" [class.court]="b.rdv.dureeMinutes <= 30"
+                      [title]="heure(b.rdv.debut) + ' — ' + b.rdv.typeLibelle + ' — ' + (b.rdv.clientNom ?? '')"
+                      [style.top.px]="b.haut" [style.height.px]="b.hauteur"
+                      [style.left.%]="(b.couloir / b.couloirs) * 100" [style.width.%]="100 / b.couloirs"
+                      (click)="selectionner(b.rdv)">
+                <span class="rdv__heure">{{ heure(b.rdv.debut) }} · {{ b.rdv.typeLibelle }}</span>
+                <span class="rdv__client">{{ b.rdv.clientNom }}</span>
+                <span class="rdv__qui">{{ b.rdv.notaireNom ?? b.rdv.collaborateurNom }} · {{ b.rdv.salleLibelle }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <p class="legende tres-petit muet">
+      <span class="pastille rdv--signature"></span> Signature
+      <span class="pastille rdv--lecture_projet"></span> Lecture de projet
+      <span class="pastille rdv--consultation"></span> Consultation
+      <span class="pastille rdv--remise_pieces"></span> Pieces / fonds · bordure pointillee : non confirme
+    </p>
+  </section>
+
+  @if (formulaireOuvert()) {
+    <section class="carte">
+      <div class="carte__entete">
+        <div><h2>Nouveau rendez-vous</h2><p>Horaires de l'etude : {{ referentiels()?.ouverture }} – {{ referentiels()?.fermeture }}, du lundi au vendredi</p></div>
+        <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="formulaireOuvert.set(false)">Fermer</button>
+      </div>
+      <form class="carte__corps" (ngSubmit)="creer()">
+        <div class="grille grille--4">
+          <div class="champ">
+            <label for="type">Type</label>
+            <select id="type" name="type" [(ngModel)]="form.type" (ngModelChange)="changerType()">
+              @for (t of referentiels()?.types ?? []; track t.code) { <option [value]="t.code">{{ t.libelle }}</option> }
+            </select>
+          </div>
+          <div class="champ"><label for="date">Date</label><input id="date" name="date" type="date" [(ngModel)]="form.date" (ngModelChange)="verifier()" /></div>
+          <div class="champ"><label for="heure">Heure</label><input id="heure" name="heure" type="time" step="900" [(ngModel)]="form.heure" (ngModelChange)="verifier()" /></div>
+          <div class="champ"><label for="duree">Duree (min)</label><input id="duree" name="duree" type="number" min="15" max="240" step="15" [(ngModel)]="form.duree" (ngModelChange)="verifier()" /></div>
+          <div class="champ">
+            <label for="salle">Lieu</label>
+            <select id="salle" name="salle" [(ngModel)]="form.salle" (ngModelChange)="verifier()">
+              @for (s of referentiels()?.salles ?? []; track s.code) { <option [value]="s.code">{{ s.libelle }}</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="notaire">Notaire</label>
+            <select id="notaire" name="notaire" [(ngModel)]="form.notaireId" (ngModelChange)="verifier()">
+              <option value="">— aucun —</option>
+              @for (u of notaires(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} ({{ u.roleLibelle }})</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="collab">Collaborateur</label>
+            <select id="collab" name="collab" [(ngModel)]="form.collaborateurId" (ngModelChange)="verifier()">
+              <option value="">— aucun —</option>
+              @for (u of collaborateurs(); track u.id) { <option [value]="u.id">{{ u.nomComplet }} ({{ u.roleLibelle }})</option> }
+            </select>
+          </div>
+          <div class="champ">
+            <label for="dossier">Dossier {{ form.type === 'SIGNATURE' ? '(prets pour signature)' : '(facultatif)' }}</label>
+            <select id="dossier" name="dossier" [(ngModel)]="form.dossierId" (ngModelChange)="choisirDossier()">
+              <option value="">— sans dossier —</option>
+              @for (d of dossiersProposes(); track d.id) { <option [value]="d.id">{{ d.reference }} — {{ d.intitule }}</option> }
+            </select>
+          </div>
+          <div class="champ"><label for="client">Client</label><input id="client" name="client" [(ngModel)]="form.clientNom" (ngModelChange)="verifier()" placeholder="Nom du client" /></div>
+          <div class="champ"><label for="tel">Telephone</label><input id="tel" name="tel" [(ngModel)]="form.clientTelephone" placeholder="+221 …" /></div>
+          <div class="champ span-2"><label for="objet">Objet</label><input id="objet" name="objet" [(ngModel)]="form.objet" /></div>
+        </div>
+
+        @if (blocages().length) {
+          <div class="bandeau bandeau--critique">
+            <div><strong>Creneau indisponible :</strong>
+              <ul>@for (b of blocages(); track $index) { <li>{{ b.message }}</li> }</ul>
+            </div>
+          </div>
+        } @else if (form.date) {
+          <div class="bandeau bandeau--bon">Creneau disponible.</div>
+        }
+        @if (erreur(); as e) { <div class="bandeau bandeau--critique">{{ e.message }}</div> }
+        <div class="actions-form">
+          <span class="petit muet">Planifie par {{ session.utilisateur()?.nomComplet }}</span>
+          <button class="bouton" type="submit" [disabled]="blocages().length > 0 || !form.date">Enregistrer le rendez-vous</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (selection(); as r) {
+    <section class="carte">
+      <div class="carte__entete">
+        <div>
+          <h2>{{ r.typeLibelle }} — {{ r.clientNom }}</h2>
+          <p>{{ r.debut | dateFr: true }} → {{ heure(r.fin) }} · {{ r.salleLibelle }} · <strong>{{ r.statutLibelle }}</strong>
+            @if (r.nombreReports) { · reporte {{ r.nombreReports }} fois }</p>
+        </div>
+        <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="selection.set(null)">Fermer</button>
+      </div>
+      <div class="carte__corps detail-rdv">
+        <div class="petit">
+          <p>Notaire : <strong>{{ r.notaireNom ?? '—' }}</strong> · Collaborateur : <strong>{{ r.collaborateurNom ?? '—' }}</strong></p>
+          @if (r.dossierId) { <p>Dossier : <a [routerLink]="['/dossiers', r.dossierId]">{{ r.dossierReference }}</a></p> }
+          @if (r.clientTelephone) { <p>Telephone : {{ r.clientTelephone }}</p> }
+          @if (r.objet) { <p>Objet : {{ r.objet }}</p> }
+          @if (r.motifAnnulation) { <p>Motif d'annulation : {{ r.motifAnnulation }}</p> }
+        </div>
+        @if (actif(r)) {
+          <div class="actions-rdv">
+            @if (r.statut === 'PLANIFIE') { <button class="bouton bouton--petit" type="button" (click)="changerStatut(r, 'CONFIRME')">Confirmer</button> }
+            @if (estPasse(r) && r.type !== 'SIGNATURE') {
+              <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="changerStatut(r, 'HONORE')">Honore</button>
+              <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="changerStatut(r, 'ABSENT')">Client absent</button>
+            }
+            @if (r.type === 'SIGNATURE') { <p class="tres-petit muet">La signature est constatee depuis le dossier (« Signer la minute »).</p> }
+            <div class="ligne-champs">
+              <input type="datetime-local" step="900" [(ngModel)]="reportDate" aria-label="Nouvelle date" />
+              <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="reporter(r)">Reporter</button>
+            </div>
+            <div class="ligne-champs">
+              <input [(ngModel)]="motifAnnulation" placeholder="Motif de l'annulation" aria-label="Motif de l'annulation" />
+              <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!motifAnnulation.trim()" (click)="changerStatut(r, 'ANNULE')">Annuler</button>
+            </div>
+          </div>
+        }
+        @if (erreur(); as e) {
+          <div class="bandeau bandeau--critique"><div>{{ e.message }}</div></div>
+        }
+      </div>
+    </section>
+  }
+</div>

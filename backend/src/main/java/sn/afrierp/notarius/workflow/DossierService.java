@@ -34,16 +34,23 @@ public class DossierService {
     }
 
     @Transactional
-    public Dossier creer(String intitule, TypeActe typeActe, long montantTransaction, Utilisateur clerc,
-                         Utilisateur notaire, Bien bien, List<Intervenant> intervenants, Utilisateur auteur) {
-        if (!EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.NOTAIRE, Role.DIRECTEUR).contains(auteur.getRole())) {
+    public Dossier creer(String intitule, TypeActe typeActe, long montantTransaction, Long prixAcquisition,
+                         Utilisateur clerc, Utilisateur notaire, Bien bien, List<Intervenant> intervenants,
+                         Utilisateur auteur) {
+        if (!EnumSet.of(Role.ASSISTANT, Role.CLERC, Role.PRINCIPAL_CLERC, Role.NOTAIRE_TITULAIRE, Role.NOTAIRE_ASSOCIE,
+                Role.NOTAIRE_SALARIE).contains(auteur.getRole())) {
             throw new RegleMetierException("ROLE_NON_HABILITE", "Ouverture de dossier reservee a l'accueil, aux clercs et aux notaires.");
         }
-        if (clerc.getRole() != Role.CLERC || !clerc.isActif()) {
+        // Le clerc peut etre affecte plus tard par le principal clerc (file « a assigner »).
+        if (clerc != null && ((clerc.getRole() != Role.CLERC && clerc.getRole() != Role.PRINCIPAL_CLERC) || !clerc.isActif())) {
             throw new RegleMetierException("CLERC_INVALIDE", "Le clerc redacteur doit etre un clerc actif.");
         }
-        if (notaire.getRole() != Role.NOTAIRE && notaire.getRole() != Role.DIRECTEUR) {
-            throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit etre un notaire.");
+        if (!notaire.getRole().estNotaire() || !notaire.isActif()) {
+            throw new RegleMetierException("NOTAIRE_INVALIDE", "Le superviseur doit etre un notaire actif.");
+        }
+        if (clerc != null && !Role.ENCADREMENT.contains(auteur.getRole()) && !clerc.getId().equals(auteur.getId())) {
+            throw new RegleMetierException("ROLE_NON_HABILITE",
+                    "Seuls le principal clerc et les notaires en titre affectent un dossier a un autre clerc.");
         }
         LocalDate date = LocalDate.now(clock);
         long sequence = dossiers.count() + 147;
@@ -61,6 +68,7 @@ public class DossierService {
         d.setDateEntreeStatut(date);
         d.setDateOuverture(date);
         d.setMontantTransaction(montantTransaction);
+        d.setPrixAcquisition(prixAcquisition);
         d.setClerc(clerc);
         d.setNotaire(notaire);
         d.setBien(bien);
@@ -71,7 +79,8 @@ public class DossierService {
         ModelesPieces.pour(typeActe).forEach(m -> d.ajouterPiece(m.instancier()));
         Dossier enregistre = dossiers.save(d);
         audit.tracer(enregistre, TypeEvenement.CREATION, auteur, "Ouverture du dossier — " + enregistre.getIntitule(),
-                Map.of("reference", enregistre.getReference(), "clerc", clerc.getId(), "notaire", notaire.getId()));
+                Map.of("reference", enregistre.getReference(), "clerc", clerc == null ? "a assigner" : clerc.getId(),
+                        "notaire", notaire.getId()));
         return enregistre;
     }
 }

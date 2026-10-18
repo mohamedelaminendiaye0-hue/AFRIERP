@@ -16,6 +16,7 @@ import sn.afrierp.notarius.common.RessourceIntrouvableException;
 import sn.afrierp.notarius.domain.Bien;
 import sn.afrierp.notarius.domain.Dossier;
 import sn.afrierp.notarius.domain.Intervenant;
+import sn.afrierp.notarius.domain.OrganismeFormalites;
 import sn.afrierp.notarius.domain.Utilisateur;
 import sn.afrierp.notarius.repository.DossierRepository;
 import sn.afrierp.notarius.repository.UtilisateurRepository;
@@ -73,9 +74,13 @@ public class DossierController {
                 cmd.bien().superficieM2(), cmd.bien().usage());
         List<Intervenant> intervenants = cmd.intervenants() == null ? List.of() : cmd.intervenants().stream()
                 .map(DossierController::intervenant).toList();
-        Dossier d = dossierService.creer(cmd.intitule(), cmd.typeActe(), cmd.montantTransaction(),
-                utilisateur(cmd.clercId()), utilisateur(cmd.notaireId()), bien, intervenants, moi);
+        Dossier d = dossierService.creer(cmd.intitule(), cmd.typeActe(), cmd.montantTransaction(), cmd.prixAcquisition(),
+                optionnel(cmd.clercId()), utilisateur(cmd.notaireId()), bien, intervenants, moi);
         return mapper.detail(d, moi);
+    }
+
+    private Utilisateur optionnel(String id) {
+        return id == null || id.isBlank() ? null : utilisateur(id);
     }
 
     private static Intervenant intervenant(Commandes.NouvelIntervenant i) {
@@ -122,14 +127,19 @@ public class DossierController {
     @Transactional
     public DossierDetail assigner(@PathVariable String id, @Valid @RequestBody Commandes.Assignation cmd,
                                   @UtilisateurCourant Utilisateur moi) {
-        return mapper.detail(workflow.reassignerClerc(id, utilisateur(cmd.clercId()), moi), moi);
+        return mapper.detail(workflow.assigner(id, optionnel(cmd.clercId()), optionnel(cmd.notaireId()), moi), moi);
     }
 
-    @PostMapping("/{id}/rendez-vous-signature")
+    @PostMapping("/{id}/visa-principal-clerc")
     @Transactional
-    public DossierDetail planifier(@PathVariable String id, @Valid @RequestBody Commandes.Planification cmd,
-                                   @UtilisateurCourant Utilisateur moi) {
-        return mapper.detail(workflow.planifierSignature(id, cmd.date(), moi), moi);
+    public DossierDetail viser(@PathVariable String id, @UtilisateurCourant Utilisateur moi) {
+        return mapper.detail(workflow.viserProjet(id, moi), moi);
+    }
+
+    @PostMapping("/{id}/taxage-definitif")
+    @Transactional
+    public DossierDetail taxageDefinitif(@PathVariable String id, @UtilisateurCourant Utilisateur moi) {
+        return mapper.detail(workflow.arreterTaxageDefinitif(id, moi), moi);
     }
 
     @PostMapping("/{id}/gainde")
@@ -141,8 +151,15 @@ public class DossierController {
 
     @PostMapping("/{id}/formalites")
     @Transactional
-    public DossierDetail formalites(@PathVariable String id, @Valid @RequestBody Commandes.DepotFormalites cmd,
-                                    @UtilisateurCourant Utilisateur moi) {
-        return mapper.detail(workflow.deposerFormalites(id, cmd.organisme(), cmd.reference(), moi), moi);
+    public DossierDetail deposerFormalite(@PathVariable String id, @Valid @RequestBody Commandes.DepotFormalite cmd,
+                                          @UtilisateurCourant Utilisateur moi) {
+        return mapper.detail(workflow.deposerFormalite(id, cmd.organisme(), cmd.reference(), moi), moi);
+    }
+
+    @PostMapping("/{id}/formalites/{organisme}/achevement")
+    @Transactional
+    public DossierDetail acheverFormalite(@PathVariable String id, @PathVariable OrganismeFormalites organisme,
+                                          @UtilisateurCourant Utilisateur moi) {
+        return mapper.detail(workflow.acheverFormalite(id, organisme, moi), moi);
     }
 }

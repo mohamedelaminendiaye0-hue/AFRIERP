@@ -29,6 +29,11 @@ const LIBELLE_EVENEMENT: Record<string, string | undefined> = {
   VALIDATION_NOTAIRE: 'Visa du notaire',
   CERTIFICATION_FONDS: 'Certification des fonds',
   PLANIFICATION_SIGNATURE: 'Rendez-vous de signature',
+  RENDEZ_VOUS: 'Rendez-vous',
+  VISA_PRINCIPAL_CLERC: 'Visa principal clerc',
+  ACHEVEMENT_FORMALITE: 'Formalite achevee',
+  TAXAGE_DEFINITIF: 'Taxage definitif',
+  ARCHIVAGE_MINUTE: 'Archivage de la minute',
   SIGNATURE: 'Signature',
   SUIVI_GAINDE: 'GAINDE 2000',
   DEPOT_FORMALITES: 'Formalites',
@@ -60,18 +65,20 @@ export class DossierDetailComponent implements OnInit {
   /* Saisies propres aux actions */
   protected motifs: Record<string, string> = {};
   protected modeSignature: ModeSignature = 'PHYSIQUE';
-  protected dateRdv = '';
   protected clercChoisi = '';
+  protected notaireChoisi = '';
   protected statutGainde: StatutGainde = 'VALIDE';
   protected referenceGainde = '';
-  protected organisme: OrganismeFormalites = 'CONSERVATION_FONCIERE';
-  protected referenceFormalites = '';
+  protected referencesFormalites: Partial<Record<OrganismeFormalites, string>> = {};
   protected nouvellePartie = { nom: '', qualite: 'ACQUEREUR', type: 'PHYSIQUE', identifiant: '' };
 
   protected readonly libelleEvenement = LIBELLE_EVENEMENT;
   protected readonly statutsPiece: StatutPiece[] = ['MANQUANTE', 'DEMANDEE', 'RECUE', 'VALIDEE', 'REJETEE'];
 
-  protected readonly clercs = computed(() => this.session.utilisateurs().filter((u) => u.role === 'CLERC' && u.actif));
+  protected readonly clercs = computed(() =>
+    this.session.utilisateurs().filter((u) => (u.role === 'CLERC' || u.role === 'PRINCIPAL_CLERC') && u.actif),
+  );
+  protected readonly notaires = computed(() => this.session.utilisateurs().filter((u) => u.notaire && u.actif));
 
   protected readonly avancees = computed(() => this.dossier()?.actions.filter((a) => !a.transition.retour) ?? []);
   protected readonly retours = computed(() => this.dossier()?.actions.filter((a) => a.transition.retour) ?? []);
@@ -81,6 +88,10 @@ export class DossierDetailComponent implements OnInit {
     if (!d) return [];
     return d.pieces.filter((p) => p.obligatoire && (!['RECUE', 'VALIDEE'].includes(p.statut) || p.perimee));
   });
+
+  protected readonly signaturePlanifiee = computed(() =>
+    (this.dossier()?.rendezVous ?? []).some((r) => r.type === 'SIGNATURE' && (r.statut === 'PLANIFIE' || r.statut === 'CONFIRME')),
+  );
 
   protected readonly tauxCouverture = computed(() => {
     const c = this.dossier()?.couverture;
@@ -158,20 +169,35 @@ export class DossierDetailComponent implements OnInit {
   }
 
   protected assigner(): void {
-    this.executer(this.api.assigner(this.id(), this.clercChoisi), 'Dossier reassigne.');
+    this.executer(
+      this.api.assigner(this.id(), { clercId: this.clercChoisi || null, notaireId: this.notaireChoisi || null }),
+      'Assignation enregistree.',
+    );
+    this.clercChoisi = '';
+    this.notaireChoisi = '';
   }
 
-  protected planifier(): void {
-    this.executer(this.api.planifierSignature(this.id(), this.dateRdv), 'Rendez-vous de signature planifie.');
+  protected viser(): void {
+    this.executer(this.api.viserProjet(this.id()), 'Projet vise par le principal clerc.');
+  }
+
+  protected taxageDefinitif(): void {
+    this.executer(this.api.taxageDefinitif(this.id()), 'Taxage definitif arrete.');
+  }
+
+  protected deposer(organisme: OrganismeFormalites): void {
+    this.executer(this.api.deposerFormalite(this.id(), organisme, this.referencesFormalites[organisme]), 'Formalite deposee.');
+  }
+
+  protected achever(organisme: OrganismeFormalites): void {
+    this.executer(this.api.acheverFormalite(this.id(), organisme), 'Formalite achevee.');
   }
 
   protected majGainde(): void {
     this.executer(this.api.majGainde(this.id(), this.statutGainde, this.referenceGainde), 'Statut GAINDE 2000 mis a jour.');
   }
 
-  protected deposerFormalites(): void {
-    this.executer(this.api.deposerFormalites(this.id(), this.organisme, this.referenceFormalites), 'Depot des formalites enregistre.');
-  }
+
 
   protected entreesDetail(detail: Record<string, string>): [string, string][] {
     return Object.entries(detail ?? {});

@@ -25,8 +25,11 @@ export class AppComponent implements OnInit {
   protected readonly navigation = [
     { lien: '/dashboard', libelle: 'Tableau de bord', sousTitre: 'Pilotage de l\'etude' },
     { lien: '/dossiers', libelle: 'Dossiers', sousTitre: 'Cycle de vie des actes' },
+    { lien: '/agenda', libelle: 'Agenda', sousTitre: 'Prise de rendez-vous' },
     { lien: '/comptabilite', libelle: 'Fonds clients & CDC', sousTitre: 'Maniement de fonds' },
     { lien: '/simulateur', libelle: 'Calculateur de frais', sousTitre: 'Emoluments & taxes' },
+    { lien: '/minutier', libelle: 'Minutier', sousTitre: 'Minutes archivees' },
+    { lien: '/equipe', libelle: 'Equipe', sousTitre: "Organisation de l'etude" },
   ];
 
   constructor() {

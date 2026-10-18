@@ -22,6 +22,12 @@
           <label for="hon">Honoraires libres (FCFA)</label>
           <input id="hon" type="number" min="0" step="10000" [(ngModel)]="honoraire" (ngModelChange)="recalculer()" />
         </div>
+        @if (typeActe === 'VENTE_IMMOBILIERE') {
+          <div class="champ">
+            <label for="acq">Prix d'acquisition du vendeur (FCFA)</label>
+            <input id="acq" type="number" min="0" step="100000" [(ngModel)]="prixAcquisition" (ngModelChange)="recalculer()" placeholder="Pour la taxe sur la plus-value" />
+          </div>
+        }
         <div class="bandeau bandeau--info">Les taux livres sont des parametres de demonstration, a valider juridiquement avant exploitation.</div>
       </div>
     </section>
@@ -55,6 +61,9 @@
               <tr><td class="petit">Debours</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.debours | xof }}</td></tr>
               <tr><td class="petit">TVA</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.tva | xof }}</td></tr>
               <tr><td><strong>Total a provisionner</strong></td><td></td><td></td><td class="droite chiffres"><strong>{{ d.totaux.totalGeneral | xof }}</strong></td></tr>
+              @if (d.totaux.retenueVendeur > 0) {
+                <tr><td class="petit">Retenue sur le prix revenant au vendeur (plus-value) — hors provision</td><td></td><td></td><td class="droite chiffres petit">{{ d.totaux.retenueVendeur | xof }}</td></tr>
+              }
             </tfoot>
           </table>
         </div>

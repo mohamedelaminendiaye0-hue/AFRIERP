@@ -7,4 +7,8 @@ import sn.afrierp.notarius.domain.Dossier;
 public interface DossierRepository extends JpaRepository<Dossier, String> {
 
     List<Dossier> findAllByOrderByDateOuvertureDesc();
+
+    long countByNumeroRepertoireStartingWith(String prefixe);
+
+    List<Dossier> findByNumeroRepertoireNotNullOrderByNumeroRepertoireDesc();
 }

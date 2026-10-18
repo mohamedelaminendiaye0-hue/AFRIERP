@@ -1,6 +1,15 @@
 /* Modeles alignes sur les vues JSON de l'API Spring Boot (web/dto/Vues.java). */
 
-export type Role = 'DIRECTEUR' | 'NOTAIRE' | 'CLERC' | 'COMPTABLE' | 'FORMALISTE' | 'ASSISTANT';
+export type Role =
+  | 'NOTAIRE_TITULAIRE'
+  | 'NOTAIRE_ASSOCIE'
+  | 'NOTAIRE_SALARIE'
+  | 'PRINCIPAL_CLERC'
+  | 'CLERC'
+  | 'COMPTABLE_TAXATEUR'
+  | 'FORMALISTE'
+  | 'ARCHIVISTE'
+  | 'ASSISTANT';
 
 export type StatutDossier =
   | 'DRAFT'
@@ -26,7 +35,10 @@ export type StatutPiece = 'MANQUANTE' | 'DEMANDEE' | 'RECUE' | 'VALIDEE' | 'REJE
 export type ModeSignature = 'PHYSIQUE' | 'ELECTRONIQUE_GAINDE';
 export type StatutGainde = 'TRANSMIS' | 'VALIDE' | 'REJETE';
 export type NiveauAlerte = 'CRITIQUE' | 'SERIEUX' | 'VIGILANCE' | 'INFO';
-export type OrganismeFormalites = 'CONSERVATION_FONCIERE' | 'GREFFE_RCCM';
+export type OrganismeFormalites = 'CONSERVATION_FONCIERE' | 'GREFFE_RCCM' | 'PUBLICATION_LEGALE';
+export type TypeRendezVous = 'CONSULTATION' | 'REMISE_PIECES' | 'LECTURE_PROJET' | 'SIGNATURE' | 'REMISE_FONDS' | 'AUTRE';
+export type StatutRendezVous = 'PLANIFIE' | 'CONFIRME' | 'HONORE' | 'ANNULE' | 'ABSENT';
+export type Salle = 'SALLE_SIGNATURES' | 'BUREAU_NOTAIRE' | 'SALLE_REUNION' | 'BUREAU_CLERC' | 'VISIOCONFERENCE';
 
 export interface Utilisateur {
   id: string;
@@ -37,6 +49,74 @@ export interface Utilisateur {
   roleLibelle: string;
   initiales: string;
   actif: boolean;
+  notaire: boolean;
+  encadrement: boolean;
+}
+
+export interface Membre {
+  utilisateur: Utilisateur;
+  description: string;
+  referenceNomination: string | null;
+  notaireResponsable: string | null;
+  dateEntree: string;
+  dossiersRediges: number;
+  dossiersSupervises: number;
+  rendezVousAVenir: number;
+}
+
+export interface RendezVous {
+  id: number;
+  type: TypeRendezVous;
+  typeLibelle: string;
+  statut: StatutRendezVous;
+  statutLibelle: string;
+  debut: string;
+  fin: string;
+  dureeMinutes: number;
+  salle: Salle;
+  salleLibelle: string;
+  notaireId: string | null;
+  notaireNom: string | null;
+  collaborateurId: string | null;
+  collaborateurNom: string | null;
+  dossierId: string | null;
+  dossierReference: string | null;
+  clientNom: string | null;
+  clientTelephone: string | null;
+  objet: string | null;
+  nombreReports: number;
+  motifAnnulation: string | null;
+}
+
+export interface ReferentielsAgenda {
+  types: { code: TypeRendezVous; libelle: string; dureeParDefaut: number }[];
+  salles: { code: Salle; libelle: string; partagee: boolean }[];
+  ouverture: string;
+  fermeture: string;
+  joursOuvres: number[];
+}
+
+export interface LigneMinutier {
+  numeroRepertoire: string;
+  dossierId: string;
+  reference: string;
+  intitule: string;
+  typeActeLibelle: string;
+  dateSignature: string | null;
+  notaireSignataire: string | null;
+  notaireResponsable: string | null;
+  dateArchivage: string;
+  conservationJusquau: string;
+}
+
+export interface Formalite {
+  organisme: OrganismeFormalites;
+  libelle: string;
+  objet: string;
+  requise: boolean;
+  dateDepot: string | null;
+  reference: string | null;
+  dateAchevement: string | null;
 }
 
 export interface Blocage {
@@ -63,6 +143,7 @@ export interface TransitionVue {
   vers: StatutDossier;
   action: string;
   roles: Role[];
+  rolesLibelles: string[];
   notaireDuDossier: boolean;
   retour: boolean;
 }
@@ -86,10 +167,11 @@ export interface DossierResume {
   typeActeLibelle: string;
   statut: StatutDossier;
   statutLibelle: string;
-  clercId: string;
-  clercNom: string;
+  clercId: string | null;
+  clercNom: string | null;
   notaireId: string;
   notaireNom: string;
+  typeComplexe: boolean;
   dateOuverture: string;
   dateSignaturePrevue: string | null;
   dateSignature: string | null;
@@ -168,6 +250,7 @@ export interface DecompteTaxation {
     tva: number;
     totalGeneral: number;
     produitEtude: number;
+    retenueVendeur: number;
   };
   versionBareme: string;
 }
@@ -234,16 +317,24 @@ export interface DossierDetail {
   validationNotaire: Visa | null;
   certificationFonds: Visa | null;
   montantCertifie: number | null;
+  visaPrincipalClerc: Visa | null;
+  taxageDefinitif: Visa | null;
+  fraisDefinitifs: number | null;
   signature: {
     mode: ModeSignature;
     modeLibelle: string;
     date: string;
+    signataireNom: string | null;
+    signataireRole: string | null;
+    responsableNom: string | null;
     gaindeStatut: StatutGainde | null;
     gaindeStatutLibelle: string | null;
     gaindeDateMiseAJour: string | null;
     gaindeReference: string | null;
   } | null;
-  formalites: { organisme: OrganismeFormalites; dateDepot: string; reference: string | null } | null;
+  formalites: Formalite[];
+  minute: { numeroRepertoire: string; dateArchivage: string; archiveParNom: string; conservationJusquau: string } | null;
+  rendezVous: RendezVous[];
   sousCompte: SousCompte | null;
   releve: LigneReleve[];
   actions: ActionVue[];
@@ -258,7 +349,7 @@ export interface NotificationRetard {
   joursDansStatut: number;
   delaiCibleJours: number;
   retardJours: number;
-  clercId: string;
+  clercId: string | null;
   notaireId: string;
   niveau: NiveauAlerte;
 }
@@ -312,6 +403,8 @@ export interface TableauDeBord {
   caParType: { typeActe: TypeActe; libelle: string; dossiers: number; caPrevisionnel: number }[];
   risques: DossierResume[];
   tauxRetardMaximum: number;
+  rendezVousDuJour: RendezVous[];
+  dossiersAAssigner: number;
 }
 
 export interface VerdictVirement {

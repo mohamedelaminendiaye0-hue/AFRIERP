@@ -1,7 +1,9 @@
 package sn.afrierp.notarius.domain;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -50,8 +52,8 @@ public class Dossier {
     /** Date d'entree dans le statut courant : point de depart du delai cible. */
     private LocalDate dateEntreeStatut;
 
-    /** Clerc redacteur assigne. */
-    @ManyToOne(optional = false)
+    /** Clerc redacteur assigne (null tant que le dossier attend son assignation). */
+    @ManyToOne
     private Utilisateur clerc;
 
     /** Notaire titulaire superviseur. */
@@ -66,6 +68,9 @@ public class Dossier {
     /** Prix / valeur servant d'assiette a la taxation (XOF, sans decimale). */
     private long montantTransaction;
 
+    /** Prix d'acquisition du bien par le vendeur : base de la taxe sur la plus-value. */
+    private Long prixAcquisition;
+
     @Embedded
     private Bien bien;
 
@@ -77,6 +82,10 @@ public class Dossier {
     private String versionBareme;
 
     /* --- Visas des etapes franchies --- */
+    /** Visa du principal clerc sur le projet d'acte (dossiers complexes, avant soumission au notaire). */
+    private String visaPrincipalClercParId;
+    private LocalDate visaPrincipalClercDate;
+
     private String validationNotaireParId;
     private LocalDate validationNotaireDate;
     private String certificationFondsParId;
@@ -87,18 +96,35 @@ public class Dossier {
     @Enumerated(EnumType.STRING)
     private ModeSignature modeSignature;
 
+    /** Notaire ayant appose sa signature et son sceau. */
+    private String notaireSignataireId;
+    /** Notaire engageant sa responsabilite : le signataire, ou son titulaire s'il est salarie. */
+    private String notaireResponsableId;
+
     @Enumerated(EnumType.STRING)
     private StatutGainde gaindeStatut;
 
     private LocalDate gaindeDateMiseAJour;
     private String gaindeReference;
 
-    /* --- Formalites post-acte --- */
-    @Enumerated(EnumType.STRING)
-    private OrganismeFormalites formalitesOrganisme;
+    /* --- Formalites post-acte (formaliste) --- */
+    @ElementCollection
+    @CollectionTable(name = "dossier_formalite")
+    private List<Formalite> formalites = new ArrayList<>();
 
-    private LocalDate formalitesDateDepot;
-    private String formalitesReference;
+    /* --- Taxage definitif (comptable-taxateur) --- */
+    private String taxageDefinitifParId;
+    private LocalDate taxageDefinitifDate;
+    private Long fraisDefinitifs;
+
+    /* --- Minute archivee (archiviste) --- */
+    /** Numero d'inscription au repertoire des minutes (ex : "2026/0001"). */
+    @Column(unique = true)
+    private String numeroRepertoire;
+    private String archiveParId;
+    private LocalDate dateArchivage;
+    /** Fin de la duree legale minimale de conservation (75 ans). */
+    private LocalDate conservationJusquau;
 
     @OneToMany(mappedBy = "dossier", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
@@ -111,6 +137,10 @@ public class Dossier {
     public void ajouterIntervenant(Intervenant intervenant) {
         intervenant.setDossier(this);
         intervenants.add(intervenant);
+    }
+
+    public java.util.Optional<Formalite> formalite(OrganismeFormalites organisme) {
+        return formalites.stream().filter(f -> f.getOrganisme() == organisme).findFirst();
     }
 
     public void ajouterPiece(PieceJustificative piece) {

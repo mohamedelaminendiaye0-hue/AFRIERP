@@ -133,7 +133,7 @@ public class ComptaService {
      * ------------------------------------------------------------------ */
 
     public static boolean habiliteMouvementsFonds(Utilisateur u) {
-        return u.getRole() == Role.COMPTABLE || u.getRole() == Role.DIRECTEUR || u.getRole() == Role.NOTAIRE;
+        return u.getRole() == Role.COMPTABLE_TAXATEUR || u.getRole().estNotaireEnTitre();
     }
 
     public VerdictVirement autoriserVirement(Dossier dossier, long montant, NatureMouvement nature, Utilisateur utilisateur) {

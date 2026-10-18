@@ -12,7 +12,7 @@
           </div>
           <p class="muet petit chiffres">
             {{ d.resume.reference }} · {{ d.resume.typeActeLibelle }} · ouvert le {{ d.resume.dateOuverture | dateFr }}
-            · clerc {{ d.resume.clercNom }} · notaire {{ d.resume.notaireNom }}
+            · clerc {{ d.resume.clercNom ?? 'a assigner' }} · notaire {{ d.resume.notaireNom }}
           </p>
         </div>
         <div class="encarts">
@@ -67,7 +67,7 @@
                 <div>
                   <p class="action__titre">{{ a.transition.action }}</p>
                   <p class="tres-petit muet">Vers <app-badge-statut [statut]="a.transition.vers" />
-                    · reserve a : {{ a.transition.roles.join(', ').toLowerCase() }}{{ a.transition.notaireDuDossier ? ' (notaire du dossier)' : '' }}</p>
+                    · reserve a : {{ a.transition.rolesLibelles.join(', ') }}{{ a.transition.notaireDuDossier ? ' (notaire du dossier ou notaire en titre)' : '' }}</p>
                 </div>
                 <div class="action__commande">
                   @if (a.transition.vers === 'SIGNED') {
@@ -113,20 +113,30 @@
 
       <!-- Suivi & assignation -->
       <section class="carte">
-        <div class="carte__entete"><div><h2>Suivi du dossier</h2><p>Assignation, signature, GAINDE, formalites</p></div></div>
+        <div class="carte__entete"><div><h2>Suivi du dossier</h2><p>Assignation, rendez-vous, signature, formalites, minute</p></div></div>
         <div class="carte__corps suivi">
-          @if (d.resume.statut !== 'CLOSED') {
-            <div>
-              <label for="clerc">Clerc redacteur (reassignation par un notaire)</label>
+          <div>
+            <p class="petit">Clerc redacteur :
+              @if (d.resume.clercNom) { <strong>{{ d.resume.clercNom }}</strong> } @else { <span class="badge badge--petit badge--vigilance">A assigner</span> }</p>
+            <p class="petit">Notaire superviseur : <strong>{{ d.resume.notaireNom }}</strong></p>
+            @if (session.utilisateur()?.encadrement && d.resume.statut !== 'CLOSED') {
               <div class="ligne-champs">
-                <select id="clerc" [(ngModel)]="clercChoisi">
-                  <option value="" disabled selected>{{ d.resume.clercNom }}</option>
+                <select [(ngModel)]="clercChoisi" aria-label="Clerc redacteur">
+                  <option value="">Clerc…</option>
                   @for (c of clercs(); track c.id) { @if (c.id !== d.resume.clercId) { <option [value]="c.id">{{ c.nomComplet }}</option> } }
                 </select>
-                <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!clercChoisi" (click)="assigner()">Reassigner</button>
+                @if (session.utilisateur()?.role === 'NOTAIRE_TITULAIRE' || session.utilisateur()?.role === 'NOTAIRE_ASSOCIE') {
+                  <select [(ngModel)]="notaireChoisi" aria-label="Notaire superviseur" [disabled]="!!d.signature">
+                    <option value="">Notaire…</option>
+                    @for (n of notaires(); track n.id) { @if (n.id !== d.resume.notaireId) { <option [value]="n.id">{{ n.nomComplet }}</option> } }
+                  </select>
+                }
+                <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!clercChoisi && !notaireChoisi" (click)="assigner()">Assigner</button>
               </div>
-            </div>
-          }
+            } @else if (d.resume.statut !== 'CLOSED') {
+              <p class="tres-petit muet">Assignation par le principal clerc ou un notaire en titre.</p>
+            }
+          </div>
 
           @if (d.resume.purgeConditionsEnCours) {
             <div class="bandeau bandeau--vigilance">
@@ -135,22 +145,36 @@
             </div>
           }
 
-          @if (d.resume.statut === 'READY_TO_SIGN') {
-            <div>
-              <label for="rdv">Rendez-vous de signature @if (d.resume.dateSignaturePrevue) { (actuel : {{ d.resume.dateSignaturePrevue | dateFr }}) }</label>
-              <div class="ligne-champs">
-                <input id="rdv" type="date" [(ngModel)]="dateRdv" />
-                <button class="bouton bouton--secondaire bouton--petit" type="button" [disabled]="!dateRdv" (click)="planifier()">Planifier</button>
-              </div>
+          @if (d.resume.typeComplexe && d.resume.statut === 'DRAFTING') {
+            <div class="bloc">
+              @if (d.visaPrincipalClerc; as v) {
+                <p class="petit ok">✓ Projet vise par {{ v.parNom }} le {{ v.date | dateFr }}</p>
+              } @else {
+                <p class="petit">Dossier complexe : le visa du principal clerc est requis avant soumission au notaire.</p>
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="viser()">Viser le projet (principal clerc)</button>
+              }
             </div>
-          } @else if (d.resume.dateSignaturePrevue && !d.resume.dateSignature) {
-            <p class="petit">Signature prevue le <strong>{{ d.resume.dateSignaturePrevue | dateFr }}</strong>
-              @if (d.resume.retardSignatureJours > 0) { <span class="badge badge--petit badge--critique">+{{ d.resume.retardSignatureJours }} j</span> }</p>
           }
+
+          <div class="bloc">
+            <p class="tres-petit muet titre-bloc">Rendez-vous</p>
+            @for (r of d.rendezVous.slice(0, 4); track r.id) {
+              <p class="petit"><strong>{{ r.typeLibelle }}</strong> — {{ r.debut | dateFr: true }}
+                <span class="badge badge--petit" [class.badge--bon]="r.statut === 'CONFIRME' || r.statut === 'HONORE'"
+                      [class.badge--neutre]="r.statut === 'PLANIFIE'" [class.badge--neutre-clair]="r.statut === 'ANNULE' || r.statut === 'ABSENT'">{{ r.statutLibelle }}</span></p>
+            } @empty { <p class="petit muet">Aucun rendez-vous.</p> }
+            @if (d.resume.statut === 'READY_TO_SIGN' && !signaturePlanifiee()) {
+              <a class="bouton bouton--or bouton--petit" [routerLink]="['/agenda']" [queryParams]="{ dossier: d.resume.id, type: 'SIGNATURE' }">Planifier la signature</a>
+            } @else if (d.resume.statut !== 'CLOSED') {
+              <a class="bouton bouton--secondaire bouton--petit" [routerLink]="['/agenda']" [queryParams]="{ dossier: d.resume.id }">Planifier un rendez-vous</a>
+            }
+          </div>
 
           @if (d.signature; as s) {
             <div class="bloc">
               <p class="petit"><strong>{{ s.modeLibelle }}</strong> — le {{ s.date | dateFr }}</p>
+              @if (s.signataireNom) { <p class="petit">Signee et scellee par {{ s.signataireNom }} <span class="tres-petit muet">({{ s.signataireRole }})</span></p> }
+              @if (s.responsableNom && s.responsableNom !== s.signataireNom) { <p class="petit">Responsabilite engagee : <strong>{{ s.responsableNom }}</strong> (notaire titulaire)</p> }
               @if (s.mode === 'ELECTRONIQUE_GAINDE') {
                 <p class="petit">Statut GAINDE 2000 :
                   <span class="badge badge--petit" [class.badge--bon]="s.gaindeStatut === 'VALIDE'" [class.badge--vigilance]="s.gaindeStatut === 'TRANSMIS'"
@@ -173,33 +197,55 @@
             </div>
           }
 
-          @if (d.formalites; as f) {
-            <p class="petit">Formalites deposees le <strong>{{ f.dateDepot | dateFr }}</strong> —
-              {{ f.organisme === 'CONSERVATION_FONCIERE' ? 'Conservation fonciere (DGID)' : 'Greffe (RCCM)' }}
-              @if (f.reference) { <span class="tres-petit muet"> · ref. {{ f.reference }}</span> }</p>
-          }
-          @if (d.resume.statut === 'POST_ACT') {
-            <div>
-              <label for="organisme">Depot des formalites (formaliste)</label>
-              <div class="ligne-champs">
-                <select id="organisme" [(ngModel)]="organisme">
-                  <option value="CONSERVATION_FONCIERE">Conservation fonciere (DGID)</option>
-                  <option value="GREFFE_RCCM">Greffe (RCCM)</option>
-                </select>
-                <input [(ngModel)]="referenceFormalites" placeholder="Reference du depot" aria-label="Reference du depot" />
-                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="deposerFormalites()">Enregistrer</button>
-              </div>
+          @if (d.formalites.length && (d.resume.statut === 'POST_ACT' || d.resume.statut === 'CLOSED' || d.signature)) {
+            <div class="bloc">
+              <p class="tres-petit muet titre-bloc">Formalites post-acte (formaliste)</p>
+              @for (f of d.formalites; track f.organisme) {
+                <div class="formalite">
+                  <div>
+                    <p class="petit"><strong>{{ f.libelle }}</strong> @if (!f.requise) { <span class="tres-petit muet">(complementaire)</span> }</p>
+                    <p class="tres-petit muet">{{ f.objet }}
+                      @if (f.dateDepot) { · deposee le {{ f.dateDepot | dateFr }} } @if (f.reference) { · ref. {{ f.reference }} }</p>
+                  </div>
+                  @if (f.dateAchevement) {
+                    <span class="badge badge--petit badge--bon">Achevee {{ f.dateAchevement | dateFr }}</span>
+                  } @else if (f.dateDepot) {
+                    @if (d.resume.statut === 'POST_ACT') { <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="achever(f.organisme)">Marquer achevee</button> }
+                    @else { <span class="badge badge--petit badge--vigilance">En cours</span> }
+                  } @else if (d.resume.statut === 'POST_ACT') {
+                    <div class="ligne-champs">
+                      <input [(ngModel)]="referencesFormalites[f.organisme]" placeholder="Reference du depot" [attr.aria-label]="'Reference ' + f.libelle" />
+                      <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="deposer(f.organisme)">Deposer</button>
+                    </div>
+                  } @else {
+                    <span class="badge badge--petit badge--neutre-clair">A deposer</span>
+                  }
+                </div>
+              }
             </div>
           }
 
           <div class="visas">
             <p class="tres-petit muet">Visas</p>
+            @if (d.resume.typeComplexe) {
+              <p class="petit">Principal clerc :
+                @if (d.visaPrincipalClerc; as v) { <strong>{{ v.parNom }}</strong> le {{ v.date | dateFr }} } @else { <span class="muet">—</span> }</p>
+            }
             <p class="petit">Validation notaire :
               @if (d.validationNotaire; as v) { <strong>{{ v.parNom }}</strong> le {{ v.date | dateFr }} } @else { <span class="muet">—</span> }</p>
-            <p class="petit">Taxage fige :
+            <p class="petit">Taxage previsionnel :
               @if (d.fraisPrevisionnels !== null) { <strong>{{ d.fraisPrevisionnels | xof }}</strong> <span class="tres-petit muet">(bareme {{ d.versionBareme }})</span> } @else { <span class="muet">—</span> }</p>
             <p class="petit">Certification des fonds :
               @if (d.certificationFonds; as v) { <strong>{{ v.parNom }}</strong> le {{ v.date | dateFr }} ({{ d.montantCertifie | xof: true }}) } @else { <span class="muet">—</span> }</p>
+            <p class="petit">Taxage definitif :
+              @if (d.taxageDefinitif; as v) { <strong>{{ d.fraisDefinitifs | xof }}</strong> par {{ v.parNom }} le {{ v.date | dateFr }} }
+              @else if (d.signature && d.resume.statut !== 'CLOSED') {
+                <button class="bouton bouton--secondaire bouton--petit" type="button" (click)="taxageDefinitif()">Arreter le taxage definitif</button>
+              } @else { <span class="muet">—</span> }</p>
+            @if (d.minute; as m) {
+              <p class="petit">Minute : repertoire <strong>n° {{ m.numeroRepertoire }}</strong>, archivee le {{ m.dateArchivage | dateFr }} par {{ m.archiveParNom }}
+                — conservation jusqu'au <strong>{{ m.conservationJusquau | dateFr }}</strong></p>
+            }
           </div>
         </div>
       </section>

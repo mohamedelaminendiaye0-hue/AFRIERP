@@ -28,7 +28,12 @@ import sn.afrierp.notarius.domain.TypeActe;
 import sn.afrierp.notarius.domain.Utilisateur;
 import sn.afrierp.notarius.repository.UtilisateurRepository;
 import sn.afrierp.notarius.web.dto.Commandes;
+import sn.afrierp.notarius.domain.Dossier;
+import sn.afrierp.notarius.repository.DossierRepository;
+import sn.afrierp.notarius.web.dto.Vues.LigneMinutier;
+import sn.afrierp.notarius.web.dto.Vues.MembreVue;
 import sn.afrierp.notarius.web.dto.Vues.StatutVue;
+import sn.afrierp.notarius.workflow.RendezVousService;
 import sn.afrierp.notarius.web.dto.Vues.TransitionVue;
 import sn.afrierp.notarius.web.dto.Vues.UtilisateurVue;
 import sn.afrierp.notarius.web.dto.Vues.WorkflowVue;
@@ -46,14 +51,21 @@ public class ApiController {
     private final TaxationService taxation;
     private final WorkflowService workflow;
     private final DashboardService dashboard;
+    private final DossierRepository dossiers;
+    private final RendezVousService rendezVous;
+    private final java.time.Clock clock;
 
     public ApiController(UtilisateurRepository utilisateurs, ComptaService compta, TaxationService taxation,
-                         WorkflowService workflow, DashboardService dashboard) {
+                         WorkflowService workflow, DashboardService dashboard, DossierRepository dossiers,
+                         RendezVousService rendezVous, java.time.Clock clock) {
         this.utilisateurs = utilisateurs;
         this.compta = compta;
         this.taxation = taxation;
         this.workflow = workflow;
         this.dashboard = dashboard;
+        this.dossiers = dossiers;
+        this.rendezVous = rendezVous;
+        this.clock = clock;
     }
 
     /* --- Referentiels --- */
@@ -61,6 +73,38 @@ public class ApiController {
     @GetMapping("/utilisateurs")
     public List<UtilisateurVue> utilisateurs() {
         return utilisateurs.findAll().stream().map(UtilisateurVue::de).toList();
+    }
+
+    /** Organisation de l'etude : notaires, encadrement, collaborateurs et leur charge. */
+    @GetMapping("/equipe")
+    @Transactional(readOnly = true)
+    public List<MembreVue> equipe() {
+        List<Dossier> tous = dossiers.findAll();
+        java.time.LocalDateTime maintenant = java.time.LocalDateTime.now(clock);
+        var rdv = rendezVous.periode(maintenant, maintenant.plusDays(60));
+        return utilisateurs.findAll().stream()
+                .sorted(java.util.Comparator.comparing((Utilisateur u) -> u.getRole().ordinal()).thenComparing(Utilisateur::getNom))
+                .map(u -> new MembreVue(UtilisateurVue.de(u), u.getRole().getDescription(), u.getReferenceNomination(),
+                        u.getNotaireResponsable() == null ? null : u.getNotaireResponsable().nomComplet(), u.getDateEntree(),
+                        tous.stream().filter(d -> d.getStatut() != StatutDossier.CLOSED && d.getClerc() != null
+                                && d.getClerc().getId().equals(u.getId())).count(),
+                        tous.stream().filter(d -> d.getStatut() != StatutDossier.CLOSED && d.getNotaire().getId().equals(u.getId())).count(),
+                        rdv.stream().filter(r -> r.getStatut().estActif() && ((r.getNotaire() != null && r.getNotaire().getId().equals(u.getId()))
+                                || (r.getCollaborateur() != null && r.getCollaborateur().getId().equals(u.getId())))).count()))
+                .toList();
+    }
+
+    /** Repertoire des minutes archivees (conservation legale de 75 ans). */
+    @GetMapping("/minutier")
+    @Transactional(readOnly = true)
+    public List<LigneMinutier> minutier() {
+        java.util.function.Function<String, String> nom = id -> id == null ? null
+                : utilisateurs.findById(id).map(Utilisateur::nomComplet).orElse(id);
+        return dossiers.findByNumeroRepertoireNotNullOrderByNumeroRepertoireDesc().stream()
+                .map(d -> new LigneMinutier(d.getNumeroRepertoire(), d.getId(), d.getReference(), d.getIntitule(),
+                        d.getTypeActe().getLibelle(), d.getDateSignature(), nom.apply(d.getNotaireSignataireId()),
+                        nom.apply(d.getNotaireResponsableId()), d.getDateArchivage(), d.getConservationJusquau()))
+                .toList();
     }
 
     @GetMapping("/moi")
@@ -146,6 +190,6 @@ public class ApiController {
 
     @PostMapping("/taxation/simulation")
     public DecompteTaxation simuler(@Valid @RequestBody Commandes.DemandeSimulation cmd) {
-        return taxation.simuler(cmd.typeActe(), cmd.assiette(), cmd.honoraireLibre());
+        return taxation.simuler(cmd.typeActe(), cmd.assiette(), cmd.honoraireLibre(), cmd.prixAcquisition());
     }
 }

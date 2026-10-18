@@ -12,7 +12,7 @@ public record DecompteTaxation(
 
     public enum Categorie {
         DROIT_ENREGISTREMENT, CONSERVATION_FONCIERE, EMOLUMENT_PROPORTIONNEL,
-        EMOLUMENT_FORMALITES, HONORAIRE_LIBRE, DEBOURS, TVA
+        EMOLUMENT_FORMALITES, HONORAIRE_LIBRE, DEBOURS, TVA, PLUS_VALUE
     }
 
     /**
@@ -23,8 +23,12 @@ public record DecompteTaxation(
                                 long montant, boolean acquisEtude, String reference) {
     }
 
-    /** {@code produitEtude} = emoluments + honoraires : la part revenant a l'etude. */
+    /**
+     * {@code produitEtude} = emoluments + honoraires : la part revenant a l'etude.
+     * {@code retenueVendeur} = taxe sur la plus-value, prelevee sur le prix revenant
+     * au vendeur : elle n'entre pas dans le total a provisionner par le client.
+     */
     public record Totaux(long droitsEtTaxes, long emoluments, long honoraires, long debours, long tva,
-                         long totalGeneral, long produitEtude) {
+                         long totalGeneral, long produitEtude, long retenueVendeur) {
     }
 }

@@ -178,3 +178,6 @@ tr.cliquable:hover td { background: var(--ivoire-50); }
 .entete-ligne { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 .recherche { flex: 1 1 240px; max-width: 360px; margin-left: auto; padding: 6px 10px; font-size: 12px; }
 .actions-form { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+
+.affectation { display: inline-flex; gap: 4px; align-items: center; }
+.affectation select { width: 150px; padding: 3px 6px; font-size: 12px; }

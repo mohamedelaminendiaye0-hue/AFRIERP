@@ -28,6 +28,8 @@ import sn.afrierp.notarius.repository.DossierRepository;
 import sn.afrierp.notarius.repository.MouvementComptableRepository;
 import sn.afrierp.notarius.repository.UtilisateurRepository;
 import sn.afrierp.notarius.web.dto.Vues.DossierResume;
+import sn.afrierp.notarius.web.dto.Vues.RendezVousVue;
+import sn.afrierp.notarius.workflow.RendezVousService;
 import sn.afrierp.notarius.workflow.WorkflowRecords.NotificationRetard;
 import sn.afrierp.notarius.workflow.WorkflowService;
 
@@ -52,7 +54,7 @@ public class DashboardService {
     public record Tableau(Kpi kpi, List<EtapePipeline> pipeline, ControleEtancheite controle,
                           List<AlerteConformite> alertes, List<NotificationRetard> notifications,
                           List<ChargeClerc> charges, List<CaParType> caParType, List<DossierResume> risques,
-                          double tauxRetardMaximum) {
+                          double tauxRetardMaximum, List<RendezVousVue> rendezVousDuJour, long dossiersAAssigner) {
     }
 
     private final DossierRepository dossiers;
@@ -61,17 +63,19 @@ public class DashboardService {
     private final ComptaService compta;
     private final WorkflowService workflow;
     private final VueMapper mapper;
+    private final RendezVousService rendezVous;
     private final Clock clock;
 
     public DashboardService(DossierRepository dossiers, MouvementComptableRepository mouvements,
                             UtilisateurRepository utilisateurs, ComptaService compta, WorkflowService workflow,
-                            VueMapper mapper, Clock clock) {
+                            VueMapper mapper, RendezVousService rendezVous, Clock clock) {
         this.dossiers = dossiers;
         this.mouvements = mouvements;
         this.utilisateurs = utilisateurs;
         this.compta = compta;
         this.workflow = workflow;
         this.mapper = mapper;
+        this.rendezVous = rendezVous;
         this.clock = clock;
     }
 
@@ -108,7 +112,9 @@ public class DashboardService {
         }).toList();
 
         /* --- Charge par clerc --- */
-        List<ChargeClerc> charges = utilisateurs.findByRoleAndActifTrueOrderByNom(Role.CLERC).stream()
+        List<Utilisateur> redacteurs = new java.util.ArrayList<>(utilisateurs.findByRoleAndActifTrueOrderByNom(Role.PRINCIPAL_CLERC));
+        redacteurs.addAll(utilisateurs.findByRoleAndActifTrueOrderByNom(Role.CLERC));
+        List<ChargeClerc> charges = redacteurs.stream()
                 .map(u -> chargeDe(u, actifs))
                 .sorted(Comparator.comparingLong(ChargeClerc::dossiersActifs).reversed())
                 .toList();
@@ -128,16 +134,19 @@ public class DashboardService {
         /* --- Dossiers a risque --- */
         List<DossierResume> risques = actifs.stream()
                 .filter(r -> r.statut() == StatutDossier.PENDING_DOCS || r.purgeConditionsEnCours() || r.alerteCdc()
-                        || r.retardSignatureJours() > 0 || r.retardStatutJours() > 0)
+                        || r.retardSignatureJours() > 0 || r.retardStatutJours() > 0 || r.clercId() == null)
                 .sorted(Comparator.comparingLong(DossierResume::retardStatutJours).reversed())
                 .toList();
 
         return new Tableau(kpi, pipeline, compta.controlerEtancheite(), compta.alertesConformite(),
-                workflow.notificationsRetard(tous), charges, caParType, risques, Bareme.OBJECTIF_TAUX_RETARD_MAXIMUM);
+                workflow.notificationsRetard(tous), charges, caParType, risques, Bareme.OBJECTIF_TAUX_RETARD_MAXIMUM,
+                rendezVous.periode(ref.atStartOfDay(), ref.plusDays(1).atStartOfDay()).stream()
+                        .filter(r -> r.getStatut().estActif()).map(RendezVousVue::de).toList(),
+                actifs.stream().filter(r -> r.clercId() == null).count());
     }
 
     private static ChargeClerc chargeDe(Utilisateur u, List<DossierResume> actifs) {
-        List<DossierResume> siens = actifs.stream().filter(r -> r.clercId().equals(u.getId())).toList();
+        List<DossierResume> siens = actifs.stream().filter(r -> u.getId().equals(r.clercId())).toList();
         long enRetard = siens.stream().filter(r -> r.retardStatutJours() > 0 || r.retardSignatureJours() > 0).count();
         return new ChargeClerc(u.getId(), u.nomComplet(), u.getInitiales(), siens.size(), enRetard,
                 siens.isEmpty() ? 0 : (double) enRetard / siens.size(),

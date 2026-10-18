@@ -33,6 +33,8 @@ export class DossiersComponent implements OnInit {
 
   protected readonly filtres: Filtre[] = [
     { cle: 'tous', libelle: 'Tous', predicat: () => true },
+    { cle: 'miens', libelle: 'Mes dossiers', predicat: (d) => d.clercId === this.session.id() || d.notaireId === this.session.id() },
+    { cle: 'assigner', libelle: 'A assigner', predicat: (d) => d.clercId === null && d.statut !== 'CLOSED' },
     { cle: 'instruction', libelle: 'Instruction & redaction', predicat: (d) => ['DRAFT', 'PENDING_DOCS', 'DRAFTING', 'REVIEW'].includes(d.statut) },
     { cle: 'fonds', libelle: 'Taxage & provision', predicat: (d) => ['TAXING', 'FUNDING'].includes(d.statut) },
     { cle: 'signature', libelle: 'Signature', predicat: (d) => ['READY_TO_SIGN', 'SIGNED'].includes(d.statut) },
@@ -51,10 +53,20 @@ export class DossiersComponent implements OnInit {
       .filter((d) => !q || `${d.reference} ${d.intitule} ${d.clercNom} ${d.typeActeLibelle}`.toLowerCase().includes(q));
   });
 
-  protected readonly clercs = computed(() => this.session.utilisateurs().filter((u) => u.role === 'CLERC' && u.actif));
-  protected readonly notaires = computed(() =>
-    this.session.utilisateurs().filter((u) => (u.role === 'NOTAIRE' || u.role === 'DIRECTEUR') && u.actif),
+  protected readonly clercs = computed(() =>
+    this.session.utilisateurs().filter((u) => (u.role === 'CLERC' || u.role === 'PRINCIPAL_CLERC') && u.actif),
   );
+  protected readonly notaires = computed(() => this.session.utilisateurs().filter((u) => u.notaire && u.actif));
+
+  /** Charge actuelle de chaque clerc (planning de production) pour guider l'affectation. */
+  protected readonly charge = computed(() => {
+    const c: Record<string, number | undefined> = {};
+    this.dossiers().filter((d) => d.statut !== 'CLOSED' && d.clercId).forEach((d) => (c[d.clercId!] = (c[d.clercId!] ?? 0) + 1));
+    return c;
+  });
+
+  protected affectations: Record<string, string> = {};
+  protected readonly message = signal<string | null>(null);
 
   /* --- Formulaire d'ouverture --- */
   protected nouveau = this.formulaireVide();
@@ -74,13 +86,30 @@ export class DossiersComponent implements OnInit {
       intitule: n.intitule,
       typeActe: n.typeActe,
       montantTransaction: Number(n.montant) || 0,
-      clercId: n.clercId,
+      prixAcquisition: Number(n.prixAcquisition) || null,
+      clercId: n.clercId || null,
       notaireId: n.notaireId,
       bien: n.designation ? { designation: n.designation, titreFoncier: n.titreFoncier, adresse: n.adresse, commune: n.commune } : null,
       intervenants: n.partie ? [{ type: n.partieType, nom: n.partie, qualite: n.partieQualite }] : [],
     };
     this.api.creerDossier(cmd).subscribe({
       next: (d) => this.router.navigate(['/dossiers', d.resume.id]),
+      error: (e) => this.erreur.set(lireErreur(e)),
+    });
+  }
+
+  /** Affectation rapide depuis la liste (principal clerc / notaires en titre). */
+  protected affecter(d: DossierResume, evenement: Event): void {
+    evenement.stopPropagation();
+    const clercId = this.affectations[d.id];
+    if (!clercId) return;
+    this.erreur.set(null);
+    this.api.assigner(d.id, { clercId }).subscribe({
+      next: (maj) => {
+        this.message.set(`${maj.resume.reference} confie a ${maj.resume.clercNom}.`);
+        delete this.affectations[d.id];
+        this.charger();
+      },
       error: (e) => this.erreur.set(lireErreur(e)),
     });
   }
@@ -94,6 +123,7 @@ export class DossiersComponent implements OnInit {
       intitule: '',
       typeActe: 'VENTE_IMMOBILIERE' as TypeActe,
       montant: '' as string | number,
+      prixAcquisition: '' as string | number,
       clercId: '',
       notaireId: '',
       designation: '',
