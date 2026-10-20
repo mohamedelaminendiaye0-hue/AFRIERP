@@ -1,6 +1,0 @@
-# Ne jamais committer les secrets ni les caches Python
-.env
-__pycache__/
-*.pyc
-.venv/
-venv/
