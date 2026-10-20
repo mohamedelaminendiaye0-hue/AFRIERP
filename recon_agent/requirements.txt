@@ -1,0 +1,12 @@
+# ===========================================================================
+#  Dépendances de la pipeline agent (LangGraph)
+#  Installation :  pip install -r requirements.txt
+# ===========================================================================
+langgraph>=0.2.50
+langchain-openai>=0.2.0      # Pour Together AI (API compatible OpenAI)
+langchain-ollama>=0.2.0      # Pour un modèle local via Ollama
+langchain-core>=0.3.0
+pydantic>=2.6
+pydantic-settings>=2.2
+requests>=2.31
+beautifulsoup4>=4.12
